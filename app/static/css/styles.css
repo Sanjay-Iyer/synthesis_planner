@@ -1,0 +1,330 @@
+/* ============================================================
+   SYNTHESIS ARCHITECT — Shared Design System
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* --- CSS Variables --- */
+:root {
+    --primary: #0984e3;
+    --primary-dark: #0769b5;
+    --secondary: #27ae60;
+    --secondary-dark: #1e8c4d;
+    --purple: #8e44ad;
+    --orange: #f39c12;
+    --danger: #e74c3c;
+    --dark: #1a1d23;
+    --dark-surface: #22262e;
+    --dark-card: #2a2f38;
+    --light: #f0f2f5;
+    --light-surface: #ffffff;
+    --text: #2d3436;
+    --text-muted: #636e72;
+    --text-light: #bdc3c7;
+    --border: #dfe6e9;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --radius-xs: 6px;
+    --shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    --shadow-lg: 0 8px 30px rgba(0, 0, 0, 0.12);
+    --transition: all 0.25s ease;
+}
+
+/* --- Reset & Base --- */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Inter', 'Segoe UI', sans-serif;
+    background: var(--light);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+}
+
+/* --- Typography --- */
+h1, h2, h3, h4 {
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}
+
+h1 { font-size: 1.8rem; }
+h2 { font-size: 1.4rem; }
+h3 { font-size: 1.15rem; }
+
+/* --- Navigation Bar --- */
+.nav-bar {
+    background: var(--dark);
+    padding: 12px 30px;
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.nav-brand {
+    color: white;
+    font-size: 1.1rem;
+    font-weight: 700;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.nav-links {
+    display: flex;
+    gap: 4px;
+    margin-left: auto;
+}
+
+.nav-link {
+    color: var(--text-light);
+    text-decoration: none;
+    padding: 8px 16px;
+    border-radius: var(--radius-xs);
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: var(--transition);
+}
+
+.nav-link:hover {
+    color: white;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.nav-link.active {
+    color: white;
+    background: var(--primary);
+}
+
+/* --- Page Container --- */
+.page-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 30px 20px;
+}
+
+.page-container-wide {
+    max-width: 1600px;
+    margin: 0 auto;
+    padding: 30px 20px;
+}
+
+/* --- Buttons --- */
+.btn {
+    cursor: pointer;
+    padding: 10px 18px;
+    border-radius: var(--radius-xs);
+    border: none;
+    font-weight: 600;
+    font-size: 0.85rem;
+    font-family: inherit;
+    background: var(--primary);
+    color: white;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: var(--transition);
+    text-decoration: none;
+}
+
+.btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    filter: brightness(1.1);
+}
+
+.btn:active {
+    transform: translateY(0);
+}
+
+.btn-secondary { background: var(--secondary); }
+.btn-purple { background: var(--purple); }
+.btn-orange { background: var(--orange); }
+.btn-danger { background: var(--danger); }
+.btn-ghost { background: #636e72; }
+.btn-sm { padding: 5px 10px; font-size: 0.75rem; }
+
+/* --- Cards --- */
+.card {
+    background: var(--light-surface);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 24px;
+    transition: var(--transition);
+}
+
+.card:hover {
+    box-shadow: var(--shadow-lg);
+}
+
+.card-accent {
+    border-left: 5px solid var(--primary);
+}
+
+/* --- Toolbar --- */
+.toolbar {
+    background: var(--light-surface);
+    padding: 15px;
+    border-radius: var(--radius-sm);
+    margin-bottom: 20px;
+    display: flex;
+    gap: 12px;
+    box-shadow: var(--shadow);
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+/* --- Form Inputs --- */
+input, textarea, select {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xs);
+    padding: 8px 10px;
+    font-family: inherit;
+    font-size: 0.85rem;
+    width: 100%;
+    box-sizing: border-box;
+    transition: var(--transition);
+}
+
+input:focus, textarea:focus, select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(9, 132, 227, 0.15);
+}
+
+/* --- Tables --- */
+table {
+    width: 100%;
+    font-size: 0.85em;
+    border-collapse: collapse;
+    margin: 10px 0;
+}
+
+th, td {
+    border-bottom: 1px solid var(--border);
+    padding: 10px 8px;
+    text-align: left;
+}
+
+th {
+    font-weight: 600;
+    font-size: 0.8em;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-muted);
+}
+
+/* --- Grid Layouts --- */
+.grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 25px;
+}
+
+.grid-3 {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 25px;
+}
+
+/* --- Dark Dashboard Section --- */
+.dashboard {
+    background: var(--dark);
+    color: white;
+    padding: 30px;
+    border-radius: var(--radius);
+    margin-top: 30px;
+}
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 0.8fr;
+    gap: 30px;
+}
+
+.chart-wrapper {
+    background: var(--dark-card);
+    padding: 20px;
+    border-radius: var(--radius-sm);
+    height: 280px;
+    margin-bottom: 20px;
+}
+
+.chart-label {
+    text-align: center;
+    color: var(--text-light);
+    font-size: 0.8em;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* --- Risk Level Badges --- */
+.badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.badge-high { background: #EF553B; color: white; }
+.badge-medium-high { background: #FFA15A; color: #333; }
+.badge-medium { background: #FFD700; color: #333; }
+.badge-low { background: #00CC96; color: white; }
+
+/* --- Step Cards (Dashboard specific) --- */
+.step-card {
+    background: white;
+    padding: 18px;
+    border-radius: var(--radius-sm);
+    margin-bottom: 20px;
+    border-left: 6px solid var(--primary);
+    box-shadow: var(--shadow);
+}
+
+/* --- Route Columns --- */
+.route-col {
+    background: var(--border);
+    padding: 20px;
+    border-radius: var(--radius);
+    min-height: 500px;
+}
+
+/* --- Hint Box --- */
+.hint {
+    background: #fffbe6;
+    padding: 12px 16px;
+    border-radius: var(--radius-xs);
+    border: 1px solid #ffe58f;
+    font-size: 0.85em;
+    margin-bottom: 15px;
+}
+
+/* --- Animations --- */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.fade-in {
+    animation: fadeIn 0.4s ease forwards;
+}
+
+/* --- Responsive --- */
+@media (max-width: 768px) {
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    .dashboard-grid { grid-template-columns: 1fr; }
+    .nav-bar { flex-wrap: wrap; gap: 8px; padding: 12px 16px; }
+    .nav-links { margin-left: 0; width: 100%; }
+}

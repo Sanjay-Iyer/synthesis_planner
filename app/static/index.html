@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Synthesis Architect</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        .hero {
+            text-align: center;
+            padding: 60px 20px 40px;
+        }
+        .hero h1 {
+            font-size: 2.4rem;
+            font-weight: 700;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, var(--primary), var(--purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .hero p {
+            color: var(--text-muted);
+            font-size: 1.05rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+        .module-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+            max-width: 1000px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+        .module-card {
+            background: white;
+            border-radius: 16px;
+            padding: 36px 28px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+            transition: all 0.3s ease;
+            text-decoration: none;
+            color: var(--text);
+            border: 2px solid transparent;
+            position: relative;
+            overflow: hidden;
+        }
+        .module-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--primary);
+            transition: height 0.3s ease;
+        }
+        .module-card:nth-child(2)::before { background: var(--secondary); }
+        .module-card:nth-child(3)::before { background: var(--purple); }
+        .module-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 12px 35px rgba(0, 0, 0, 0.12);
+            border-color: var(--primary);
+        }
+        .module-card:nth-child(2):hover { border-color: var(--secondary); }
+        .module-card:nth-child(3):hover { border-color: var(--purple); }
+        .module-card:hover::before { height: 6px; }
+        .module-icon {
+            font-size: 2.8rem;
+            margin-bottom: 16px;
+            display: block;
+        }
+        .module-card h3 {
+            font-size: 1.15rem;
+            margin-bottom: 10px;
+        }
+        .module-card p {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+        .module-tag {
+            display: inline-block;
+            margin-top: 16px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            background: rgba(9, 132, 227, 0.1);
+            color: var(--primary);
+        }
+        .module-card:nth-child(2) .module-tag {
+            background: rgba(39, 174, 96, 0.1);
+            color: var(--secondary);
+        }
+        .module-card:nth-child(3) .module-tag {
+            background: rgba(142, 68, 173, 0.1);
+            color: var(--purple);
+        }
+        @media (max-width: 768px) {
+            .module-grid { grid-template-columns: 1fr; }
+            .hero h1 { font-size: 1.8rem; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="nav-bar">
+        <a href="/" class="nav-brand">🔬 Synthesis Architect</a>
+        <div class="nav-links">
+            <a href="/labeller.html" class="nav-link">Labeller</a>
+            <a href="/dashboard.html" class="nav-link">Dashboard</a>
+            <a href="/risk.html" class="nav-link">Risk Audit</a>
+        </div>
+    </nav>
+
+    <div class="hero fade-in">
+        <h1>Synthesis Architect</h1>
+        <p>From lab notes to scale-up economics and supply chain risk — all in one place.</p>
+    </div>
+
+    <div class="module-grid">
+        <a href="/labeller.html" class="module-card fade-in">
+            <span class="module-icon">🏷️</span>
+            <h3>Procedure Labeller</h3>
+            <p>Tag raw lab notes with reagents, solvents, yields, and conditions. Export structured JSON for the dashboard.</p>
+            <span class="module-tag">Step 1 — Digitize</span>
+        </a>
+
+        <a href="/dashboard.html" class="module-card fade-in">
+            <span class="module-icon">📊</span>
+            <h3>Synthesis Dashboard</h3>
+            <p>Scale-up cost analysis, E-factor tracking, procurement lists, and yield optimization audits.</p>
+            <span class="module-tag">Step 2 — Analyze</span>
+        </a>
+
+        <a href="/risk.html" class="module-card fade-in">
+            <span class="module-icon">🌍</span>
+            <h3>Supply Chain Risk</h3>
+            <p>Geographic risk assessment of your reagent sources. Identify supply chain vulnerabilities.</p>
+            <span class="module-tag">Step 3 — De-Risk</span>
+        </a>
+    </div>
+</body>
+</html>

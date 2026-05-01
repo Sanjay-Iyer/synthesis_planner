@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Synthesis Dashboard — Synthesis Architect</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <nav class="nav-bar">
+        <a href="/" class="nav-brand">🔬 Synthesis Architect</a>
+        <div class="nav-links">
+            <a href="/labeller.html" class="nav-link">Labeller</a>
+            <a href="/dashboard.html" class="nav-link active">Dashboard</a>
+            <a href="/risk.html" class="nav-link">Risk Audit</a>
+        </div>
+    </nav>
+
+    <div class="page-container-wide">
+        <h1 style="margin-bottom: 16px;">📊 Synthesis Dashboard</h1>
+
+        <div class="toolbar">
+            <button class="btn" onclick="saveToFile()">💾 Save JSON</button>
+            <button class="btn" onclick="document.getElementById('fIn').click()">📂 Load Both</button>
+            <button class="btn" style="background:var(--primary);" onclick="document.getElementById('fInA').click()">📂 Load → A</button>
+            <button class="btn btn-secondary" onclick="document.getElementById('fInB').click()">📂 Load → B</button>
+            <input type="file" id="fIn" style="display:none;" onclick="this.value=null" onchange="loadFromFile(event, 'both')">
+            <input type="file" id="fInA" style="display:none;" onclick="this.value=null" onchange="loadFromFile(event, 'vA')">
+            <input type="file" id="fInB" style="display:none;" onclick="this.value=null" onchange="loadFromFile(event, 'vB')">
+            <button class="btn btn-orange" onclick="exportToCSV()">📊 Export CSV</button>
+            <button class="btn btn-secondary" onclick="runAnalysis()">⚡ Run Analysis</button>
+            <button class="btn btn-purple" onclick="runOptimizationAudit()">🔬 Audit Optimization</button>
+        </div>
+
+        <div class="grid-2">
+            <div class="route-col">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h2>Route A</h2>
+                    <button class="btn btn-ghost btn-sm" onclick="clearRoute('vA')">🗑️ Clear A</button>
+                </div>
+                <label style="font-size:0.85em;">Target kg: <input type="number" id="target-vA" value="1" style="width:70px;"></label>
+                <button class="btn" onclick="addStep('vA')" style="width:100%; margin:15px 0;">+ Add Manual Step</button>
+                <div id="steps-vA"></div>
+            </div>
+            <div class="route-col">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h2>Route B</h2>
+                    <button class="btn btn-ghost btn-sm" onclick="clearRoute('vB')">🗑️ Clear B</button>
+                </div>
+                <label style="font-size:0.85em;">Target kg: <input type="number" id="target-vB" value="1" style="width:70px;"></label>
+                <button class="btn" onclick="addStep('vB')" style="width:100%; margin:15px 0;">+ Add Manual Step</button>
+                <div id="steps-vB"></div>
+            </div>
+        </div>
+
+        <div class="dashboard">
+            <div class="dashboard-grid">
+                <div>
+                    <div id="comp-stats">Load data and run analysis...</div>
+                    <div id="audit-container"></div>
+                </div>
+                <div>
+                    <div class="chart-label">Total Budget Comparison</div>
+                    <div class="chart-wrapper"><canvas id="compareChart"></canvas></div>
+
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
+                        <div>
+                            <div class="chart-label">A Cost Drivers</div>
+                            <div class="chart-wrapper" style="height:180px;"><canvas id="pieA"></canvas></div>
+                        </div>
+                        <div>
+                            <div class="chart-label">B Cost Drivers</div>
+                            <div class="chart-wrapper" style="height:180px;"><canvas id="pieB"></canvas></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/dashboard.js"></script>
+</body>
+</html>

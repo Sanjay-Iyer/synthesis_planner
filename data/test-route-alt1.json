@@ -1,0 +1,71 @@
+{
+  "routeA": {
+    "target": "1",
+    "steps": [
+      {
+        "step_id": 1,
+        "name": "1,2-dichloro-1,2-dihydro-3H-1λ3-benzo[d][1,2]iodazol-3-one S-2",
+        "product_mw": 100,
+        "reagents": [
+          {
+            "name": "NCS",
+            "mw": 133.53,
+            "cost_per_g": 6,
+            "moles": 0.036,
+            "is_limiting": false
+          },
+          {
+            "name": "2-iodobenzamide S-1",
+            "mw": 247.0,
+            "cost_per_g": 10,
+            "moles": 0.03,
+            "is_limiting": true
+          }
+        ],
+        "molarity": 0.6,
+        "solvent_name": "MeCN",
+        "solvent_density": 0.786,
+        "solvent_price_per_l": 12,
+        "yield_percent": 88,
+        "temperature": "60 °C",
+        "time": "6 h",
+        "procedure": "Procedure I (Alt): {R:NCS} (4.80 g, 36 mmol, 1.2 equiv.) was added to a solution of {R:2-iodobenzamide S-1} (7.41 g, 30 mmol, 1.0 equiv.) in 50 mL {S:MeCN}. The reaction mixture was heated to {T:60 °C} and stirred for {H:6 h} under nitrogen. Upon cooling, the precipitate was collected by filtration and washed with cold MeCN (2 × 20 mL) and diethyl ether (2 × 15 mL) to afford {P:1,2-dichloro-1,2-dihydro-3H-1λ3-benzo[d][1,2]iodazol-3-one S-2} (8.3 g) in {Y:88%} yield as an off-white solid.",
+        "depends_on": []
+      },
+      {
+        "step_id": 2,
+        "name": "CFBI",
+        "product_mw": 150,
+        "reagents": [
+          {
+            "name": "KF",
+            "mw": 58.1,
+            "cost_per_g": 2,
+            "moles": 0.032,
+            "is_limiting": false
+          },
+          {
+            "name": "18-crown-6",
+            "mw": 264.32,
+            "cost_per_g": 45,
+            "moles": 0.0032,
+            "is_limiting": false
+          }
+        ],
+        "molarity": 0.2,
+        "solvent_name": "DMF",
+        "solvent_density": 0.944,
+        "solvent_price_per_l": 15,
+        "yield_percent": 55,
+        "temperature": "80 °C",
+        "time": "18 h",
+        "procedure": "Procedure II (Alt): S-2 (2 g, 6.4 mmol, 1.0 equiv.) was dissolved in anhydrous {S:DMF} (32 mL) under argon. {R:KF} (1.86 g, 32 mmol, 5.0 equiv.) and {R:18-crown-6} (0.85 g, 3.2 mmol, 0.5 equiv.) were added. The mixture was heated to {T:80 °C} and stirred for {H:18 h}. The reaction was quenched with water (50 mL), extracted with EtOAc (3 × 40 mL), dried over MgSO4, and concentrated. Purification by column chromatography (hexanes/EtOAc 4:1) gave {P:CFBI} as a white solid in {Y:55%} yield.",
+        "depends_on": [1]
+      }
+    ]
+  },
+  "routeB": {
+    "target": "1",
+    "steps": []
+  }
+}

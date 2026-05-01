@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supply Chain Risk — Synthesis Architect</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .risk-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-top: 20px; }
+        .upload-zone {
+            border: 2px dashed var(--border);
+            border-radius: var(--radius);
+            padding: 30px;
+            text-align: center;
+            background: #fafafa;
+            transition: var(--transition);
+            cursor: pointer;
+        }
+        .upload-zone:hover { border-color: var(--primary); background: rgba(9, 132, 227, 0.03); }
+        .upload-zone.active { border-color: var(--secondary); background: rgba(39, 174, 96, 0.05); }
+        .reagent-input-row {
+            display: grid;
+            grid-template-columns: 2fr 1.5fr 1fr 1fr auto;
+            gap: 8px;
+            margin-bottom: 8px;
+            align-items: center;
+        }
+        .reagent-input-row input { font-size: 0.8rem; }
+        .risk-table { margin-top: 15px; }
+        .risk-table td { font-size: 0.85em; }
+        .bubble-chart-wrapper {
+            background: var(--dark);
+            border-radius: var(--radius);
+            padding: 25px;
+            height: 400px;
+            position: relative;
+        }
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .summary-card {
+            background: white;
+            border-radius: var(--radius-sm);
+            padding: 20px;
+            text-align: center;
+            box-shadow: var(--shadow);
+        }
+        .summary-card .value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin: 8px 0 4px;
+        }
+        .summary-card .label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        @media (max-width: 768px) {
+            .risk-grid { grid-template-columns: 1fr; }
+            .summary-cards { grid-template-columns: 1fr; }
+            .reagent-input-row { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <nav class="nav-bar">
+        <a href="/" class="nav-brand">🔬 Synthesis Architect</a>
+        <div class="nav-links">
+            <a href="/labeller.html" class="nav-link">Labeller</a>
+            <a href="/dashboard.html" class="nav-link">Dashboard</a>
+            <a href="/risk.html" class="nav-link active">Risk Audit</a>
+        </div>
+    </nav>
+
+    <div class="page-container-wide">
+        <h1 style="margin-bottom: 16px;">🌍 Supply Chain Risk Assessment</h1>
+
+        <div class="hint">
+            <b>How to use:</b> Enter your reagents with CAS numbers below, or upload a CSV (with columns: Reagent, Reagent_CAS, Mass_g, Cost).
+            Click <b>"Run Risk Assessment"</b> to analyze geographic supply chain vulnerabilities.
+        </div>
+
+        <div class="risk-grid">
+            <!-- Left: Input Panel -->
+            <div class="card">
+                <h3 style="margin-bottom: 15px;">Reagent Input</h3>
+
+                <div class="upload-zone" id="uploadZone" onclick="document.getElementById('csvInput').click()">
+                    <div style="font-size: 2rem; margin-bottom: 8px;">📄</div>
+                    <div style="font-weight: 500;">Click to upload CSV</div>
+                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">or enter reagents manually below</div>
+                </div>
+                <input type="file" id="csvInput" style="display:none;" accept=".csv" onchange="loadCSV(event)">
+
+                <div style="margin-top: 20px;">
+                    <div class="reagent-input-row" style="font-weight:600; font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">
+                        <div>Reagent Name</div>
+                        <div>CAS Number</div>
+                        <div>Mass (g)</div>
+                        <div>Cost ($)</div>
+                        <div></div>
+                    </div>
+                    <div id="reagentRows"></div>
+                    <button class="btn btn-ghost btn-sm" onclick="addReagentInputRow()" style="margin-top:8px;">+ Add Reagent</button>
+                </div>
+
+                <button class="btn btn-secondary" onclick="runRiskAssessment()" style="width:100%; margin-top:20px; padding:14px; font-size:0.95rem;">
+                    🌍 Run Risk Assessment
+                </button>
+            </div>
+
+            <!-- Right: Chart -->
+            <div>
+                <div class="bubble-chart-wrapper">
+                    <canvas id="riskChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="summary-cards" id="summaryCards" style="display:none;">
+            <div class="summary-card">
+                <div class="label">Total Reagents</div>
+                <div class="value" id="sumTotal" style="color:var(--primary);">0</div>
+            </div>
+            <div class="summary-card">
+                <div class="label">High Risk Items</div>
+                <div class="value" id="sumHighRisk" style="color:var(--danger);">0</div>
+            </div>
+            <div class="summary-card">
+                <div class="label">Total Risk Exposure</div>
+                <div class="value" id="sumExposure" style="color:var(--orange);">0</div>
+            </div>
+        </div>
+
+        <!-- Results Table -->
+        <div class="card" style="margin-top:25px; display:none;" id="resultsCard">
+            <h3 style="margin-bottom:10px;">Detailed Risk Report</h3>
+            <table class="risk-table">
+                <thead>
+                    <tr>
+                        <th>Reagent</th>
+                        <th>CAS</th>
+                        <th>Origin</th>
+                        <th>Stability</th>
+                        <th>Mass (g)</th>
+                        <th>Cost ($)</th>
+                        <th>Risk Index</th>
+                        <th>Risk Level</th>
+                    </tr>
+                </thead>
+                <tbody id="riskTableBody"></tbody>
+            </table>
+            <button class="btn btn-orange" onclick="exportRiskCSV()" style="margin-top:15px;">📊 Export Risk Report</button>
+        </div>
+    </div>
+
+    <script src="/js/risk.js"></script>
+</body>
+</html>

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Procedure Labeller — Synthesis Architect</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        #editor {
+            border: 2px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 15px;
+            min-height: 280px;
+            background: #fafafa;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+            margin-bottom: 20px;
+            outline: none;
+            line-height: 1.7;
+            transition: border-color 0.3s ease;
+        }
+        #editor:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(9, 132, 227, 0.1);
+        }
+        .tag-toolbar {
+            display: flex;
+            gap: 8px;
+            position: sticky;
+            top: 56px;
+            background: white;
+            padding: 12px 0;
+            z-index: 100;
+            flex-wrap: wrap;
+        }
+        .tag-btn {
+            padding: 8px 18px;
+            border-radius: 20px;
+            border: none;
+            cursor: pointer;
+            color: white;
+            font-weight: 600;
+            font-size: 0.8em;
+            font-family: inherit;
+            transition: var(--transition);
+        }
+        .tag-btn:hover { transform: scale(1.05); filter: brightness(1.1); }
+    </style>
+</head>
+<body>
+    <nav class="nav-bar">
+        <a href="/" class="nav-brand">🔬 Synthesis Architect</a>
+        <div class="nav-links">
+            <a href="/labeller.html" class="nav-link active">Labeller</a>
+            <a href="/dashboard.html" class="nav-link">Dashboard</a>
+            <a href="/risk.html" class="nav-link">Risk Audit</a>
+        </div>
+    </nav>
+
+    <div class="page-container">
+        <h1 style="margin-bottom: 16px;">🏷️ Procedure Labeller & Exporter</h1>
+
+        <div class="hint">
+            <b>Workflow:</b> 1. Paste your procedure text. 2. Highlight text and click tag buttons.
+            3. Use <code>===</code> to separate reactions. 4. Click <b>"Generate"</b> to download JSON + CSV.
+        </div>
+
+        <div class="tag-toolbar">
+            <button class="tag-btn" style="background:#0984e3;" onclick="applyTag('R')">Reagent</button>
+            <button class="tag-btn" style="background:#27ae60;" onclick="applyTag('S')">Solvent</button>
+            <button class="tag-btn" style="background:#e17055;" onclick="applyTag('P')">Product</button>
+            <button class="tag-btn" style="background:#fdcb6e; color:#333;" onclick="applyTag('Y')">Yield %</button>
+            <button class="tag-btn" style="background:#a29bfe; color:#333;" onclick="applyTag('T')">Temp</button>
+            <button class="tag-btn" style="background:#00b894;" onclick="applyTag('H')">Time</button>
+        </div>
+
+        <div id="editor" contenteditable="true">=== Reaction 1 ===
+Paste your lab notes here...</div>
+
+        <button class="btn btn-secondary" style="width:100%; padding:15px; font-size:1rem;"
+                onclick="processAll()">🚀 Generate & Download (JSON + CSV)</button>
+    </div>
+
+    <script src="/js/labeller.js"></script>
+</body>
+</html>

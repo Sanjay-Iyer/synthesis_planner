@@ -1,0 +1,71 @@
+{
+  "routeA": {
+    "target": "1",
+    "steps": [
+      {
+        "step_id": 1,
+        "name": "1,2-dichloro-1,2-dihydro-3H-1λ3-benzo[d][1,2]iodazol-3-one S-2",
+        "product_mw": 100,
+        "reagents": [
+          {
+            "name": "t-BuOCl",
+            "mw": 108.444,
+            "cost_per_g": 10,
+            "moles": 0.06,
+            "is_limiting": false
+          },
+          {
+            "name": "2-iodobenzamide S-1",
+            "mw": 247.0,
+            "cost_per_g": 10,
+            "moles": 0.03,
+            "is_limiting": true
+          }
+        ],
+        "molarity": 1.2,
+        "solvent_name": "CH2Cl2",
+        "solvent_density": 0.85,
+        "solvent_price_per_l": 8,
+        "yield_percent": 97,
+        "temperature": "0 °C to RT",
+        "time": "24 h",
+        "procedure": "Procedure I (Optimized): A solution of {R:2-iodobenzamide S-1} (7.41 g, 30 mmol, 1.0 equiv.) in 25 mL {S:CH2Cl2} was cooled to {T:0 °C to RT}. {R:t-BuOCl} (6.51 g, 60 mmol, 2.0 equiv.) was added dropwise over 30 min. The mixture was allowed to warm to RT and stirred for {H:24 h} in the dark under air. The resulting precipitate was filtered, washed with cold petroleum ether (3 × 25 mL) and CH2Cl2 (10 mL), and dried under vacuum to give {P:1,2-dichloro-1,2-dihydro-3H-1λ3-benzo[d][1,2]iodazol-3-one S-2} (9.5 g) in {Y:97%} yield as a bright yellow crystalline solid.",
+        "depends_on": []
+      },
+      {
+        "step_id": 2,
+        "name": "CFBI",
+        "product_mw": 150,
+        "reagents": [
+          {
+            "name": "AgF2",
+            "mw": 143.75,
+            "cost_per_g": 5,
+            "moles": 0.02,
+            "is_limiting": false
+          },
+          {
+            "name": "CsF",
+            "mw": 151.9,
+            "cost_per_g": 18,
+            "moles": 0.0064,
+            "is_limiting": false
+          }
+        ],
+        "molarity": 0.13,
+        "solvent_name": "CH2Cl2",
+        "solvent_density": 0.85,
+        "solvent_price_per_l": 8,
+        "yield_percent": 78,
+        "temperature": "-20 °C to RT",
+        "time": "4 h",
+        "procedure": "Procedure II (Optimized): Under an argon atmosphere, S-2 (2 g, 6.4 mmol, 1.0 equiv.) was placed in a 100 mL Schlenk flask and cooled to {T:-20 °C to RT}. Anhydrous {S:CH2Cl2} (50 mL) was added via cannula, followed by {R:AgF2} (2.88 g, 20 mmol, 3.1 equiv.) and {R:CsF} (0.97 g, 6.4 mmol, 1.0 equiv.) as a co-activator. The mixture was stirred at -20 °C for 1 h, then warmed to RT over {H:4 h}. The suspension was filtered through dry Celite under argon, and the filtrate was concentrated under reduced pressure to afford {P:CFBI} as a pale yellow solid in {Y:78%} yield.",
+        "depends_on": [1]
+      }
+    ]
+  },
+  "routeB": {
+    "target": "1",
+    "steps": []
+  }
+}
