@@ -26,7 +26,7 @@ function addStep(side, data = null) {
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding-right:20px;">
                 <strong style="color:var(--primary);">Step ${id}</strong>
                 <input type="text" id="name-${side}-${id}" value="${data?.name || ''}" style="width:40%;">
-                <label style="font-size:0.75em;">Prod MW: <input type="number" id="pmw-${side}-${id}" value="${data?.product_mw || 0}" step="any" style="width:65px;"></label>
+                <label style="font-size:0.75em;">Prod MW: <input type="number" id="pmw-${side}-${id}" value="${data?.product_mw || 0}" step="any" style="width:65px;" oninput="calcProductProduced(this)"></label>
             </div>
             
             <div style="display: flex; gap: 10px; margin-bottom: 10px; background: #fdf9f3; padding: 5px; border-radius: 4px; border: 1px solid #fae1c3;">
@@ -36,15 +36,35 @@ function addStep(side, data = null) {
             </div>
 
             <table id="table-${side}-${id}">
-                <thead><tr><th>Reagent</th><th>MW</th><th>$/g</th><th>Moles</th><th>Lim?</th><th></th></tr></thead>
-                <tbody>${data?.reagents ? data.reagents.map(r => `<tr>
-                    <td><input type="text" value="${r.name || ''}"></td>
-                    <td><input type="number" step="any" value="${r.mw || ''}"></td>
-                    <td><input type="number" step="any" value="${r.cost_per_g || 0}"></td>
-                    <td><input type="number" step="any" value="${r.moles || ''}"></td>
-                    <td><input type="checkbox" ${r.is_limiting ? 'checked' : ''}></td>
-                    <td><button onclick="this.closest(&apos;tr&apos;).remove()" style="background:transparent; border:none; color:#e74c3c; cursor:pointer; font-weight:bold;" title="Delete Reagent">×</button></td>
-                </tr>`).join('') : '<tr><td><input type="text"></td><td><input type="number" step="any"></td><td><input type="number" step="any"></td><td><input type="number" step="any"></td><td><input type="checkbox"></td><td><button onclick="this.closest(&apos;tr&apos;).remove()" style="background:transparent; border:none; color:#e74c3c; cursor:pointer; font-weight:bold;" title="Delete Reagent">×</button></td></tr>'}</tbody>
+                <thead><tr><th>Reagent</th><th>MW</th><th style="color:#e74c3c;">Pkg(g)</th><th style="color:#e74c3c;">Pkg($)</th><th>Eq</th><th>Mass</th><th>Lim?</th><th></th></tr></thead>
+                <tbody>${data?.reagents ? data.reagents.map(r => {
+                    const pkgsz = r.pkg_size || 1;
+                    const pkgpr = r.pkg_price || (r.cost_per_g ? r.cost_per_g * pkgsz : 0);
+                    return `<tr>
+                    <td><input type="text" class="r-name" value="${r.name || ''}"></td>
+                    <td><input type="number" step="any" class="r-mw" value="${r.mw || ''}" oninput="calcStoich(this)"></td>
+                    <td><input type="number" step="any" class="r-pkgsz" value="${pkgsz}" style="width:55px;"></td>
+                    <td><input type="number" step="any" class="r-pkgpr" value="${pkgpr}" style="width:55px;"></td>
+                    <td><input type="number" step="any" class="r-eq" value="${r.moles || ''}" oninput="calcStoich(this)"></td>
+                    <td>
+                        <input type="number" step="any" class="r-mass" value="${r.mass || ''}" oninput="calcStoich(this, true)" style="width:65px; display:inline-block;">
+                        <select class="r-mass-unit" onchange="calcStoich(this)" style="width:42px; display:inline-block; font-size:0.7em; padding:2px;"><option value="g">g</option><option value="mg" ${r.mass_unit==='mg'?'selected':''}>mg</option><option value="kg" ${r.mass_unit==='kg'?'selected':''}>kg</option></select>
+                    </td>
+                    <td><input type="checkbox" class="r-lim" ${r.is_limiting ? 'checked' : ''} onchange="handleLimChange(this)"></td>
+                    <td><button onclick="const tb=this.closest(&apos;tbody&apos;); this.closest(&apos;tr&apos;).remove(); calcStoichByTbody(tb);" style="background:transparent; border:none; color:#e74c3c; cursor:pointer; font-weight:bold;" title="Delete Reagent">×</button></td>
+                </tr>`}).join('') : `<tr>
+                    <td><input type="text" class="r-name"></td>
+                    <td><input type="number" step="any" class="r-mw" oninput="calcStoich(this)"></td>
+                    <td><input type="number" step="any" class="r-pkgsz" style="width:55px;"></td>
+                    <td><input type="number" step="any" class="r-pkgpr" style="width:55px;"></td>
+                    <td><input type="number" step="any" class="r-eq" oninput="calcStoich(this)"></td>
+                    <td>
+                        <input type="number" step="any" class="r-mass" oninput="calcStoich(this, true)" style="width:65px; display:inline-block;">
+                        <select class="r-mass-unit" onchange="calcStoich(this)" style="width:42px; display:inline-block; font-size:0.7em; padding:2px;"><option value="g">g</option><option value="mg">mg</option><option value="kg">kg</option></select>
+                    </td>
+                    <td><input type="checkbox" class="r-lim" onchange="handleLimChange(this)"></td>
+                    <td><button onclick="const tb=this.closest(&apos;tbody&apos;); this.closest(&apos;tr&apos;).remove(); calcStoichByTbody(tb);" style="background:transparent; border:none; color:#e74c3c; cursor:pointer; font-weight:bold;" title="Delete Reagent">×</button></td>
+                </tr>`}</tbody>
             </table>
             <div style="display:flex; gap:10px; margin-top:5px; align-items:center;">
                 <button class="btn btn-ghost btn-sm" onclick="addReagentRow('${side}', ${id})">+ Manual Reagent</button>
@@ -55,23 +75,40 @@ function addStep(side, data = null) {
             </div>
             <div id="smiles-display-${side}-${id}" style="font-size:0.75em; color:var(--text); margin-top:5px; padding:5px; background:#eef2f3; border:1px solid var(--border); border-radius:4px; display:none;"></div>
             
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top:10px; background:#f1f2f6; padding:8px; border-radius:5px;">
-                <label style="font-size:0.7em;">Solvent: <input type="text" id="sname-${side}-${id}" value="${data?.solvent_name || 'Solvent'}"></label>
-                <label style="font-size:0.7em;">Conc (M): <input type="number" id="mol-${side}-${id}" value="${data?.molarity || 0.5}" step="any"></label>
-                <label style="font-size:0.7em;">Solv $/L: <input type="number" id="sprc-${side}-${id}" value="${data?.solvent_price_per_l || 0}" step="any"></label>
-                <label style="font-size:0.7em;">Yield %: <input type="number" id="yield-${side}-${id}" value="${data?.yield_percent || 100}" step="any"></label>
+            <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top:10px; background:#f1f2f6; padding:8px; border-radius:5px;">
+                <label style="font-size:0.7em;">Solvent: <input type="text" id="sname-${side}-${id}" value="${data?.solvent_name || 'Solvent'}" style="width:90px;"></label>
+                <label style="font-size:0.7em;">Volume: <input type="number" id="vol-${side}-${id}" value="${data?.solvent_volume_l || ''}" step="any" style="width:65px; display:inline-block;">
+                <select id="volu-${side}-${id}" onchange="calcProductProduced(this)" style="width:42px; display:inline-block; font-size:0.7em; padding:2px;"><option value="L" ${data?.solvent_volume_unit==='L'?'selected':''}>L</option><option value="mL" ${data?.solvent_volume_unit==='mL'?'selected':''}>mL</option></select></label>
+                <label style="font-size:0.7em; color:#e74c3c; font-weight:bold;">Bottle (L): <input type="number" id="sbotl-${side}-${id}" value="${data?.solvent_bottle_l || 1}" step="any" style="width:75px; font-weight:normal; color:var(--text);"></label>
+                <label style="font-size:0.7em; color:#e74c3c; font-weight:bold;">Bottle ($): <input type="number" id="sbotp-${side}-${id}" value="${data?.solvent_bottle_price || (data?.solvent_price_per_l ? data?.solvent_price_per_l * (data?.solvent_bottle_l || 1) : 0)}" step="any" style="width:75px; font-weight:normal; color:var(--text);"></label>
+            </div>
+            
+            <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top:10px; background:#e8f4f8; padding:8px; border-radius:5px;">
+                <label style="font-size:0.7em; font-weight:bold;">Final Product</label>
+                <label style="font-size:0.7em;">Yield %: <input type="number" id="yield-${side}-${id}" value="${data?.yield_percent || 100}" step="any" style="width:60px;" oninput="calcProductProduced(this)"></label>
+                <label style="font-size:0.7em;">Produced (g): <input type="number" id="prodg-${side}-${id}" value="" step="any" style="width:70px;" readonly disabled></label>
             </div>
             <textarea id="proc-${side}-${id}" style="margin-top:10px; height:70px; width:100%; font-size:0.8em;" placeholder="Procedure Notes..."></textarea>
         </div>`;
     
     container.insertAdjacentHTML('beforeend', html);
     if (data?.procedure) { document.getElementById(`proc-${side}-${id}`).value = data.procedure; }
+    
+    if (data) {
+        setTimeout(() => {
+            const table = document.getElementById(`table-${side}-${id}`);
+            if (table) {
+                const tbody = table.getElementsByTagName('tbody')[0];
+                if (tbody) calcStoichByTbody(tbody);
+            }
+        }, 50);
+    }
 }
 
 function addReagentRow(side, stepId) {
     const tbody = document.getElementById(`table-${side}-${stepId}`).getElementsByTagName('tbody')[0];
     const row = tbody.insertRow();
-    row.innerHTML = `<td><input type="text"></td><td><input type="number" step="any"></td><td><input type="number" step="any"></td><td><input type="number" step="any"></td><td><input type="checkbox"></td><td><button onclick="this.closest(&apos;tr&apos;).remove()" style="background:transparent; border:none; color:#e74c3c; cursor:pointer; font-weight:bold;" title="Delete Reagent">×</button></td>`;
+    row.innerHTML = `<td><input type="text" class="r-name"></td><td><input type="number" step="any" class="r-mw" oninput="calcStoich(this)"></td><td><input type="number" step="any" class="r-pkgsz"></td><td><input type="number" step="any" class="r-pkgpr"></td><td><input type="number" step="any" class="r-eq" oninput="calcStoich(this)"></td><td><input type="number" step="any" class="r-mass" oninput="calcStoich(this, true)" style="width:65px; display:inline-block;"><select class="r-mass-unit" onchange="calcStoich(this)" style="width:42px; display:inline-block; font-size:0.7em; padding:2px;"><option value="g">g</option><option value="mg">mg</option><option value="kg">kg</option></select></td><td><input type="checkbox" class="r-lim" onchange="handleLimChange(this)"></td><td><button onclick="const tb=this.closest(&apos;tbody&apos;); this.closest(&apos;tr&apos;).remove(); calcStoichByTbody(tb);" style="background:transparent; border:none; color:#e74c3c; cursor:pointer; font-weight:bold;" title="Delete Reagent">×</button></td>`;
 }
 
 async function addReagentFromSmiles(side, stepId) {
@@ -93,7 +130,7 @@ async function addReagentFromSmiles(side, stepId) {
     
     if (!targetRow) {
         targetRow = tbody.insertRow();
-        targetRow.innerHTML = `<td><input type="text"></td><td><input type="number" step="any"></td><td><input type="number" step="any"></td><td><input type="number" step="any"></td><td><input type="checkbox"></td><td><button onclick="this.closest(&apos;tr&apos;).remove()" style="background:transparent; border:none; color:#e74c3c; cursor:pointer; font-weight:bold;" title="Delete Reagent">×</button></td>`;
+        targetRow.innerHTML = `<td><input type="text" class="r-name"></td><td><input type="number" step="any" class="r-mw" oninput="calcStoich(this)"></td><td><input type="number" step="any" class="r-pkgsz"></td><td><input type="number" step="any" class="r-pkgpr"></td><td><input type="number" step="any" class="r-eq" oninput="calcStoich(this)"></td><td><input type="number" step="any" class="r-mass" oninput="calcStoich(this, true)"></td><td><input type="checkbox" class="r-lim" onchange="handleLimChange(this)"></td><td><button onclick="const tb=this.closest(&apos;tbody&apos;); this.closest(&apos;tr&apos;).remove(); calcStoichByTbody(tb);" style="background:transparent; border:none; color:#e74c3c; cursor:pointer; font-weight:bold;" title="Delete Reagent">×</button></td>`;
     }
     
     const inputs = targetRow.querySelectorAll('input');
@@ -119,6 +156,7 @@ async function addReagentFromSmiles(side, stepId) {
         
         inputs[0].value = name;
         inputs[1].value = mw > 0 ? mw : '';
+        if (mw > 0) calcStoich(inputs[1]);
         
         // Update SMILES display container
         const displayDiv = document.getElementById(`smiles-display-${side}-${stepId}`);
@@ -132,24 +170,187 @@ async function addReagentFromSmiles(side, stepId) {
     }
 }
 
+function handleLimChange(cb) {
+    if (cb.checked) {
+        const tbody = cb.closest('tbody');
+        const cbs = tbody.querySelectorAll('.r-lim');
+        cbs.forEach(c => { if(c !== cb) c.checked = false; });
+    }
+    calcStoichByTbody(cb.closest('tbody'));
+}
+
+function calcStoich(el, isMass = false) {
+    calcStoichByTbody(el.closest('tbody'), isMass ? el : null);
+}
+
+function calcStoichByTbody(tbody, changedMassInput = null) {
+    const rows = tbody.rows;
+    let baseMoles = 0;
+    
+    if (changedMassInput) {
+        const mw = parseFloat(changedMassInput.closest('tr').querySelector('.r-mw').value) || 0;
+        const eq = parseFloat(changedMassInput.closest('tr').querySelector('.r-eq').value) || 1;
+        const mass = parseFloat(changedMassInput.value) || 0;
+        const unit = changedMassInput.closest('tr').querySelector('.r-mass-unit').value;
+        let massInG = mass;
+        if (unit === 'mg') massInG = mass / 1000;
+        if (unit === 'kg') massInG = mass * 1000;
+        
+        if (mw > 0 && eq > 0) {
+            baseMoles = massInG / mw / eq;
+        }
+    } else {
+        let limRow = null;
+        for (let i=0; i<rows.length; i++) {
+            const limCb = rows[i].querySelector('.r-lim');
+            if (limCb && limCb.checked) { limRow = rows[i]; break; }
+        }
+        if (limRow) {
+            const limMw = parseFloat(limRow.querySelector('.r-mw').value) || 0;
+            const limEq = parseFloat(limRow.querySelector('.r-eq').value) || 1;
+            const limMass = parseFloat(limRow.querySelector('.r-mass').value) || 0;
+            const unit = limRow.querySelector('.r-mass-unit').value;
+            let massInG = limMass;
+            if (unit === 'mg') massInG = limMass / 1000;
+            if (unit === 'kg') massInG = limMass * 1000;
+            
+            if (limMw > 0 && limEq > 0) {
+                baseMoles = massInG / limMw / limEq;
+            }
+        }
+    }
+    
+    if (baseMoles <= 0) return;
+    
+    for (let i=0; i<rows.length; i++) {
+        const massInput = rows[i].querySelector('.r-mass');
+        if (massInput === changedMassInput) continue;
+        
+        const mw = parseFloat(rows[i].querySelector('.r-mw').value) || 0;
+        const eq = parseFloat(rows[i].querySelector('.r-eq').value) || 0;
+        const unit = rows[i].querySelector('.r-mass-unit').value;
+        
+        if (mw > 0 && eq > 0) {
+            let massInG = baseMoles * eq * mw;
+            let val = massInG;
+            if (unit === 'mg') val = massInG * 1000;
+            if (unit === 'kg') val = massInG / 1000;
+            massInput.value = val.toFixed(3);
+        }
+    }
+    
+    const card = tbody.closest('.step-card');
+    if (card) {
+        const pmwInput = card.querySelector('input[id^="pmw-"]');
+        if (pmwInput) calcProductProduced(pmwInput);
+    }
+}
+
+function calcProductProduced(el) {
+    if (!el) return;
+    const card = el.closest('.step-card');
+    if (!card) return;
+    
+    const sideMatch = card.id.match(/card-(vA|vB)-(\d+)/);
+    if (!sideMatch) return;
+    const side = sideMatch[1];
+    const id = sideMatch[2];
+    
+    const pmw = parseFloat(document.getElementById(`pmw-${side}-${id}`).value) || 0;
+    const yieldPct = parseFloat(document.getElementById(`yield-${side}-${id}`).value) || 0;
+    const prodgInput = document.getElementById(`prodg-${side}-${id}`);
+    
+    const tbody = card.querySelector('tbody');
+    if (!tbody) return;
+    
+    let limMw = 0;
+    let limEq = 0;
+    let limMass = 0;
+    
+    const rows = tbody.rows;
+    for (let i=0; i<rows.length; i++) {
+        const limCb = rows[i].querySelector('.r-lim');
+        if (limCb && limCb.checked) {
+            limMw = parseFloat(rows[i].querySelector('.r-mw').value) || 0;
+            limEq = parseFloat(rows[i].querySelector('.r-eq').value) || 1;
+            let massVal = parseFloat(rows[i].querySelector('.r-mass').value) || 0;
+            const unit = rows[i].querySelector('.r-mass-unit').value;
+            if (unit === 'mg') massVal = massVal / 1000;
+            if (unit === 'kg') massVal = massVal * 1000;
+            limMass = massVal;
+            break;
+        }
+    }
+    
+    if (limMw > 0 && pmw > 0) {
+        const baseMoles = limMass / limMw / limEq;
+        const theoreticalMass = baseMoles * pmw;
+        const actualMass = theoreticalMass * (yieldPct / 100);
+        if (prodgInput) prodgInput.value = actualMass.toFixed(3);
+    } else {
+        if (prodgInput) prodgInput.value = '';
+    }
+}
+
 function collectStepData(side) {
     const steps = [];
     for (let i = 1; i <= counters[side]; i++) {
         const table = document.getElementById(`table-${side}-${i}`);
         if (!table) continue;
-        const reagents = Array.from(table.rows).slice(1).map(row => ({
-            name: row.cells[0].querySelector('input').value,
-            mw: parseFloat(row.cells[1].querySelector('input').value) || 0,
-            cost_per_g: parseFloat(row.cells[2].querySelector('input').value) || 0,
-            moles: parseFloat(row.cells[3].querySelector('input').value) || 0,
-            is_limiting: row.cells[4].querySelector('input').checked
-        }));
+        const reagents = Array.from(table.rows).slice(1).map(row => {
+            const inputs = row.querySelectorAll('input');
+            const pkgsz = parseFloat(inputs[2].value) || 1;
+            const pkgpr = parseFloat(inputs[3].value) || 0;
+            const massVal = parseFloat(inputs[5].value) || 0;
+            const unit = row.querySelector('.r-mass-unit').value;
+            return {
+                name: inputs[0].value,
+                mw: parseFloat(inputs[1].value) || 0,
+                pkg_size: pkgsz,
+                pkg_price: pkgpr,
+                cost_per_g: pkgpr / pkgsz,
+                moles: parseFloat(inputs[4].value) || 0,
+                mass: massVal,
+                mass_unit: unit,
+                is_limiting: inputs[6].checked
+            };
+        });
+        const sbotl = parseFloat(document.getElementById(`sbotl-${side}-${i}`).value) || 1;
+        const sbotp = parseFloat(document.getElementById(`sbotp-${side}-${i}`).value) || 0;
+        const sprc = sbotp / sbotl;
+        
+        const volVal = parseFloat(document.getElementById(`vol-${side}-${i}`).value) || 0;
+        const volUnit = document.getElementById(`volu-${side}-${i}`).value;
+        const volL = volUnit === 'mL' ? volVal / 1000 : volVal;
+        
+        let labLimMoles = 0;
+        for (let j=0; j<reagents.length; j++) {
+            if (reagents[j].is_limiting && reagents[j].mw > 0) {
+                let massInG = reagents[j].mass;
+                if (reagents[j].mass_unit === 'mg') massInG = reagents[j].mass / 1000;
+                if (reagents[j].mass_unit === 'kg') massInG = reagents[j].mass * 1000;
+                labLimMoles = massInG / reagents[j].mw;
+                break;
+            }
+        }
+        let molarity = 0.5;
+        if (labLimMoles > 0 && volL > 0) {
+            molarity = labLimMoles / volL;
+        }
+
         steps.push({
             step_id: i, name: document.getElementById(`name-${side}-${i}`).value,
             product_mw: parseFloat(document.getElementById(`pmw-${side}-${i}`).value) || 0,
-            reagents, molarity: parseFloat(document.getElementById(`mol-${side}-${i}`).value) || 0.5,
+            reagents, 
+            molarity: molarity,
+            solvent_volume: volVal,
+            solvent_volume_unit: volUnit,
+            solvent_volume_l: volL,
             solvent_name: document.getElementById(`sname-${side}-${i}`).value,
-            solvent_density: 0.85, solvent_price_per_l: parseFloat(document.getElementById(`sprc-${side}-${i}`).value) || 0,
+            solvent_density: 0.85, 
+            solvent_bottle_l: sbotl,
+            solvent_bottle_price: sbotp,
+            solvent_price_per_l: sprc,
             yield_percent: parseFloat(document.getElementById(`yield-${side}-${i}`).value) || 100,
             temperature: document.getElementById(`temp-${side}-${i}`).value,
             time: document.getElementById(`time-${side}-${i}`).value,
