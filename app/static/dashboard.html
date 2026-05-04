@@ -6,13 +6,15 @@
     <title>Synthesis Dashboard — Synthesis Architect</title>
     <link rel="stylesheet" href="/css/styles.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/1.5.3/jspdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 </head>
 <body>
     <nav class="nav-bar">
         <a href="/" class="nav-brand">🔬 Synthesis Architect</a>
         <div class="nav-links">
-            <a href="/labeller.html" class="nav-link">Labeller</a>
             <a href="/dashboard.html" class="nav-link active">Dashboard</a>
+            <a href="/labeller.html" class="nav-link">Labeller</a>
             <a href="/risk.html" class="nav-link">Risk Audit</a>
         </div>
     </nav>
@@ -23,8 +25,10 @@
         <div class="toolbar">
             <input type="file" id="fInA" style="display:none;" onclick="this.value=null" onchange="loadFromFile(event, 'vA')">
             <input type="file" id="fInB" style="display:none;" onclick="this.value=null" onchange="loadFromFile(event, 'vB')">
-            <button class="btn btn-orange" onclick="exportToCSV()">📊 Export Procurement Report</button>
+            <input type="file" id="fInCSV" style="display:none;" accept=".csv" onclick="this.value=null" onchange="loadFromCSV(event)">
             <button class="btn btn-secondary" onclick="runAnalysis()">⚡ Run Analysis</button>
+            <button class="btn btn-orange" onclick="exportReport()">📊 Export Report</button>
+            <button class="btn btn-primary" onclick="document.getElementById('fInCSV').click()">📥 Load Report</button>
         </div>
 
         <div class="grid-2">
@@ -63,61 +67,54 @@
         </div>
 
         <div class="dashboard">
-            <div class="dashboard-grid">
-                <div>
-                    <div id="comp-stats">Load data and run analysis...</div>
-                    <div id="audit-container"></div>
-                </div>
-                <div style="background:#2d3436; padding:20px; border-radius:8px; color:white; border-top:4px solid #00cec9; margin-top:30px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                    <h3 style="color:#00cec9; margin-top:0; margin-bottom:15px;">📈 Section 4: Budget & Cost Driver Visualizations</h3>
-                    <div class="chart-label" style="font-weight:bold; margin-bottom:5px; color:#b2bec3;">Total Budget Comparison</div>
-                    <div class="chart-wrapper" style="background:rgba(255,255,255,0.02); padding:10px; border-radius:6px; margin-bottom:20px;"><canvas id="compareChart"></canvas></div>
-
-                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
-                        <div>
-                            <div class="chart-label" style="font-weight:bold; margin-bottom:5px; color:#b2bec3;">A Cost Drivers</div>
-                            <div class="chart-wrapper" style="background:rgba(255,255,255,0.02); padding:10px; border-radius:6px; height:180px;"><canvas id="pieA"></canvas></div>
-                        </div>
-                        <div>
-                            <div class="chart-label" style="font-weight:bold; margin-bottom:5px; color:#b2bec3;">B Cost Drivers</div>
-                            <div class="chart-wrapper" style="background:rgba(255,255,255,0.02); padding:10px; border-radius:6px; height:180px;"><canvas id="pieB"></canvas></div>
-                        </div>
-                    </div>
-                </div>
+            <div>
+                <div id="comp-stats">Load data and run analysis...</div>
             </div>
 
             <div style="background:#2d3436; padding:20px; border-radius:8px; color:white; border-top:4px solid #0984e3; margin-top:20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
                 <h3 style="color:#0984e3; margin-top:0; margin-bottom:15px;">📊 Section 5: Advanced Synthesis Plots</h3>
-                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
-                    <div>
-                        <div class="chart-label" style="font-weight:bold; margin-bottom:5px; color:#b2bec3;">1. The "Route Efficiency" Dashboard (Cost vs. E-Factor)</div>
-                        <div class="chart-wrapper" style="background:rgba(255,255,255,0.02); padding:10px; border-radius:6px; height:320px;"><canvas id="efficiencyChart"></canvas></div>
-                    </div>
-                    <div>
-                        <div class="chart-label" style="font-weight:bold; margin-bottom:5px; color:#b2bec3;">2. Step-wise Cost Breakdown (Where the Money Goes)</div>
-                        <div class="chart-wrapper" style="background:rgba(255,255,255,0.02); padding:10px; border-radius:6px; height:320px;"><canvas id="stepCostChart"></canvas></div>
-                    </div>
-                    <div>
-                        <div class="chart-label" style="font-weight:bold; margin-bottom:5px; color:#b2bec3;">3. The "Optimization Bottleneck" Plot (Sensitivity Analysis)</div>
-                        <div class="chart-wrapper" style="background:rgba(255,255,255,0.02); padding:10px; border-radius:6px; height:320px;"><canvas id="bottleneckChart"></canvas></div>
-                    </div>
-                    <div>
-                        <div class="chart-label" style="font-weight:bold; margin-bottom:5px; color:#b2bec3;">4. Overall Route Comparison</div>
-                        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; height:320px; background:rgba(255,255,255,0.02); padding:10px; border-radius:6px;">
-                            <div><div class="chart-label" style="font-size:0.75em; color:#b2bec3; text-align:center;">Total Cost</div><div style="height:250px;"><canvas id="routeComp1"></canvas></div></div>
-                            <div><div class="chart-label" style="font-size:0.75em; color:#b2bec3; text-align:center;">Cost per kg</div><div style="height:250px;"><canvas id="routeComp2"></canvas></div></div>
-                            <div><div class="chart-label" style="font-size:0.75em; color:#b2bec3; text-align:center;">E-Factor</div><div style="height:250px;"><canvas id="routeComp3"></canvas></div></div>
-                        </div>
+                
+                <!-- Row 1: Plot 1 -->
+                <div style="margin-bottom:20px;">
+                    <div class="chart-label" style="font-weight:bold; margin-bottom:5px; color:#b2bec3;">1. The "Route Efficiency" Dashboard (Cost vs. E-Factor)</div>
+                    <div class="chart-wrapper" style="background:rgba(255,255,255,0.02); padding:10px; border-radius:6px; height:320px;"><canvas id="efficiencyChart"></canvas></div>
+                </div>
+
+                <!-- Row 2: Plot 2 -->
+                <div style="margin-bottom:20px;">
+                    <div class="chart-label" style="font-weight:bold; margin-bottom:5px; color:#b2bec3;">2. Step-wise Cost Breakdown (Where the Money Goes)</div>
+                    <div class="chart-wrapper" style="background:rgba(255,255,255,0.02); padding:10px; border-radius:6px; height:320px;"><canvas id="stepCostChart"></canvas></div>
+                </div>
+
+                <!-- Row 3: Plot 3 -->
+                <div style="margin-bottom:20px;">
+                    <div class="chart-label" style="font-weight:bold; margin-bottom:5px; color:#b2bec3;">3. Overall Route Comparison</div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; height:320px; background:rgba(255,255,255,0.02); padding:10px; border-radius:6px;">
+                        <div><div class="chart-label" style="font-size:0.75em; color:#b2bec3; text-align:center;">Total Cost</div><div style="height:250px;"><canvas id="routeComp1"></canvas></div></div>
+                        <div><div class="chart-label" style="font-size:0.75em; color:#b2bec3; text-align:center;">Cost per kg</div><div style="height:250px;"><canvas id="routeComp2"></canvas></div></div>
+                        <div><div class="chart-label" style="font-size:0.75em; color:#b2bec3; text-align:center;">E-Factor</div><div style="height:250px;"><canvas id="routeComp3"></canvas></div></div>
                     </div>
                 </div>
-                <div style="margin-top:20px;">
-                    <div class="chart-label" style="font-weight:bold; margin-bottom:5px; color:#b2bec3;">5. Yield Cascade Waterfall (Theoretical → Actual Mass)</div>
-                    <div class="chart-wrapper" style="background:rgba(255,255,255,0.02); padding:10px; border-radius:6px; height:360px;"><canvas id="waterfallChart"></canvas></div>
+
+                <!-- Row 4: Plots 4, 5, 6 -->
+                <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:20px; margin-top:20px;">
+                    <div>
+                        <div class="chart-label" style="font-weight:bold; margin-bottom:5px; color:#b2bec3;">4. The "Optimization Bottleneck" Plot (Sensitivity Analysis)</div>
+                        <div class="chart-wrapper" style="background:rgba(255,255,255,0.02); padding:10px; border-radius:6px; height:420px;"><canvas id="bottleneckChart"></canvas></div>
+                    </div>
+                    <div>
+                        <div class="chart-label" style="font-weight:bold; margin-bottom:5px; color:#b2bec3;">5. Yield Cascade Waterfall (Theoretical → Actual Mass)</div>
+                        <div class="chart-wrapper" style="background:rgba(255,255,255,0.02); padding:10px; border-radius:6px; height:420px;"><canvas id="waterfallChart"></canvas></div>
+                    </div>
+                    <div>
+                        <div class="chart-label" style="font-weight:bold; margin-bottom:5px; color:#b2bec3;">6. Top Cost Drivers (Reagents & Solvents)</div>
+                        <div class="chart-wrapper" style="background:rgba(255,255,255,0.02); padding:10px; border-radius:6px; height:420px;"><canvas id="costDriversChart"></canvas></div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <script src="/js/dashboard.js?v=32"></script>
+    <script src="/js/dashboard.js?v=34"></script>
 </body>
 </html>
