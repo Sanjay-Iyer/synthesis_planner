@@ -1298,6 +1298,51 @@ function exportToCSV() {
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'procurement_report.csv'; a.click();
 }
 
+/**
+ * Consolidates all reagents from the dashboard and redirects to the Risk Audit tool.
+ */
+function pushToRiskAudit() {
+    const stepsA = collectStepData('vA');
+    const stepsB = collectStepData('vB');
+    const allSteps = [...stepsA, ...stepsB];
+    
+    if (allSteps.length === 0) {
+        alert("Add some synthesis steps first!");
+        return;
+    }
+
+    // Consolidate reagents by name/CAS to avoid duplicates
+    const reagentMap = {};
+    allSteps.forEach(step => {
+        step.reagents.forEach(r => {
+            const key = (r.cas || r.name).toLowerCase().trim();
+            if (!reagentMap[key]) {
+                reagentMap[key] = {
+                    name: r.name,
+                    cas: r.cas || '',
+                    mass_g: 0,
+                    cost: 0
+                };
+            }
+            const rMass = parseFloat(r.mass) || 0;
+            const rCost = parseFloat(r.item_cost) || (rMass * (parseFloat(r.cost_per_g) || 0));
+            
+            reagentMap[key].mass_g += rMass;
+            reagentMap[key].cost += rCost;
+        });
+    });
+
+    const consolidated = Object.values(reagentMap).filter(r => r.name);
+    
+    if (consolidated.length === 0) {
+        alert("No reagents found in the active routes.");
+        return;
+    }
+
+    localStorage.setItem('pendingRiskData', JSON.stringify(consolidated));
+    window.location.href = '/risk.html';
+}
+
 function exportReport() {
     if (!lastAnalysis.vA && !lastAnalysis.vB) { alert("Run analysis first!"); return; }
     exportToCSV();

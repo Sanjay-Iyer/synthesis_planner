@@ -7,7 +7,7 @@
     <link rel="stylesheet" href="/css/styles.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        .risk-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-top: 20px; }
+        .risk-grid { display: grid; grid-template-columns: 1fr; gap: 25px; margin-top: 20px; }
         .upload-zone {
             border: 2px dashed var(--border);
             border-radius: var(--radius);
@@ -21,12 +21,19 @@
         .upload-zone.active { border-color: var(--secondary); background: rgba(39, 174, 96, 0.05); }
         .reagent-input-row {
             display: grid;
-            grid-template-columns: 2fr 1.5fr 1fr 1fr auto;
-            gap: 8px;
+            grid-template-columns: 2fr 1.2fr 1.2fr 0.8fr 0.8fr auto;
+            gap: 12px;
             margin-bottom: 8px;
             align-items: center;
+            transition: all 0.3s ease;
         }
-        .reagent-input-row input { font-size: 0.8rem; }
+        .reagent-input-row.advanced {
+            grid-template-columns: 2fr 1.2fr 1fr 0.7fr 0.7fr 0.7fr 0.7fr 0.7fr 0.7fr auto;
+        }
+        .reagent-input-row .adv-field { display: none; }
+        .reagent-input-row.advanced .adv-field { display: block; }
+
+        .reagent-input-row input { font-size: 0.8rem; width: 100%; }
         .risk-table { margin-top: 15px; }
         .risk-table td { font-size: 0.85em; }
         .bubble-chart-wrapper {
@@ -36,11 +43,46 @@
             height: 400px;
             position: relative;
         }
-        .summary-cards {
+        .visualization-section {
+            margin-top: 40px;
+            padding-top: 40px;
+            border-top: 1px solid var(--border);
+        }
+        .viz-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
             margin-top: 20px;
+        }
+        .heatmap-container {
+            grid-column: span 2;
+            background: #fff;
+            border-radius: var(--radius);
+            padding: 20px;
+            border: 1px solid var(--border);
+            overflow-x: auto;
+        }
+        .heatmap-grid {
+            display: grid;
+            gap: 2px;
+            margin-top: 15px;
+        }
+        .heatmap-cell {
+            padding: 10px;
+            text-align: center;
+            font-size: 0.75rem;
+            color: #fff;
+            border-radius: 2px;
+        }
+        .heatmap-label {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            padding: 5px;
+        }
+        @media (max-width: 1024px) {
+            .viz-grid { grid-template-columns: 1fr; }
+            .heatmap-container { grid-column: span 1; }
         }
         .summary-card {
             background: white;
@@ -60,19 +102,34 @@
             text-transform: uppercase;
             letter-spacing: 0.5px;
         }
+        /* Status Pills */
+        .status-pill {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: inline-block;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .status-low { background: #e3f9e5; color: #1f7a1f; border: 1px solid #c1e9c5; }
+        .status-medium { background: #fff9db; color: #856404; border: 1px solid #ffeeba; }
+        .status-medium-high { background: #fff4e6; color: #d9480f; border: 1px solid #ffd8a8; }
+        .status-high { background: #fff5f5; color: #c92a2a; border: 1px solid #ffc9c9; }
+        .status-unknown { background: #f1f3f5; color: #495057; border: 1px solid #dee2e6; }
+
         @media (max-width: 768px) {
             .risk-grid { grid-template-columns: 1fr; }
             .summary-cards { grid-template-columns: 1fr; }
-            .reagent-input-row { grid-template-columns: 1fr 1fr; }
         }
     </style>
 </head>
 <body>
     <nav class="nav-bar">
-        <a href="/" class="nav-brand">🔬 Synthesis Architect</a>
+        <a href="/" class="nav-brand">🔬 Synthesis Planner</a>
         <div class="nav-links">
-            <a href="/dashboard.html" class="nav-link">Dashboard</a>
-            <a href="/labeller.html" class="nav-link">Labeller</a>
+            <a href="/dashboard.html" class="nav-link">Planner</a>
             <a href="/risk.html" class="nav-link active">Risk Audit</a>
         </div>
     </nav>
@@ -88,36 +145,46 @@
         <div class="risk-grid">
             <!-- Left: Input Panel -->
             <div class="card">
-                <h3 style="margin-bottom: 15px;">Reagent Input</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <h3 style="margin: 0;">Reagent Input</h3>
+                    <label class="btn btn-ghost btn-sm" style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="advancedToggle" onchange="toggleAdvancedMode()"> 
+                        <span>Advanced Mode</span>
+                    </label>
+                </div>
 
                 <div class="upload-zone" id="uploadZone" onclick="document.getElementById('csvInput').click()">
                     <div style="font-size: 2rem; margin-bottom: 8px;">📄</div>
                     <div style="font-weight: 500;">Click to upload CSV</div>
                     <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">or enter reagents manually below</div>
+                    <a href="#" onclick="event.stopPropagation(); downloadSampleCSV();" style="font-size: 0.75rem; color: var(--primary); text-decoration: underline; margin-top: 10px; display: inline-block;">Download Sample CSV</a>
                 </div>
                 <input type="file" id="csvInput" style="display:none;" accept=".csv" onchange="loadCSV(event)">
 
                 <div style="margin-top: 20px;">
-                    <div class="reagent-input-row" style="font-weight:600; font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">
+                    <div class="reagent-input-row" id="inputHeader" style="font-weight:600; font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">
                         <div>Reagent Name</div>
                         <div>CAS Number</div>
+                        <div>Primary Origin</div>
                         <div>Mass (g)</div>
                         <div>Cost ($)</div>
+                        <div class="adv-field">Lead (d)</div>
+                        <div class="adv-field">Haz (1-10)</div>
+                        <div class="adv-field">Reg (1-10)</div>
+                        <div class="adv-field">Sub (1-10)</div>
                         <div></div>
                     </div>
                     <div id="reagentRows"></div>
                     <button class="btn btn-ghost btn-sm" onclick="addReagentInputRow()" style="margin-top:8px;">+ Add Reagent</button>
                 </div>
 
-                <button class="btn btn-secondary" onclick="runRiskAssessment()" style="width:100%; margin-top:20px; padding:14px; font-size:0.95rem;">
-                    🌍 Run Risk Assessment
-                </button>
-            </div>
-
-            <!-- Right: Chart -->
-            <div>
-                <div class="bubble-chart-wrapper">
-                    <canvas id="riskChart"></canvas>
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button class="btn btn-secondary" onclick="runRiskAssessment()" style="flex: 2; padding: 14px; font-size: 0.95rem;">
+                        🌍 Run Risk Assessment
+                    </button>
+                    <button class="btn btn-ghost" onclick="saveMappings()" style="flex: 1; padding: 14px; font-size: 0.95rem; border: 1px solid var(--border);">
+                        💾 Save Mappings
+                    </button>
                 </div>
             </div>
         </div>
@@ -152,14 +219,40 @@
                         <th>Cost ($)</th>
                         <th>Risk Index</th>
                         <th>Risk Level</th>
+                        <th>Warnings</th>
                     </tr>
                 </thead>
                 <tbody id="riskTableBody"></tbody>
             </table>
             <button class="btn btn-orange" onclick="exportRiskCSV()" style="margin-top:15px;">📊 Export Risk Report</button>
+    </div>
+
+    <!-- VISUALIZATION SECTION -->
+    <div class="page-container-wide visualization-section" id="vizSection" style="display: none;">
+        <h2 style="margin-bottom: 20px;">📊 Risk Assessment Visualization</h2>
+        
+        <div class="viz-grid">
+            <div class="card">
+                <h4 style="margin-bottom: 15px;">Cost vs. Risk Priority</h4>
+                <div style="height: 350px;"><canvas id="bubbleChart"></canvas></div>
+                <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 10px;">Size = Mass. Top-right reagents are critical threats.</p>
+            </div>
+            
+            <div class="card">
+                <h4 style="margin-bottom: 15px;">Risk Exposure by Country</h4>
+                <div style="height: 350px;"><canvas id="stackedBarChart"></canvas></div>
+                <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 10px;">Identifies geopolitical dependencies and blind spots.</p>
+            </div>
+
+            <div class="heatmap-container">
+                <h4 style="margin-bottom: 10px;">Diagnostic Risk Heatmap</h4>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 15px;">Pinpoint the specific drivers of risk for each reagent.</p>
+                <div id="heatmapGrid" class="heatmap-grid"></div>
+            </div>
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="/js/risk.js"></script>
 </body>
 </html>
