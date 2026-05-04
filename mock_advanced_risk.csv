@@ -1,4 +1,4 @@
-Reagent,Reagent_CAS,Origin,Mass_g,Cost,Lead_Time_Days,Hazard_Score,Substitutability
+condReagent,Reagent_CAS,Origin,Mass_g,Cost,Lead_Time_Days,Hazard_Score,Substitutability
 Platinum on Carbon,7440-06-4,South Africa,10,1500,45,4,9
 Formamide,775-12-2,Germany,500,25,10,6,3
 Copper(II) Chloride,7447-39-4,China,100,45,21,5,4
