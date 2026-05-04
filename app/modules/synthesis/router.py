@@ -41,41 +41,65 @@ class MoleculeInput(BaseModel):
 
 @router.post("/molecule-name")
 def get_molecule_name(data: MoleculeInput):
-    """Get molecule name from SMILES or SELFIES."""
+    """Get molecule name from SMILES, SELFIES, InChI, or InChIKey."""
     val = data.string_input.strip()
     if not val:
         raise HTTPException(status_code=400, detail="Empty input string")
     
+    query_str = val
+    namespace = "smiles"
+
+    # Check for InChIKey
+    if re.match(r'^[A-Z]{14}-[A-Z]{10}-[A-Z]$', val):
+        namespace = "inchikey"
+    # Check for InChI
+    elif val.startswith("InChI="):
+        if Chem is not None:
+            mol = Chem.MolFromInchi(val)
+            if mol:
+                query_str = Chem.MolToSmiles(mol)
+        else:
+            namespace = "inchi"
+            query_str = val # Will require urlencoding later if used in GET, but we'll try it
     # If SELFIES (contains [ and ]), try converting to SMILES
-    smiles_str = val
-    if "[" in val and "]" in val and sf is not None:
+    elif "[" in val and "]" in val and sf is not None:
         try:
-            smiles_str = sf.decoder(val)
+            query_str = sf.decoder(val)
         except Exception:
             pass # fallback to trying it as SMILES
 
     # Query PubChem PUG REST
-    # URL format: https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/{smiles}/synonyms/JSON
     try:
-        url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/{smiles_str}/synonyms/JSON"
-        resp = requests.get(url, timeout=5)
+        if namespace == "inchi":
+            # For InChI, use POST to avoid URL slash issues
+            url = "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/inchi/synonyms/JSON"
+            resp = requests.post(url, data={"inchi": query_str}, timeout=5)
+        else:
+            url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/{namespace}/{query_str}/synonyms/JSON"
+            resp = requests.get(url, timeout=5)
+            
         if resp.status_code == 200:
             info = resp.json()
             syns = info.get("InformationList", {}).get("Information", [{}])[0].get("Synonym", [])
             if syns:
-                return {"name": syns[0], "smiles": smiles_str}
+                return {"name": syns[0], "input": val}
         
         # Fallback to CID lookup then name if synonym endpoint fails
-        cid_url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/smiles/{smiles_str}/cids/JSON"
-        cid_resp = requests.get(cid_url, timeout=5)
+        if namespace == "inchi":
+            cid_url = "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/inchi/cids/JSON"
+            cid_resp = requests.post(cid_url, data={"inchi": query_str}, timeout=5)
+        else:
+            cid_url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/{namespace}/{query_str}/cids/JSON"
+            cid_resp = requests.get(cid_url, timeout=5)
+            
         if cid_resp.status_code == 200:
             cids = cid_resp.json().get("IdentifierList", {}).get("CID", [])
             if cids:
-                return {"name": f"PubChem CID {cids[0]}", "smiles": smiles_str}
+                return {"name": f"PubChem CID {cids[0]}", "input": val}
     except Exception as e:
         pass
         
-    return {"name": "Unknown Molecule", "smiles": smiles_str}
+    return {"name": "Unknown Molecule", "input": val}
 
 
 PERIODIC_TABLE = {
@@ -90,6 +114,37 @@ def get_molecular_weight(data: MoleculeInput):
     val = data.string_input.strip()
     if not val:
         raise HTTPException(status_code=400, detail="Empty input string")
+
+    # Check for InChIKey
+    if re.match(r'^[A-Z]{14}-[A-Z]{10}-[A-Z]$', val):
+        try:
+            url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/inchikey/{val}/property/MolecularWeight/JSON"
+            resp = requests.get(url, timeout=5)
+            if resp.status_code == 200:
+                props = resp.json().get("PropertyTable", {}).get("Properties", [{}])[0]
+                mw = props.get("MolecularWeight")
+                if mw:
+                    return {"mw": float(mw), "method": "PubChem InChIKey"}
+        except Exception:
+            pass
+            
+    # Check for InChI
+    if val.startswith("InChI="):
+        if Chem is not None:
+            mol = Chem.MolFromInchi(val)
+            if mol:
+                return {"mw": round(Descriptors.MolWt(mol), 3), "method": "RDKit InChI"}
+        else:
+            try:
+                url = "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/inchi/property/MolecularWeight/JSON"
+                resp = requests.post(url, data={"inchi": val}, timeout=5)
+                if resp.status_code == 200:
+                    props = resp.json().get("PropertyTable", {}).get("Properties", [{}])[0]
+                    mw = props.get("MolecularWeight")
+                    if mw:
+                        return {"mw": float(mw), "method": "PubChem InChI"}
+            except Exception:
+                pass
 
     # If SELFIES, decode it first
     if "[" in val and "]" in val and sf is not None:

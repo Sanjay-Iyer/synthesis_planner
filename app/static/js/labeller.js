@@ -123,59 +123,48 @@ async function getMoleculeName() {
         resultDiv.style.color = "#e74c3c";
         return;
     }
-    resultDiv.innerText = "Fetching name...";
+    resultDiv.innerHTML = "Fetching Name and MW...";
     resultDiv.style.color = "var(--text)";
     
     try {
-        const response = await fetch('/api/synthesis/molecule-name', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ string_input: input })
-        });
-        if (response.ok) {
-            const data = await response.json();
-            resultDiv.innerHTML = `<span style="color:var(--primary)">Name:</span> ${data.name}`;
+        const [nameRes, mwRes] = await Promise.all([
+            fetch('/api/synthesis/molecule-name', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ string_input: input })
+            }),
+            fetch('/api/synthesis/molecular-weight', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ string_input: input })
+            })
+        ]);
+        
+        let outHtml = '';
+        
+        if (nameRes.ok) {
+            const data = await nameRes.json();
+            outHtml += `<span style="color:var(--primary)">Name:</span> ${data.name}<br>`;
         } else {
-            resultDiv.innerText = "Error fetching name.";
-            resultDiv.style.color = "#e74c3c";
+            outHtml += `<span style="color:#e74c3c">Name: Error fetching</span><br>`;
         }
+        
+        if (mwRes.ok) {
+            const data = await mwRes.json();
+            if (data.mw > 0) {
+                outHtml += `<span style="color:var(--primary)">MW:</span> ${data.mw} g/mol <span style="font-size:0.8em; color:#7f8c8d; font-weight:normal;">(${data.method})</span>`;
+            } else {
+                outHtml += `<span style="color:#e74c3c">MW: Could not calculate</span>`;
+            }
+        } else {
+            outHtml += `<span style="color:#e74c3c">MW: Error fetching</span>`;
+        }
+        
+        resultDiv.innerHTML = outHtml;
     } catch (err) {
         resultDiv.innerText = "Connection error.";
         resultDiv.style.color = "#e74c3c";
     }
 }
 
-async function calculateMW() {
-    const input = document.getElementById('mw-input').value.trim();
-    const resultDiv = document.getElementById('mw-result');
-    if (!input) {
-        resultDiv.innerText = "Please enter a SMILES or Formula.";
-        resultDiv.style.color = "#e74c3c";
-        return;
-    }
-    resultDiv.innerText = "Calculating...";
-    resultDiv.style.color = "var(--text)";
-    
-    try {
-        const response = await fetch('/api/synthesis/molecular-weight', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ string_input: input })
-        });
-        if (response.ok) {
-            const data = await response.json();
-            if (data.mw > 0) {
-                resultDiv.innerHTML = `<span style="color:var(--primary)">MW:</span> ${data.mw} g/mol <span style="font-size:0.8em; color:#7f8c8d; font-weight:normal;">(${data.method})</span>`;
-            } else {
-                resultDiv.innerText = "Could not calculate MW from input.";
-                resultDiv.style.color = "#e74c3c";
-            }
-        } else {
-            resultDiv.innerText = "Error calculating MW.";
-            resultDiv.style.color = "#e74c3c";
-        }
-    } catch (err) {
-        resultDiv.innerText = "Connection error.";
-        resultDiv.style.color = "#e74c3c";
-    }
-}
+

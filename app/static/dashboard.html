@@ -21,35 +21,43 @@
         <h1 style="margin-bottom: 16px;">📊 Synthesis Dashboard</h1>
 
         <div class="toolbar">
-            <button class="btn" onclick="saveToFile()">💾 Save JSON</button>
-            <button class="btn" onclick="document.getElementById('fIn').click()">📂 Load Both</button>
-            <button class="btn" style="background:var(--primary);" onclick="document.getElementById('fInA').click()">📂 Load → A</button>
-            <button class="btn btn-secondary" onclick="document.getElementById('fInB').click()">📂 Load → B</button>
-            <input type="file" id="fIn" style="display:none;" onclick="this.value=null" onchange="loadFromFile(event, 'both')">
             <input type="file" id="fInA" style="display:none;" onclick="this.value=null" onchange="loadFromFile(event, 'vA')">
             <input type="file" id="fInB" style="display:none;" onclick="this.value=null" onchange="loadFromFile(event, 'vB')">
-            <button class="btn btn-orange" onclick="exportToCSV()">📊 Export CSV</button>
+            <button class="btn btn-orange" onclick="exportToCSV()">📊 Export Procurement Report</button>
             <button class="btn btn-secondary" onclick="runAnalysis()">⚡ Run Analysis</button>
-            <button class="btn btn-purple" onclick="runOptimizationAudit()">🔬 Audit Optimization</button>
         </div>
 
         <div class="grid-2">
             <div class="route-col">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <h2>Route A</h2>
-                    <button class="btn btn-ghost btn-sm" onclick="clearRoute('vA')">🗑️ Clear A</button>
+                    <div>
+                        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('fInA').click()">📂 Load</button>
+                        <button class="btn btn-ghost btn-sm" onclick="saveRouteToFile('vA')">💾 Save</button>
+                        <button class="btn btn-ghost btn-sm" onclick="clearRoute('vA')">🗑️ Clear</button>
+                    </div>
                 </div>
-                <label style="font-size:0.85em;">Target kg: <input type="number" id="target-vA" value="1" style="width:70px;"></label>
-                <button class="btn" onclick="addStep('vA')" style="width:100%; margin:15px 0;">+ Add Manual Step</button>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; margin-top:5px; font-size:0.85em; gap:10px;">
+                    <label>Target kg: <input type="number" id="target-vA" value="1" style="width:70px;"></label>
+                    <label>Save As: <input type="text" id="filename-vA" style="width:140px; padding:3px; border:1px solid var(--border); border-radius:3px;"></label>
+                </div>
+                <button class="btn" onclick="addStep('vA')" style="width:100%; margin-bottom:15px;">+ Add Manual Step</button>
                 <div id="steps-vA"></div>
             </div>
             <div class="route-col">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <h2>Route B</h2>
-                    <button class="btn btn-ghost btn-sm" onclick="clearRoute('vB')">🗑️ Clear B</button>
+                    <div>
+                        <button class="btn btn-ghost btn-sm" onclick="document.getElementById('fInB').click()">📂 Load</button>
+                        <button class="btn btn-ghost btn-sm" onclick="saveRouteToFile('vB')">💾 Save</button>
+                        <button class="btn btn-ghost btn-sm" onclick="clearRoute('vB')">🗑️ Clear</button>
+                    </div>
                 </div>
-                <label style="font-size:0.85em;">Target kg: <input type="number" id="target-vB" value="1" style="width:70px;"></label>
-                <button class="btn" onclick="addStep('vB')" style="width:100%; margin:15px 0;">+ Add Manual Step</button>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; margin-top:5px; font-size:0.85em; gap:10px;">
+                    <label>Target kg: <input type="number" id="target-vB" value="1" style="width:70px;"></label>
+                    <label>Save As: <input type="text" id="filename-vB" style="width:140px; padding:3px; border:1px solid var(--border); border-radius:3px;"></label>
+                </div>
+                <button class="btn" onclick="addStep('vB')" style="width:100%; margin-bottom:15px;">+ Add Manual Step</button>
                 <div id="steps-vB"></div>
             </div>
         </div>
@@ -79,6 +87,6 @@
         </div>
     </div>
 
-    <script src="/js/dashboard.js"></script>
+    <script src="/js/dashboard.js?v=10"></script>
 </body>
 </html>

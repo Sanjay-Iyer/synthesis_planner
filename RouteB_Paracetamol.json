@@ -1,0 +1,111 @@
+{
+  "routeB": {
+    "target": "1",
+    "steps": [
+      {
+        "step_id": 1,
+        "name": "Nitration of phenol",
+        "product_mw": 139.11,
+        "reagents": [
+          {
+            "name": "Phenol",
+            "mw": 94.11,
+            "cost_per_g": 0.02,
+            "moles": 1,
+            "is_limiting": true
+          },
+          {
+            "name": "Nitric acid",
+            "mw": 63.01,
+            "cost_per_g": 0.01,
+            "moles": 1.05,
+            "is_limiting": false
+          },
+          {
+            "name": "Sulfuric acid",
+            "mw": 98.08,
+            "cost_per_g": 0.01,
+            "moles": 0.1,
+            "is_limiting": false
+          }
+        ],
+        "molarity": 1.5,
+        "solvent_name": "Water",
+        "solvent_density": 1.0,
+        "solvent_price_per_l": 0.01,
+        "yield_percent": 45,
+        "temperature": "20C",
+        "time": "3h",
+        "procedure": "Phenol + HNO₃ (dilute, or HNO₃/H₂SO₄) → p-nitrophenol (+ ortho isomer separated off) + H₂O",
+        "depends_on": []
+      },
+      {
+        "step_id": 2,
+        "name": "Reduction → p-aminophenol",
+        "product_mw": 109.13,
+        "reagents": [
+          {
+            "name": "p-Nitrophenol",
+            "mw": 139.11,
+            "cost_per_g": 0.05,
+            "moles": 1,
+            "is_limiting": true
+          },
+          {
+            "name": "Hydrogen",
+            "mw": 2.02,
+            "cost_per_g": 0.01,
+            "moles": 3,
+            "is_limiting": false
+          },
+          {
+            "name": "Pd/C catalyst",
+            "mw": 106.42,
+            "cost_per_g": 15.0,
+            "moles": 0.05,
+            "is_limiting": false
+          }
+        ],
+        "molarity": 1.0,
+        "solvent_name": "Ethanol",
+        "solvent_density": 0.789,
+        "solvent_price_per_l": 2.50,
+        "yield_percent": 95,
+        "temperature": "RT",
+        "time": "4h",
+        "procedure": "p-Nitrophenol + H₂ (Pd/C catalyst) → p-aminophenol + H₂O",
+        "depends_on": [1]
+      },
+      {
+        "step_id": 3,
+        "name": "N-acetylation → paracetamol",
+        "product_mw": 151.16,
+        "reagents": [
+          {
+            "name": "p-Aminophenol",
+            "mw": 109.13,
+            "cost_per_g": 0.10,
+            "moles": 1,
+            "is_limiting": true
+          },
+          {
+            "name": "Acetic anhydride",
+            "mw": 102.09,
+            "cost_per_g": 0.03,
+            "moles": 1.1,
+            "is_limiting": false
+          }
+        ],
+        "molarity": 2.0,
+        "solvent_name": "Water",
+        "solvent_density": 1.0,
+        "solvent_price_per_l": 0.01,
+        "yield_percent": 90,
+        "temperature": "80C",
+        "time": "2h",
+        "procedure": "p-Aminophenol + acetic anhydride → paracetamol + acetic acid",
+        "depends_on": [2]
+      }
+    ]
+  }
+}

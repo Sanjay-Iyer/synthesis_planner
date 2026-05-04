@@ -68,21 +68,12 @@
 
         <div class="tools-container" style="display: flex; gap: 20px; margin-bottom: 20px;">
             <div class="tool-box" style="flex: 1; border: 1px solid var(--border); padding: 15px; border-radius: var(--radius-sm); background: #f8f9fa;">
-                <h3 style="margin-top: 0; font-size: 1.1rem; color: var(--primary);">🧪 SMILES/SELFIES to Name</h3>
+                <h3 style="margin-top: 0; font-size: 1.1rem; color: var(--primary);">🧪 Chemical String Analyzer</h3>
                 <div style="display: flex; gap: 8px;">
-                    <input type="text" id="smiles-name-input" placeholder="Paste SMILES or SELFIES..." style="flex: 1; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
-                    <button class="btn btn-primary" onclick="getMoleculeName()" style="padding: 8px 15px; font-size: 0.9rem;">Get Name</button>
+                    <input type="text" id="smiles-name-input" placeholder="Paste SMILES, SELFIES, InChI, or Formula..." style="flex: 1; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
+                    <button class="btn btn-primary" onclick="getMoleculeName()" style="padding: 8px 15px; font-size: 0.9rem;">Analyze</button>
                 </div>
                 <div id="smiles-name-result" style="margin-top: 10px; font-weight: bold; min-height: 20px; color: var(--text);"></div>
-            </div>
-
-            <div class="tool-box" style="flex: 1; border: 1px solid var(--border); padding: 15px; border-radius: var(--radius-sm); background: #f8f9fa;">
-                <h3 style="margin-top: 0; font-size: 1.1rem; color: var(--primary);">⚖️ MW Calculator</h3>
-                <div style="display: flex; gap: 8px;">
-                    <input type="text" id="mw-input" placeholder="Paste SMILES or Formula (e.g. CH4)..." style="flex: 1; padding: 8px; border: 1px solid var(--border); border-radius: 4px;">
-                    <button class="btn btn-primary" onclick="calculateMW()" style="padding: 8px 15px; font-size: 0.9rem;">Calculate MW</button>
-                </div>
-                <div id="mw-result" style="margin-top: 10px; font-weight: bold; min-height: 20px; color: var(--text);"></div>
             </div>
         </div>
 
@@ -102,6 +93,6 @@ Paste your lab notes here...</div>
                 onclick="processAll()">🚀 Generate & Download (JSON + CSV)</button>
     </div>
 
-    <script src="/js/labeller.js?v=2"></script>
+    <script src="/js/labeller.js?v=3"></script>
 </body>
 </html>

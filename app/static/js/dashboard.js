@@ -21,8 +21,9 @@ function addStep(side, data = null) {
     }
 
     const html = `
-        <div class="step-card" id="card-${side}-${id}">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <div class="step-card" id="card-${side}-${id}" style="position:relative;">
+            <button onclick="this.closest('.step-card').remove()" style="position:absolute; top:8px; right:8px; background:transparent; border:none; color:#b2bec3; cursor:pointer; font-size:1.2em; line-height:1;" title="Delete Step">×</button>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; padding-right:20px;">
                 <strong style="color:var(--primary);">Step ${id}</strong>
                 <input type="text" id="name-${side}-${id}" value="${data?.name || ''}" style="width:40%;">
                 <label style="font-size:0.75em;">Prod MW: <input type="number" id="pmw-${side}-${id}" value="${data?.product_mw || 0}" step="any" style="width:65px;"></label>
@@ -35,16 +36,24 @@ function addStep(side, data = null) {
             </div>
 
             <table id="table-${side}-${id}">
-                <thead><tr><th>Reagent</th><th>MW</th><th>$/g</th><th>Moles</th><th>Lim?</th></tr></thead>
+                <thead><tr><th>Reagent</th><th>MW</th><th>$/g</th><th>Moles</th><th>Lim?</th><th></th></tr></thead>
                 <tbody>${data?.reagents ? data.reagents.map(r => `<tr>
                     <td><input type="text" value="${r.name || ''}"></td>
                     <td><input type="number" step="any" value="${r.mw || ''}"></td>
                     <td><input type="number" step="any" value="${r.cost_per_g || 0}"></td>
                     <td><input type="number" step="any" value="${r.moles || ''}"></td>
                     <td><input type="checkbox" ${r.is_limiting ? 'checked' : ''}></td>
-                </tr>`).join('') : '<tr><td><input type="text"></td><td><input type="number" step="any"></td><td><input type="number" step="any"></td><td><input type="number" step="any"></td><td><input type="checkbox"></td></tr>'}</tbody>
+                    <td><button onclick="this.closest(&apos;tr&apos;).remove()" style="background:transparent; border:none; color:#e74c3c; cursor:pointer; font-weight:bold;" title="Delete Reagent">×</button></td>
+                </tr>`).join('') : '<tr><td><input type="text"></td><td><input type="number" step="any"></td><td><input type="number" step="any"></td><td><input type="number" step="any"></td><td><input type="checkbox"></td><td><button onclick="this.closest(&apos;tr&apos;).remove()" style="background:transparent; border:none; color:#e74c3c; cursor:pointer; font-weight:bold;" title="Delete Reagent">×</button></td></tr>'}</tbody>
             </table>
-            <button class="btn btn-ghost btn-sm" onclick="addReagentRow('${side}', ${id})">+ Reagent</button>
+            <div style="display:flex; gap:10px; margin-top:5px; align-items:center;">
+                <button class="btn btn-ghost btn-sm" onclick="addReagentRow('${side}', ${id})">+ Manual Reagent</button>
+                <div style="flex:1; display:flex; gap:5px;">
+                    <input type="text" id="smiles-${side}-${id}" placeholder="Paste SMILES, SELFIES, or InChI..." style="flex:1; font-size:0.8em; padding:4px; border:1px solid var(--border); border-radius:3px;">
+                    <button class="btn btn-primary btn-sm" onclick="addReagentFromSmiles('${side}', ${id})">+ Add Molecule</button>
+                </div>
+            </div>
+            <div id="smiles-display-${side}-${id}" style="font-size:0.75em; color:var(--text); margin-top:5px; padding:5px; background:#eef2f3; border:1px solid var(--border); border-radius:4px; display:none;"></div>
             
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top:10px; background:#f1f2f6; padding:8px; border-radius:5px;">
                 <label style="font-size:0.7em;">Solvent: <input type="text" id="sname-${side}-${id}" value="${data?.solvent_name || 'Solvent'}"></label>
@@ -62,7 +71,65 @@ function addStep(side, data = null) {
 function addReagentRow(side, stepId) {
     const tbody = document.getElementById(`table-${side}-${stepId}`).getElementsByTagName('tbody')[0];
     const row = tbody.insertRow();
-    row.innerHTML = `<td><input type="text"></td><td><input type="number" step="any"></td><td><input type="number" step="any"></td><td><input type="number" step="any"></td><td><input type="checkbox"></td>`;
+    row.innerHTML = `<td><input type="text"></td><td><input type="number" step="any"></td><td><input type="number" step="any"></td><td><input type="number" step="any"></td><td><input type="checkbox"></td><td><button onclick="this.closest(&apos;tr&apos;).remove()" style="background:transparent; border:none; color:#e74c3c; cursor:pointer; font-weight:bold;" title="Delete Reagent">×</button></td>`;
+}
+
+async function addReagentFromSmiles(side, stepId) {
+    const inputEl = document.getElementById(`smiles-${side}-${stepId}`);
+    const val = inputEl.value.trim();
+    if (!val) return;
+    
+    // Add row first with loading state
+    const tbody = document.getElementById(`table-${side}-${stepId}`).getElementsByTagName('tbody')[0];
+    
+    // if the very first row is completely empty, we can just overwrite it instead of adding a new one
+    let targetRow = null;
+    if (tbody.rows.length === 1) {
+        const firstRowInputs = tbody.rows[0].querySelectorAll('input[type="text"], input[type="number"]');
+        let isEmpty = true;
+        firstRowInputs.forEach(i => { if(i.value) isEmpty = false; });
+        if (isEmpty) targetRow = tbody.rows[0];
+    }
+    
+    if (!targetRow) {
+        targetRow = tbody.insertRow();
+        targetRow.innerHTML = `<td><input type="text"></td><td><input type="number" step="any"></td><td><input type="number" step="any"></td><td><input type="number" step="any"></td><td><input type="checkbox"></td><td><button onclick="this.closest(&apos;tr&apos;).remove()" style="background:transparent; border:none; color:#e74c3c; cursor:pointer; font-weight:bold;" title="Delete Reagent">×</button></td>`;
+    }
+    
+    const inputs = targetRow.querySelectorAll('input');
+    inputs[0].value = "Fetching...";
+    
+    try {
+        const [nameRes, mwRes] = await Promise.all([
+            fetch('/api/synthesis/molecule-name', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ string_input: val }) }),
+            fetch('/api/synthesis/molecular-weight', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ string_input: val }) })
+        ]);
+        
+        let name = "Unknown";
+        let mw = 0;
+        
+        if (nameRes.ok) {
+            const nd = await nameRes.json();
+            name = nd.name;
+        }
+        if (mwRes.ok) {
+            const md = await mwRes.json();
+            if (md.mw > 0) mw = md.mw;
+        }
+        
+        inputs[0].value = name;
+        inputs[1].value = mw > 0 ? mw : '';
+        
+        // Update SMILES display container
+        const displayDiv = document.getElementById(`smiles-display-${side}-${stepId}`);
+        displayDiv.style.display = "block";
+        displayDiv.innerHTML += `<div style="margin-bottom:2px;"><b>${name}:</b> <code>${val}</code></div>`;
+        
+        inputEl.value = ""; // clear input
+        
+    } catch (err) {
+        inputs[0].value = "Error";
+    }
 }
 
 function collectStepData(side) {
@@ -98,7 +165,57 @@ async function runAnalysis() {
         lastAnalysis.vA = await getEstimate('vA');
         lastAnalysis.vB = await getEstimate('vB');
         displayDashboard(lastAnalysis.vA, lastAnalysis.vB);
+        
+        // Also run and display the optimization audit automatically
+        await runOptimizationAuditUI();
     } catch (e) { alert("Analysis failed. Is the server running?"); }
+}
+
+async function runOptimizationAuditUI() {
+    const stepsA = collectStepData('vA');
+    const stepsB = collectStepData('vB');
+    let html = `<div style="display:flex; gap:15px; flex-wrap:wrap;">`;
+    
+    if (stepsA.length > 0) {
+        const targetA = parseFloat(document.getElementById(`target-vA`).value) || 1.0;
+        const resA = await fetch(`${API_BASE}/api/synthesis/audit`, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ steps: stepsA, target_mass_kg: targetA }) });
+        if (resA.ok) {
+            const dataA = await resA.json();
+            html += renderAuditCard('Route A', dataA.audit, 'var(--primary)');
+        }
+    }
+    
+    if (stepsB.length > 0) {
+        const targetB = parseFloat(document.getElementById(`target-vB`).value) || 1.0;
+        const resB = await fetch(`${API_BASE}/api/synthesis/audit`, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ steps: stepsB, target_mass_kg: targetB }) });
+        if (resB.ok) {
+            const dataB = await resB.json();
+            html += renderAuditCard('Route B', dataB.audit, 'var(--secondary)');
+        }
+    }
+    
+    html += `</div>`;
+    document.getElementById("audit-container").innerHTML = html;
+}
+
+function renderAuditCard(title, auditData, color) {
+    if (!auditData || auditData.length === 0) return '';
+    let html = `<div style="flex:1; min-width:250px; background:#2d3436; padding:15px; border-radius:8px; margin-top:20px; color:white; border-top: 4px solid ${color}; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        <h4 style="margin-top:0; color:${color}; margin-bottom:5px;">🔬 Yield Sensitivity Audit - ${title}</h4>
+        <div style="font-size:0.8em; color:#b2bec3; margin-bottom:15px; font-style:italic;">Cost saved per 1% yield increase</div>
+        <table style="width:100%; color:white; font-size:0.85em; text-align:left; border-collapse: collapse;">
+        <tr style="border-bottom: 1px solid #636e72;">
+            <th style="padding:6px 0;">Step</th>
+            <th style="padding:6px 0;">Sensitivity ($/1%)</th>
+        </tr>`;
+    auditData.forEach(i => { 
+        html += `<tr style="border-bottom: 1px solid #454d50;">
+            <td style="padding:6px 0;">Step ${i.step_id}</td>
+            <td style="padding:6px 0; color:#00cec9; font-weight:bold;">$${(i.sensitivity || 0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+        </tr>`; 
+    });
+    html += `</table></div>`;
+    return html;
 }
 
 async function getEstimate(side) {
@@ -195,21 +312,40 @@ function loadFromFile(ev, target) {
     reader.readAsText(ev.target.files[0]);
 }
 
-function saveToFile() {
-    const data = { routeA: { target: document.getElementById('target-vA').value, steps: collectStepData('vA') }, routeB: { target: document.getElementById('target-vB').value, steps: collectStepData('vB') } };
-    const blob = new Blob([JSON.stringify(data)], {type: 'application/json'});
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'project.json'; a.click();
-}
 
-async function runOptimizationAudit() {
-    const steps = collectStepData('vA');
-    const target = parseFloat(document.getElementById(`target-vA`).value) || 1.0;
-    const res = await fetch(`${API_BASE}/api/synthesis/audit`, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ steps, target_mass_kg: target }) });
-    const data = await res.json();
-    let html = `<div style="background:var(--purple); padding:15px; border-radius:10px; margin-top:15px; color:white;"><h4>🚀 Yield Impact Audit</h4><table style="width:100%; color:white; font-size:0.8em;"><tr><th>Step</th><th>Sensitivity</th></tr>`;
-    data.audit.forEach(i => { html += `<tr><td>${i.step_id}</td><td>$${i.sensitivity}/% yield</td></tr>`; });
-    document.getElementById("audit-container").innerHTML = html + "</table></div>";
+
+function saveRouteToFile(side) {
+    const routeKey = side === 'vA' ? 'routeA' : 'routeB';
+    const data = { 
+        [routeKey]: { 
+            target: document.getElementById(`target-${side}`).value, 
+            steps: collectStepData(side) 
+        } 
+    };
+    
+    // Get custom filename
+    let filename = document.getElementById(`filename-${side}`).value.trim();
+    if (!filename) filename = `project_${routeKey}`;
+    if (!filename.endsWith('.json')) filename += '.json';
+    
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+    const a = document.createElement('a'); 
+    a.href = URL.createObjectURL(blob); 
+    a.download = filename; 
+    a.click();
 }
 
 function clearRoute(side) { if (confirm(`Clear Route ${side}?`)) clearRouteUI(side); }
 function clearRouteUI(side) { document.getElementById(`steps-${side}`).innerHTML = ""; counters[side] = 0; }
+
+// Initialize default filenames on load
+document.addEventListener('DOMContentLoaded', () => {
+    const d = new Date();
+    const yyyymmdd = d.getFullYear() + String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0');
+    
+    const fnA = document.getElementById('filename-vA');
+    if (fnA) fnA.value = `${yyyymmdd}_RouteA`;
+    
+    const fnB = document.getElementById('filename-vB');
+    if (fnB) fnB.value = `${yyyymmdd}_RouteB`;
+});
