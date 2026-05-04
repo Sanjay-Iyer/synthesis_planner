@@ -38,7 +38,7 @@
                     </div>
                 </div>
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; margin-top:5px; font-size:0.85em; gap:10px;">
-                    <label>Target kg: <input type="number" id="target-vA" value="1" style="width:70px;"></label>
+                    <label>Target kg: <input type="number" id="target-vA" value="1" style="width:70px;" oninput="runAnalysis()"></label>
                     <label>Save As: <input type="text" id="filename-vA" style="width:140px; padding:3px; border:1px solid var(--border); border-radius:3px;"></label>
                 </div>
                 <button class="btn" onclick="addStep('vA')" style="width:100%; margin-bottom:15px;">+ Add Manual Step</button>
@@ -54,7 +54,7 @@
                     </div>
                 </div>
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; margin-top:5px; font-size:0.85em; gap:10px;">
-                    <label>Target kg: <input type="number" id="target-vB" value="1" style="width:70px;"></label>
+                    <label>Target kg: <input type="number" id="target-vB" value="1" style="width:70px;" oninput="runAnalysis()"></label>
                     <label>Save As: <input type="text" id="filename-vB" style="width:140px; padding:3px; border:1px solid var(--border); border-radius:3px;"></label>
                 </div>
                 <button class="btn" onclick="addStep('vB')" style="width:100%; margin-bottom:15px;">+ Add Manual Step</button>
@@ -68,25 +68,56 @@
                     <div id="comp-stats">Load data and run analysis...</div>
                     <div id="audit-container"></div>
                 </div>
-                <div>
-                    <div class="chart-label">Total Budget Comparison</div>
-                    <div class="chart-wrapper"><canvas id="compareChart"></canvas></div>
+                <div style="background:#2d3436; padding:20px; border-radius:8px; color:white; border-top:4px solid #00cec9; margin-top:30px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                    <h3 style="color:#00cec9; margin-top:0; margin-bottom:15px;">📈 Section 4: Budget & Cost Driver Visualizations</h3>
+                    <div class="chart-label" style="font-weight:bold; margin-bottom:5px; color:#b2bec3;">Total Budget Comparison</div>
+                    <div class="chart-wrapper" style="background:rgba(255,255,255,0.02); padding:10px; border-radius:6px; margin-bottom:20px;"><canvas id="compareChart"></canvas></div>
 
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:15px;">
                         <div>
-                            <div class="chart-label">A Cost Drivers</div>
-                            <div class="chart-wrapper" style="height:180px;"><canvas id="pieA"></canvas></div>
+                            <div class="chart-label" style="font-weight:bold; margin-bottom:5px; color:#b2bec3;">A Cost Drivers</div>
+                            <div class="chart-wrapper" style="background:rgba(255,255,255,0.02); padding:10px; border-radius:6px; height:180px;"><canvas id="pieA"></canvas></div>
                         </div>
                         <div>
-                            <div class="chart-label">B Cost Drivers</div>
-                            <div class="chart-wrapper" style="height:180px;"><canvas id="pieB"></canvas></div>
+                            <div class="chart-label" style="font-weight:bold; margin-bottom:5px; color:#b2bec3;">B Cost Drivers</div>
+                            <div class="chart-wrapper" style="background:rgba(255,255,255,0.02); padding:10px; border-radius:6px; height:180px;"><canvas id="pieB"></canvas></div>
                         </div>
                     </div>
+                </div>
+            </div>
+
+            <div style="background:#2d3436; padding:20px; border-radius:8px; color:white; border-top:4px solid #0984e3; margin-top:20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <h3 style="color:#0984e3; margin-top:0; margin-bottom:15px;">📊 Section 5: Advanced Synthesis Plots</h3>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+                    <div>
+                        <div class="chart-label" style="font-weight:bold; margin-bottom:5px; color:#b2bec3;">1. The "Route Efficiency" Dashboard (Cost vs. E-Factor)</div>
+                        <div class="chart-wrapper" style="background:rgba(255,255,255,0.02); padding:10px; border-radius:6px; height:320px;"><canvas id="efficiencyChart"></canvas></div>
+                    </div>
+                    <div>
+                        <div class="chart-label" style="font-weight:bold; margin-bottom:5px; color:#b2bec3;">2. Step-wise Cost Breakdown (Where the Money Goes)</div>
+                        <div class="chart-wrapper" style="background:rgba(255,255,255,0.02); padding:10px; border-radius:6px; height:320px;"><canvas id="stepCostChart"></canvas></div>
+                    </div>
+                    <div>
+                        <div class="chart-label" style="font-weight:bold; margin-bottom:5px; color:#b2bec3;">3. The "Optimization Bottleneck" Plot (Sensitivity Analysis)</div>
+                        <div class="chart-wrapper" style="background:rgba(255,255,255,0.02); padding:10px; border-radius:6px; height:320px;"><canvas id="bottleneckChart"></canvas></div>
+                    </div>
+                    <div>
+                        <div class="chart-label" style="font-weight:bold; margin-bottom:5px; color:#b2bec3;">4. Overall Route Comparison</div>
+                        <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:10px; height:320px; background:rgba(255,255,255,0.02); padding:10px; border-radius:6px;">
+                            <div><div class="chart-label" style="font-size:0.75em; color:#b2bec3; text-align:center;">Total Cost</div><div style="height:250px;"><canvas id="routeComp1"></canvas></div></div>
+                            <div><div class="chart-label" style="font-size:0.75em; color:#b2bec3; text-align:center;">Cost per kg</div><div style="height:250px;"><canvas id="routeComp2"></canvas></div></div>
+                            <div><div class="chart-label" style="font-size:0.75em; color:#b2bec3; text-align:center;">E-Factor</div><div style="height:250px;"><canvas id="routeComp3"></canvas></div></div>
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-top:20px;">
+                    <div class="chart-label" style="font-weight:bold; margin-bottom:5px; color:#b2bec3;">5. Yield Cascade Waterfall (Theoretical → Actual Mass)</div>
+                    <div class="chart-wrapper" style="background:rgba(255,255,255,0.02); padding:10px; border-radius:6px; height:360px;"><canvas id="waterfallChart"></canvas></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <script src="/js/dashboard.js?v=19"></script>
+    <script src="/js/dashboard.js?v=32"></script>
 </body>
 </html>

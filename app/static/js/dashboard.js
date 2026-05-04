@@ -7,7 +7,7 @@ const API_BASE = '';  // Same origin — no need for http://127.0.0.1:8000
 
 let counters = { vA: 0, vB: 0 };
 let lastAnalysis = { vA: null, vB: null };
-let barInst = null, pieAInst = null, pieBInst = null;
+let barInst = null, pieAInst = null, pieBInst = null, efficiencyChartInst = null, stepCostChartInst = null, bottleneckChartInst = null, rComp1Inst = null, rComp2Inst = null, rComp3Inst = null, waterfallChartInst = null;
 
 function addStep(side, data = null) {
     counters[side]++;
@@ -375,7 +375,8 @@ async function runAnalysis() {
 async function runOptimizationAuditUI() {
     const stepsA = collectStepData('vA');
     const stepsB = collectStepData('vB');
-    let html = `<div style="display:flex; gap:15px; flex-wrap:wrap;">`;
+    let html = `<h2 style="color:white; margin-top:30px; border-bottom:2px solid #555; padding-bottom:5px;">🔬 Section 2: Yield Sensitivity Audit</h2>`;
+    html += `<div style="display:flex; gap:15px; flex-wrap:wrap; margin-top:15px;">`;
     
     if (stepsA.length > 0) {
         const targetA = parseFloat(document.getElementById(`target-vA`).value) || 1.0;
@@ -431,30 +432,170 @@ async function getEstimate(side) {
 }
 
 function displayDashboard(a, b) {
-    let html = `<h3>Synthesis Summary</h3><table style="color:white; width:100%;">
-    <tr><th>Metric</th><th>Route A</th><th>Route B</th></tr>
-    <tr><td>Budget</td><td>$${(a.total_cost || 0).toLocaleString()}</td><td>$${(b.total_cost || 0).toLocaleString()}</td></tr>
-    <tr style="color:#00cec9;"><td>E-Factor</td><td>${a.e_factor || 0}</td><td>${b.e_factor || 0}</td></tr></table>`;
-
     const pA = getPieData(a), pB = getPieData(b);
+    const labStepsA = collectStepData('vA');
+    const labStepsB = collectStepData('vB');
 
-    [a, b].forEach((route, idx) => {
-        if (!route.steps) return;
-        html += `<div style="margin-top:20px; background:#333; padding:15px; border-radius:8px; color:white; border-left:4px solid ${idx==0?'var(--primary)':'var(--secondary)'};">
-            <strong>Route ${idx==0?'A':'B'} Procurement:</strong>`;
-        route.steps.forEach(s => {
+    let html = `<h2 style="color:white; margin-top:20px; border-bottom:2px solid #555; padding-bottom:5px;">📋 Section 1: Route Procurement (Side-by-Side)</h2>`;
+    html += `<div style="display:flex; gap:20px; flex-wrap:wrap; margin-bottom: 25px; margin-top:15px;">`;
+
+    // Route A column
+    html += `<div style="flex:1; min-width:350px; background:#2d3436; padding:15px; border-radius:8px; color:white; border-top:4px solid var(--primary);">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
+            <h3 style="color:var(--primary); margin:0;">📋 Route A Analysis</h3>
+            <div style="display:flex; gap:5px; align-items:center; background:rgba(255,255,255,0.05); padding:4px 8px; border-radius:4px;">
+                <span style="font-size:0.75em; color:#b2bec3;">Scale:</span>
+                <input type="number" id="scale-mult-vA" value="2" min="1" step="any" style="width:50px; font-size:0.8em; padding:2px; background:#1e272c; color:white; border:1px solid #555; border-radius:3px;">
+                <button class="btn btn-primary" onclick="addScaledSection('vA')" style="padding:2px 8px; font-size:0.75em;">Scale Up</button>
+            </div>
+        </div>
+        <div id="original-steps-vA">`;
+
+    if (labStepsA.length > 0) {
+        labStepsA.forEach(s => {
+            let stepTotal = 0;
+            let limMw = 0, limEq = 1, limMassInG = 0;
+            s.reagents.forEach(r => {
+                let inG = r.mass;
+                if (r.mass_unit === 'mg') inG = r.mass / 1000;
+                if (r.mass_unit === 'kg') inG = r.mass * 1000;
+                const cost = inG * (r.pkg_price / r.pkg_size);
+                r.lab_cost = cost;
+                r.lab_mass_in_g = inG;
+                stepTotal += cost;
+
+                if (r.is_limiting && r.mw > 0) {
+                    limMw = r.mw;
+                    limEq = r.moles || 1;
+                    limMassInG = inG;
+                }
+            });
+            // solvent cost
+            if (s.solvent_bottle_l > 0) {
+                const sCost = s.solvent_volume_l * (s.solvent_bottle_price / s.solvent_bottle_l);
+                stepTotal += sCost;
+            }
+
+            let productProduced = 0;
+            if (limMw > 0 && s.product_mw > 0) {
+                const baseMoles = limMassInG / limMw / limEq;
+                productProduced = baseMoles * s.product_mw * (s.yield_percent / 100);
+            }
+
             html += `<div style="margin-top:15px; border-top:1px solid #555; padding-top:8px;">
                 <div style="display:flex; justify-content:space-between; font-size:0.85em; margin-bottom:5px;">
                     <span style="color:#00cec9;">S${s.step_id}: ${s.name}</span>
-                    <span>Subtotal: $${(s.step_total || 0).toLocaleString()}</span>
+                    <span>Subtotal: $${stepTotal.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:0.8em; margin-bottom:5px; color:#ffeaa7;">
+                    <span>Product Yield: ${s.yield_percent}%</span>
+                    <span>Amt Produced: ${productProduced.toLocaleString(undefined, {minimumFractionDigits:3, maximumFractionDigits:3})} g</span>
                 </div>
                 <div style="font-size:0.75em; background:rgba(255,255,255,0.05); padding:8px; margin:5px 0; white-space: pre-wrap; border:1px solid #555;">${s.procedure || 'No notes.'}</div>
-                <table style="width:100%; font-size:0.7em; color:#dfe6e9;"><tr><th>Reagent</th><th>Mass(g)</th><th>Cost</th></tr>`;
-            s.reagents.forEach(r => { html += `<tr><td>${r.name}</td><td>${r.mass_g.toLocaleString()}</td><td>$${r.item_cost.toLocaleString()}</td></tr>`; });
+                <table style="width:100%; font-size:0.7em; color:#dfe6e9; border-collapse:collapse; margin-top:4px;">
+                    <tr style="border-bottom:1px solid #555;"><th style="text-align:left; padding:4px 0;">Reagent</th><th style="text-align:left;">Amount Used</th><th style="text-align:left;">Cost</th></tr>`;
+            s.reagents.forEach(r => {
+                html += `<tr style="border-bottom:1px solid #444;"><td style="padding:4px 0;">${r.name}</td><td>${r.mass} ${r.mass_unit}</td><td>$${(r.lab_cost || 0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</td></tr>`;
+            });
+            if (s.solvent_volume > 0) {
+                const sCost = s.solvent_volume_l * (s.solvent_bottle_price / s.solvent_bottle_l);
+                html += `<tr style="border-bottom:1px solid #444;"><td style="padding:4px 0; color:#00cec9;">${s.solvent_name} (Solvent)</td><td>${s.solvent_volume} ${s.solvent_volume_unit}</td><td>$${sCost.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</td></tr>`;
+            }
             html += `</table></div>`;
         });
-        html += `</div>`;
-    });
+    } else {
+        html += `<p style="font-size:0.85em; color:#b2bec3;">No steps found.</p>`;
+    }
+    html += `</div>`; // end original-steps-vA
+    html += `<div id="scaled-sections-vA"></div>`;
+    html += `</div>`; // end Route A column
+
+    // Route B column
+    html += `<div style="flex:1; min-width:350px; background:#2d3436; padding:15px; border-radius:8px; color:white; border-top:4px solid var(--secondary);">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
+            <h3 style="color:var(--secondary); margin:0;">📋 Route B Analysis</h3>
+            <div style="display:flex; gap:5px; align-items:center; background:rgba(255,255,255,0.05); padding:4px 8px; border-radius:4px;">
+                <span style="font-size:0.75em; color:#b2bec3;">Scale:</span>
+                <input type="number" id="scale-mult-vB" value="2" min="1" step="any" style="width:50px; font-size:0.8em; padding:2px; background:#1e272c; color:white; border:1px solid #555; border-radius:3px;">
+                <button class="btn btn-secondary" onclick="addScaledSection('vB')" style="padding:2px 8px; font-size:0.75em;">Scale Up</button>
+            </div>
+        </div>
+        <div id="original-steps-vB">`;
+
+    if (labStepsB.length > 0) {
+        labStepsB.forEach(s => {
+            let stepTotal = 0;
+            let limMw = 0, limEq = 1, limMassInG = 0;
+            s.reagents.forEach(r => {
+                let inG = r.mass;
+                if (r.mass_unit === 'mg') inG = r.mass / 1000;
+                if (r.mass_unit === 'kg') inG = r.mass * 1000;
+                const cost = inG * (r.pkg_price / r.pkg_size);
+                r.lab_cost = cost;
+                r.lab_mass_in_g = inG;
+                stepTotal += cost;
+
+                if (r.is_limiting && r.mw > 0) {
+                    limMw = r.mw;
+                    limEq = r.moles || 1;
+                    limMassInG = inG;
+                }
+            });
+            // solvent cost
+            if (s.solvent_bottle_l > 0) {
+                const sCost = s.solvent_volume_l * (s.solvent_bottle_price / s.solvent_bottle_l);
+                stepTotal += sCost;
+            }
+
+            let productProduced = 0;
+            if (limMw > 0 && s.product_mw > 0) {
+                const baseMoles = limMassInG / limMw / limEq;
+                productProduced = baseMoles * s.product_mw * (s.yield_percent / 100);
+            }
+
+            html += `<div style="margin-top:15px; border-top:1px solid #555; padding-top:8px;">
+                <div style="display:flex; justify-content:space-between; font-size:0.85em; margin-bottom:5px;">
+                    <span style="color:#00cec9;">S${s.step_id}: ${s.name}</span>
+                    <span>Subtotal: $${stepTotal.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:0.8em; margin-bottom:5px; color:#ffeaa7;">
+                    <span>Product Yield: ${s.yield_percent}%</span>
+                    <span>Amt Produced: ${productProduced.toLocaleString(undefined, {minimumFractionDigits:3, maximumFractionDigits:3})} g</span>
+                </div>
+                <div style="font-size:0.75em; background:rgba(255,255,255,0.05); padding:8px; margin:5px 0; white-space: pre-wrap; border:1px solid #555;">${s.procedure || 'No notes.'}</div>
+                <table style="width:100%; font-size:0.7em; color:#dfe6e9; border-collapse:collapse; margin-top:4px;">
+                    <tr style="border-bottom:1px solid #555;"><th style="text-align:left; padding:4px 0;">Reagent</th><th style="text-align:left;">Amount Used</th><th style="text-align:left;">Cost</th></tr>`;
+            s.reagents.forEach(r => {
+                html += `<tr style="border-bottom:1px solid #444;"><td style="padding:4px 0;">${r.name}</td><td>${r.mass} ${r.mass_unit}</td><td>$${(r.lab_cost || 0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</td></tr>`;
+            });
+            if (s.solvent_volume > 0) {
+                const sCost = s.solvent_volume_l * (s.solvent_bottle_price / s.solvent_bottle_l);
+                html += `<tr style="border-bottom:1px solid #444;"><td style="padding:4px 0; color:#00cec9;">${s.solvent_name} (Solvent)</td><td>${s.solvent_volume} ${s.solvent_volume_unit}</td><td>$${sCost.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</td></tr>`;
+            }
+            html += `</table></div>`;
+        });
+    } else {
+        html += `<p style="font-size:0.85em; color:#b2bec3;">No steps found.</p>`;
+    }
+    html += `</div>`; // end original-steps-vB
+    html += `<div id="scaled-sections-vB"></div>`;
+    html += `</div>`;
+
+    html += `</div>`; // end flex row
+
+    // Synthesis Summary at the bottom
+    html += `<h2 style="color:white; margin-top:30px; border-bottom:2px solid #555; padding-bottom:5px;">📊 Section 3: Comprehensive Comparison Summary</h2>`;
+    html += `<div style="margin-top:15px; background:#2d3436; padding:15px; border-radius:8px; color:white; border-left:4px solid #00cec9;">
+        <h3 style="margin-top:0; color:#00cec9;">📊 Comprehensive Comparison Summary</h3>
+        <table style="color:white; width:100%; border-collapse:collapse; margin-top:10px; font-size:0.9em; text-align:left;">
+            <tr style="border-bottom:1px solid #555;"><th style="padding:6px 0;">Metric</th><th style="color:var(--primary);">Route A</th><th style="color:var(--secondary);">Route B</th></tr>
+            <tr style="border-bottom:1px solid #444;"><td style="padding:6px 0;">Target Goal</td><td>${document.getElementById('target-vA')?.value || 1} kg</td><td>${document.getElementById('target-vB')?.value || 1} kg</td></tr>
+            <tr style="border-bottom:1px solid #444;"><td style="padding:6px 0;">Budget / Total Cost</td><td>$${(a.total_cost || 0).toLocaleString()}</td><td>$${(b.total_cost || 0).toLocaleString()}</td></tr>
+            <tr style="border-bottom:1px solid #444;"><td style="padding:6px 0;">Cost per kg</td><td>$${(a.cost_per_kg || 0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</td><td>$${(b.cost_per_kg || 0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</td></tr>
+            <tr style="border-bottom:1px solid #444; color:#00cec9;"><td style="padding:6px 0;">E-Factor</td><td>${a.e_factor || 0}</td><td>${b.e_factor || 0}</td></tr>
+        </table>
+    </div>`;
+
     document.getElementById("comp-stats").innerHTML = html;
     updateCharts(a, b, pA, pB);
 }
@@ -472,15 +613,400 @@ function getPieData(route) {
     return pie;
 }
 
-function updateCharts(a, b, pA, pB) {
+async function updateCharts(a, b, pA, pB) {
     if (barInst) barInst.destroy();
-    barInst = new Chart(document.getElementById('compareChart'), { type: 'bar', data: { labels: ['A', 'B'], datasets: [{ data: [a.total_cost || 0, b.total_cost || 0], backgroundColor: ['#0984e3', '#27ae60'] }] }, options: { maintainAspectRatio: false } });
+    barInst = new Chart(document.getElementById('compareChart'), { 
+        type: 'bar', 
+        data: { 
+            labels: ['Route A', 'Route B'], 
+            datasets: [{ 
+                label: 'Total Budget ($)', 
+                data: [a.total_cost || 0, b.total_cost || 0], 
+                backgroundColor: ['#0984e3', '#27ae60'] 
+            }] 
+        }, 
+        options: { 
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: true }
+            }
+        } 
+    });
 
     if (pieAInst) pieAInst.destroy();
     if (pA.data.length) pieAInst = new Chart(document.getElementById('pieA'), { type: 'doughnut', data: { labels: pA.labels, datasets: [{ data: pA.data, backgroundColor: pA.colors }] }, options: { maintainAspectRatio: false, plugins: { legend: { display: false } } } });
     
     if (pieBInst) pieBInst.destroy();
     if (pB.data.length) pieBInst = new Chart(document.getElementById('pieB'), { type: 'doughnut', data: { labels: pB.labels, datasets: [{ data: pB.data, backgroundColor: pB.colors }] }, options: { maintainAspectRatio: false, plugins: { legend: { display: false } } } });
+
+    // 1. Efficiency Chart (Dual Y-Axis)
+    if (efficiencyChartInst) efficiencyChartInst.destroy();
+    const effCanvas = document.getElementById('efficiencyChart');
+    if (effCanvas) {
+        efficiencyChartInst = new Chart(effCanvas, {
+            type: 'bar',
+            data: {
+                labels: ['Route A', 'Route B'],
+                datasets: [
+                    {
+                        label: 'Total Cost ($)',
+                        data: [a.total_cost || 0, b.total_cost || 0],
+                        backgroundColor: '#0984e3',
+                        yAxisID: 'y'
+                    },
+                    {
+                        label: 'E-Factor',
+                        data: [a.e_factor || 0, b.e_factor || 0],
+                        backgroundColor: '#e17055',
+                        yAxisID: 'y1'
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: { display: true, text: 'Cost ($)', color: '#fff' },
+                        ticks: { color: '#fff' },
+                        grid: { color: 'rgba(255,255,255,0.1)' }
+                    },
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        title: { display: true, text: 'E-Factor', color: '#fff' },
+                        ticks: { color: '#fff' },
+                        grid: { drawOnChartArea: false }
+                    },
+                    x: {
+                        ticks: { color: '#fff' },
+                        grid: { color: 'rgba(255,255,255,0.1)' }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        labels: { color: '#fff' }
+                    }
+                }
+            }
+        });
+    }
+
+    // 2. Step-wise Cost Breakdown stacked chart
+    if (stepCostChartInst) stepCostChartInst.destroy();
+    const scCanvas = document.getElementById('stepCostChart');
+    if (scCanvas) {
+        const datasets = [];
+        const maxSteps = Math.max(a.steps ? a.steps.length : 0, b.steps ? b.steps.length : 0);
+        const colors = ['#0984e3', '#00cec9', '#6c5ce7', '#fab1a0', '#fdcb6e', '#e17055', '#2ecc71'];
+
+        for (let i = 0; i < maxSteps; i++) {
+            const stepA = a.steps && a.steps[i] ? a.steps[i] : null;
+            const stepB = b.steps && b.steps[i] ? b.steps[i] : null;
+
+            let domA = '', domB = '';
+            if (stepA && stepA.reagents) {
+                let maxCost = 0;
+                stepA.reagents.forEach(r => {
+                    if (r.item_cost > maxCost) {
+                        maxCost = r.item_cost;
+                        domA = r.name;
+                    }
+                });
+            }
+            if (stepB && stepB.reagents) {
+                let maxCost = 0;
+                stepB.reagents.forEach(r => {
+                    if (r.item_cost > maxCost) {
+                        maxCost = r.item_cost;
+                        domB = r.name;
+                    }
+                });
+            }
+
+            let lbl = stepA?.name || stepB?.name || `Step ${i + 1}`;
+            let dom = domA || domB;
+            if (dom) lbl += ` (${dom})`;
+
+            datasets.push({
+                label: lbl,
+                data: [stepA?.step_total || 0, stepB?.step_total || 0],
+                backgroundColor: colors[i % colors.length]
+            });
+        }
+
+        stepCostChartInst = new Chart(scCanvas, {
+            type: 'bar',
+            data: {
+                labels: ['Route A', 'Route B'],
+                datasets: datasets
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        stacked: true,
+                        ticks: { color: '#fff' },
+                        grid: { color: 'rgba(255,255,255,0.1)' }
+                    },
+                    y: {
+                        stacked: true,
+                        ticks: { color: '#fff' },
+                        grid: { color: 'rgba(255,255,255,0.1)' }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        labels: { color: '#fff' }
+                    }
+                }
+            }
+        });
+    }
+
+    // 3. Optimization Bottleneck chart (Tornado Plot)
+    const stepsA = collectStepData('vA');
+    const stepsB = collectStepData('vB');
+    let auditData = [];
+
+    if (stepsA.length > 0) {
+        const targetA = parseFloat(document.getElementById(`target-vA`).value) || 1.0;
+        const resA = await fetch(`${API_BASE}/api/synthesis/audit`, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ steps: stepsA, target_mass_kg: targetA }) });
+        if (resA.ok) {
+            const dataA = await resA.json();
+            if (dataA.audit) {
+                dataA.audit.forEach(i => {
+                    auditData.push({ label: `Route A - Step ${i.step_id} (${i.name})`, value: i.sensitivity || 0, color: '#0984e3' });
+                });
+            }
+        }
+    }
+    if (stepsB.length > 0) {
+        const targetB = parseFloat(document.getElementById(`target-vB`).value) || 1.0;
+        const resB = await fetch(`${API_BASE}/api/synthesis/audit`, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ steps: stepsB, target_mass_kg: targetB }) });
+        if (resB.ok) {
+            const dataB = await resB.json();
+            if (dataB.audit) {
+                dataB.audit.forEach(i => {
+                    auditData.push({ label: `Route B - Step ${i.step_id} (${i.name})`, value: i.sensitivity || 0, color: '#27ae60' });
+                });
+            }
+        }
+    }
+
+    auditData.sort((x, y) => y.value - x.value);
+
+    if (bottleneckChartInst) bottleneckChartInst.destroy();
+    const bnCanvas = document.getElementById('bottleneckChart');
+    if (bnCanvas && auditData.length > 0) {
+        bottleneckChartInst = new Chart(bnCanvas, {
+            type: 'bar',
+            data: {
+                labels: auditData.map(i => i.label),
+                datasets: [{
+                    label: 'Savings ($ per 1% Yield Increase)',
+                    data: auditData.map(i => i.value),
+                    backgroundColor: auditData.map(i => i.color)
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                layout: {
+                    padding: {
+                        left: 25
+                    }
+                },
+                scales: {
+                    x: {
+                        ticks: { color: '#fff' },
+                        grid: { color: 'rgba(255,255,255,0.1)' }
+                    },
+                    y: {
+                        ticks: { color: '#fff' },
+                        grid: { color: 'rgba(255,255,255,0.1)' }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        labels: { color: '#fff' }
+                    }
+                }
+            }
+        });
+    }
+
+    // 4. Grouped Bar Plots for Overall Route Comparison
+    if (rComp1Inst) rComp1Inst.destroy();
+    const rc1Canvas = document.getElementById('routeComp1');
+    if (rc1Canvas) {
+        rComp1Inst = new Chart(rc1Canvas, {
+            type: 'bar',
+            data: {
+                labels: ['Route A', 'Route B'],
+                datasets: [{
+                    label: 'Total Cost ($)',
+                    data: [a.total_cost || 0, b.total_cost || 0],
+                    backgroundColor: ['#0984e3', '#27ae60']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { ticks: { color: '#fff' }, grid: { color: 'rgba(255,255,255,0.1)' } },
+                    y: { ticks: { color: '#fff' }, grid: { color: 'rgba(255,255,255,0.1)' } }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
+
+    if (rComp2Inst) rComp2Inst.destroy();
+    const rc2Canvas = document.getElementById('routeComp2');
+    if (rc2Canvas) {
+        rComp2Inst = new Chart(rc2Canvas, {
+            type: 'bar',
+            data: {
+                labels: ['Route A', 'Route B'],
+                datasets: [{
+                    label: 'Cost per kg ($)',
+                    data: [a.cost_per_kg || 0, b.cost_per_kg || 0],
+                    backgroundColor: ['#0984e3', '#27ae60']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { ticks: { color: '#fff' }, grid: { color: 'rgba(255,255,255,0.1)' } },
+                    y: { ticks: { color: '#fff' }, grid: { color: 'rgba(255,255,255,0.1)' } }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
+
+    if (rComp3Inst) rComp3Inst.destroy();
+    const rc3Canvas = document.getElementById('routeComp3');
+    if (rc3Canvas) {
+        rComp3Inst = new Chart(rc3Canvas, {
+            type: 'bar',
+            data: {
+                labels: ['Route A', 'Route B'],
+                datasets: [{
+                    label: 'E-Factor',
+                    data: [a.e_factor || 0, b.e_factor || 0],
+                    backgroundColor: ['#0984e3', '#27ae60']
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { ticks: { color: '#fff' }, grid: { color: 'rgba(255,255,255,0.1)' } },
+                    y: { ticks: { color: '#fff' }, grid: { color: 'rgba(255,255,255,0.1)' } }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+    }
+
+    // 5. Yield Cascade Waterfall (Theoretical -> Actual Mass)
+    if (waterfallChartInst) waterfallChartInst.destroy();
+    const wfCanvas = document.getElementById('waterfallChart');
+    if (wfCanvas) {
+        const wfLabels = [];
+        const wfAData = [];
+        const wfBData = [];
+        const wfColors = [];
+
+        // Route A waterfall
+        let runA = 100;
+        wfLabels.push('A Start');
+        wfAData.push([0, runA]);
+        wfBData.push(null);
+        wfColors.push('#0984e3');
+
+        const labStepsA = collectStepData('vA');
+        labStepsA.forEach((s, idx) => {
+            const lost = runA * (1 - (s.yield_percent || 100) / 100);
+            const nextRun = runA - lost;
+            wfLabels.push(`A S${s.step_id} → waste`);
+            wfAData.push([nextRun, runA]);
+            wfBData.push(null);
+            wfColors.push('#ff7675');
+            runA = nextRun;
+        });
+
+        wfLabels.push('A Final');
+        wfAData.push([0, runA]);
+        wfBData.push(null);
+        wfColors.push('#00cec9');
+
+        // Route B waterfall
+        let runB = 100;
+        wfLabels.push('B Start');
+        wfAData.push(null);
+        wfBData.push([0, runB]);
+        wfColors.push('#27ae60');
+
+        const labStepsB = collectStepData('vB');
+        labStepsB.forEach((s, idx) => {
+            const lost = runB * (1 - (s.yield_percent || 100) / 100);
+            const nextRun = runB - lost;
+            wfLabels.push(`B S${s.step_id} → waste`);
+            wfAData.push(null);
+            wfBData.push([nextRun, runB]);
+            wfColors.push('#ff7675');
+            runB = nextRun;
+        });
+
+        wfLabels.push('B Final');
+        wfAData.push(null);
+        wfBData.push([0, runB]);
+        wfColors.push('#2ecc71');
+
+        waterfallChartInst = new Chart(wfCanvas, {
+            type: 'bar',
+            data: {
+                labels: wfLabels,
+                datasets: [
+                    {
+                        label: 'Route A Mass',
+                        data: wfAData,
+                        backgroundColor: wfColors.slice(0, wfAData.length)
+                    },
+                    {
+                        label: 'Route B Mass',
+                        data: wfBData,
+                        backgroundColor: wfColors.slice(wfAData.length)
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: { ticks: { color: '#fff' }, grid: { color: 'rgba(255,255,255,0.1)' } },
+                    y: { 
+                        title: { display: true, text: 'Mass Percentage (%)', color: '#fff' },
+                        ticks: { color: '#fff' }, 
+                        grid: { color: 'rgba(255,255,255,0.1)' } 
+                    }
+                },
+                plugins: {
+                    legend: { labels: { color: '#fff' } }
+                }
+            }
+        });
+    }
 }
 
 function exportToCSV() {
@@ -550,3 +1076,74 @@ document.addEventListener('DOMContentLoaded', () => {
     const fnB = document.getElementById('filename-vB');
     if (fnB) fnB.value = `${yyyymmdd}_RouteB`;
 });
+
+function addScaledSection(side) {
+    const mult = parseFloat(document.getElementById(`scale-mult-${side}`).value) || 1;
+    if (mult <= 0) return;
+
+    const labSteps = collectStepData(side);
+    if (!labSteps.length) return;
+
+    const color = side === 'vA' ? 'var(--primary)' : 'var(--secondary)';
+    const bg = side === 'vA' ? 'rgba(9, 132, 227, 0.15)' : 'rgba(46, 204, 113, 0.15)';
+    const borderColor = side === 'vA' ? 'rgba(9, 132, 227, 0.35)' : 'rgba(46, 204, 113, 0.35)';
+
+    let html = `<div style="position:relative; margin-top:20px; background:${bg}; border:1px solid ${borderColor}; padding:15px; border-radius:8px;">
+        <span style="position:absolute; top:8px; right:12px; cursor:pointer; color:#ff7675; font-size:1.4em; font-weight:bold; line-height:1;" onclick="this.parentElement.remove()" title="Delete Section">×</span>
+        <h4 style="color:${color}; margin-top:0; font-size:0.9em; margin-bottom:10px;">📋 Route ${side === 'vA'?'A':'B'} (${mult}x Scale-Up)</h4>`;
+
+    labSteps.forEach(s => {
+        let stepTotal = 0;
+        let limMw = 0, limEq = 1, limMassInG = 0;
+        s.reagents.forEach(r => {
+            let inG = r.mass * mult;
+            if (r.mass_unit === 'mg') inG = (r.mass * mult) / 1000;
+            if (r.mass_unit === 'kg') inG = (r.mass * mult) * 1000;
+            const cost = inG * (r.pkg_price / r.pkg_size);
+            r.lab_cost = cost;
+            r.lab_mass_in_g = inG;
+            stepTotal += cost;
+
+            if (r.is_limiting && r.mw > 0) {
+                limMw = r.mw;
+                limEq = r.moles || 1;
+                limMassInG = inG;
+            }
+        });
+        // solvent cost
+        if (s.solvent_bottle_l > 0) {
+            const sCost = s.solvent_volume_l * mult * (s.solvent_bottle_price / s.solvent_bottle_l);
+            stepTotal += sCost;
+        }
+
+        let productProduced = 0;
+        if (limMw > 0 && s.product_mw > 0) {
+            const baseMoles = limMassInG / limMw / limEq;
+            productProduced = baseMoles * s.product_mw * (s.yield_percent / 100);
+        }
+
+        html += `<div style="margin-top:15px; border-top:1px solid #555; padding-top:8px;">
+            <div style="display:flex; justify-content:space-between; font-size:0.85em; margin-bottom:5px;">
+                <span style="color:#00cec9;">S${s.step_id}: ${s.name}</span>
+                <span>Subtotal: $${stepTotal.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:0.8em; margin-bottom:5px; color:#ffeaa7;">
+                <span>Product Yield: ${s.yield_percent}%</span>
+                <span>Amt Produced: ${productProduced.toLocaleString(undefined, {minimumFractionDigits:3, maximumFractionDigits:3})} g</span>
+            </div>
+            <div style="font-size:0.75em; background:rgba(255,255,255,0.05); padding:8px; margin:5px 0; white-space: pre-wrap; border:1px solid #555;">${s.procedure || 'No notes.'}</div>
+            <table style="width:100%; font-size:0.7em; color:#dfe6e9; border-collapse:collapse; margin-top:4px;">
+                <tr style="border-bottom:1px solid #555;"><th style="text-align:left; padding:4px 0;">Reagent</th><th style="text-align:left;">Amount Used</th><th style="text-align:left;">Cost</th></tr>`;
+        s.reagents.forEach(r => {
+            html += `<tr style="border-bottom:1px solid #444;"><td style="padding:4px 0;">${r.name}</td><td>${(r.mass * mult).toLocaleString()} ${r.mass_unit}</td><td>$${(r.lab_cost || 0).toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</td></tr>`;
+        });
+        if (s.solvent_volume > 0) {
+            const sCost = s.solvent_volume_l * mult * (s.solvent_bottle_price / s.solvent_bottle_l);
+            html += `<tr style="border-bottom:1px solid #444;"><td style="padding:4px 0; color:#00cec9;">${s.solvent_name} (Solvent)</td><td>${(s.solvent_volume * mult).toLocaleString()} ${s.solvent_volume_unit}</td><td>$${sCost.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</td></tr>`;
+        }
+        html += `</table></div>`;
+    });
+
+    html += `</div>`;
+    document.getElementById(`scaled-sections-${side}`).insertAdjacentHTML('beforeend', html);
+}
