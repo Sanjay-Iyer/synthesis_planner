@@ -174,6 +174,10 @@ function addStep(side, data = null) {
                     <div style="flex: 1; min-width: 150px;"></div>
                 </div>
             </div>
+            <div style="display:flex; gap:5px; margin-top:5px; align-items:center;">
+                <input type="text" id="solvent-smiles-${side}-${id}" placeholder="Paste SMILES, SELFIES, or InChI for solvent..." style="flex:1; font-size:0.8em; padding:4px; border:1px solid var(--border); border-radius:3px;">
+                <button class="btn btn-primary btn-sm" onclick="lookupSolventFromSmiles('${side}', ${id})">🔍 Lookup Solvent</button>
+            </div>
             
             <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top:10px; background:#e8f4f8; padding:8px; border-radius:5px; align-items:center;">
                 <label style="font-size:0.7em; font-weight:bold;">Final Product</label>
@@ -200,42 +204,51 @@ function addReagentRow(side, stepId) {
     if (!container) return;
     const div = document.createElement('div');
     div.className = 'reagent-row';
-    div.style.cssText = 'display: flex; flex-wrap: wrap; gap: 12px; padding: 10px; background: #fafbfc; border: 1px solid #e1e4e8; border-radius: 6px; align-items: flex-end;';
+    div.style.cssText = 'display: flex; flex-direction: column; gap: 8px; padding: 12px; background: #fafbfc; border: 1px solid #e1e4e8; border-radius: 6px;';
     div.innerHTML = `
-        <div style="flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 4px;">
-            <label style="font-size:0.75em; font-weight:bold; color:var(--text);">Reagent Name</label>
-            <input type="text" class="r-name" style="width:100%;" placeholder="e.g. Aniline">
-            <div style="display: flex; align-items: center; gap: 4px; margin-top: 2px;">
-                <span style="font-size:0.7em; color:#e74c3c; font-weight:bold;">Bot:</span>
-                <input type="number" step="any" class="r-pkgsz" style="flex:1; min-width:40px;">
-                <select class="r-pkgu" onchange="calcStoich(this)" style="width:50px; font-size:0.8em;"><option value="g">g</option><option value="mg">mg</option><option value="kg">kg</option></select>
+        <!-- First Line -->
+        <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;">
+            <div style="flex: 2; min-width: 150px; display: flex; flex-direction: column; gap: 4px;">
+                <label style="font-size:0.75em; font-weight:bold; color:var(--text);">Reagent</label>
+                <input type="text" class="r-name" style="width:100%;" placeholder="e.g. Aniline">
             </div>
-        </div>
-        <div style="flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 4px;">
-            <label style="font-size:0.75em; font-weight:bold; color:var(--text);">Molecular Weight (MW)</label>
-            <input type="number" step="any" class="r-mw" oninput="calcStoich(this)" style="width:100%;" placeholder="e.g. 93.13">
-            <div style="display: flex; align-items: center; gap: 4px; margin-top: 2px;">
-                <span style="font-size:0.7em; color:#e74c3c; font-weight:bold;">Bot($):</span>
-                <input type="number" step="any" class="r-pkgpr" style="flex:1; min-width:55px;">
+            <div style="flex: 1; min-width: 80px; display: flex; flex-direction: column; gap: 4px;">
+                <label style="font-size:0.75em; font-weight:bold; color:var(--text);">MW</label>
+                <input type="number" step="any" class="r-mw" oninput="calcStoich(this)" style="width:100%;" placeholder="MW">
             </div>
-        </div>
-        <div style="flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 4px;">
-            <label style="font-size:0.75em; font-weight:bold; color:var(--text);">Equivalents (Eq)</label>
-            <input type="number" step="any" class="r-eq" oninput="calcStoich(this)" style="width:100%;" placeholder="e.g. 1.0">
-            <div style="display: flex; align-items: center; gap: 4px; margin-top: 2px;">
-                <span style="font-size:0.7em; font-weight:bold; color:var(--text);">Limiting?</span>
+            <div style="flex: 1; min-width: 80px; display: flex; flex-direction: column; gap: 4px;">
+                <label style="font-size:0.75em; font-weight:bold; color:var(--text);">Equiv</label>
+                <input type="number" step="any" class="r-eq" oninput="calcStoich(this)" style="width:100%;" placeholder="Eq">
+            </div>
+            <div style="flex: 1.5; min-width: 120px; display: flex; flex-direction: column; gap: 4px;">
+                <label style="font-size:0.75em; font-weight:bold; color:var(--text);">Mass</label>
+                <div style="display: flex; align-items: center; gap: 4px; width:100%;">
+                    <input type="number" step="any" class="r-mass" oninput="calcStoich(this, true)" style="flex:1; min-width:60px;" placeholder="Mass">
+                    <select class="r-mass-unit" onchange="calcStoich(this)" style="width:50px; font-size:0.8em;"><option value="g">g</option><option value="mg">mg</option><option value="kg">kg</option></select>
+                </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px; align-items: center; justify-content: center; min-width: 60px;">
+                <label style="font-size:0.75em; font-weight:bold; color:var(--text); text-align: center;">Limiting?</label>
                 <input type="checkbox" class="r-lim" onchange="handleLimChange(this)">
             </div>
-        </div>
-        <div style="flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 4px;">
-            <label style="font-size:0.75em; font-weight:bold; color:var(--text);">Lab Mass</label>
-            <div style="display: flex; align-items: center; gap: 4px; width:100%;">
-                <input type="number" step="any" class="r-mass" oninput="calcStoich(this, true)" style="flex:1; min-width:70px;" placeholder="Mass">
-                <select class="r-mass-unit" onchange="calcStoich(this)" style="width:50px; font-size:0.8em;"><option value="g">g</option><option value="mg">mg</option><option value="kg">kg</option></select>
-            </div>
-            <div style="display: flex; align-items: center; justify-content: flex-end; margin-top: 2px;">
+            <div style="display: flex; align-items: center; justify-content: flex-end;">
                 <button onclick="const c=this.closest('.reagents-container'); this.closest('.reagent-row').remove(); calcStoichByContainer(c);" style="background:transparent; border:none; color:#e74c3c; cursor:pointer; font-weight:bold; font-size:1.1em;" title="Delete Reagent">×</button>
             </div>
+        </div>
+        <!-- Second Line -->
+        <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; padding-top: 4px; border-top: 1px dashed #e1e4e8;">
+            <div style="flex: 1; min-width: 150px; display: flex; flex-direction: column; gap: 4px;">
+                <label style="font-size:0.75em; font-weight:bold; color:#e74c3c;">Bottle Amount</label>
+                <div style="display: flex; align-items: center; gap: 4px; width:100%;">
+                    <input type="number" step="any" class="r-pkgsz" style="flex:1; min-width:60px;">
+                    <select class="r-pkgu" onchange="calcStoich(this)" style="width:50px; font-size:0.8em;"><option value="g">g</option><option value="mg">mg</option><option value="kg">kg</option></select>
+                </div>
+            </div>
+            <div style="flex: 1; min-width: 150px; display: flex; flex-direction: column; gap: 4px;">
+                <label style="font-size:0.75em; font-weight:bold; color:#e74c3c;">Bottle Cost ($)</label>
+                <input type="number" step="any" class="r-pkgpr" style="width:100%;" placeholder="Price">
+            </div>
+            <div style="flex: 2; min-width: 150px;"></div>
         </div>`;
     container.appendChild(div);
 }
@@ -260,42 +273,51 @@ async function addReagentFromSmiles(side, stepId) {
     if (!targetRow) {
         targetRow = document.createElement('div');
         targetRow.className = 'reagent-row';
-        targetRow.style.cssText = 'display: flex; flex-wrap: wrap; gap: 12px; padding: 10px; background: #fafbfc; border: 1px solid #e1e4e8; border-radius: 6px; align-items: flex-end;';
+        targetRow.style.cssText = 'display: flex; flex-direction: column; gap: 8px; padding: 12px; background: #fafbfc; border: 1px solid #e1e4e8; border-radius: 6px;';
         targetRow.innerHTML = `
-            <div style="flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 4px;">
-                <label style="font-size:0.75em; font-weight:bold; color:var(--text);">Reagent Name</label>
-                <input type="text" class="r-name" style="width:100%;" placeholder="e.g. Aniline">
-                <div style="display: flex; align-items: center; gap: 4px; margin-top: 2px;">
-                    <span style="font-size:0.7em; color:#e74c3c; font-weight:bold;">Bot:</span>
-                    <input type="number" step="any" class="r-pkgsz" style="flex:1; min-width:40px;">
-                    <select class="r-pkgu" onchange="calcStoich(this)" style="width:50px; font-size:0.8em;"><option value="g">g</option><option value="mg">mg</option><option value="kg">kg</option></select>
+            <!-- First Line -->
+            <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;">
+                <div style="flex: 2; min-width: 150px; display: flex; flex-direction: column; gap: 4px;">
+                    <label style="font-size:0.75em; font-weight:bold; color:var(--text);">Reagent</label>
+                    <input type="text" class="r-name" style="width:100%;" placeholder="e.g. Aniline">
                 </div>
-            </div>
-            <div style="flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 4px;">
-                <label style="font-size:0.75em; font-weight:bold; color:var(--text);">Molecular Weight (MW)</label>
-                <input type="number" step="any" class="r-mw" oninput="calcStoich(this)" style="width:100%;" placeholder="e.g. 93.13">
-                <div style="display: flex; align-items: center; gap: 4px; margin-top: 2px;">
-                    <span style="font-size:0.7em; color:#e74c3c; font-weight:bold;">Bot($):</span>
-                    <input type="number" step="any" class="r-pkgpr" style="flex:1; min-width:55px;">
+                <div style="flex: 1; min-width: 80px; display: flex; flex-direction: column; gap: 4px;">
+                    <label style="font-size:0.75em; font-weight:bold; color:var(--text);">MW</label>
+                    <input type="number" step="any" class="r-mw" oninput="calcStoich(this)" style="width:100%;" placeholder="MW">
                 </div>
-            </div>
-            <div style="flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 4px;">
-                <label style="font-size:0.75em; font-weight:bold; color:var(--text);">Equivalents (Eq)</label>
-                <input type="number" step="any" class="r-eq" oninput="calcStoich(this)" style="width:100%;" placeholder="e.g. 1.0">
-                <div style="display: flex; align-items: center; gap: 4px; margin-top: 2px;">
-                    <span style="font-size:0.7em; font-weight:bold; color:var(--text);">Limiting?</span>
+                <div style="flex: 1; min-width: 80px; display: flex; flex-direction: column; gap: 4px;">
+                    <label style="font-size:0.75em; font-weight:bold; color:var(--text);">Equiv</label>
+                    <input type="number" step="any" class="r-eq" oninput="calcStoich(this)" style="width:100%;" placeholder="Eq">
+                </div>
+                <div style="flex: 1.5; min-width: 120px; display: flex; flex-direction: column; gap: 4px;">
+                    <label style="font-size:0.75em; font-weight:bold; color:var(--text);">Mass</label>
+                    <div style="display: flex; align-items: center; gap: 4px; width:100%;">
+                        <input type="number" step="any" class="r-mass" oninput="calcStoich(this, true)" style="flex:1; min-width:60px;" placeholder="Mass">
+                        <select class="r-mass-unit" onchange="calcStoich(this)" style="width:50px; font-size:0.8em;"><option value="g">g</option><option value="mg">mg</option><option value="kg">kg</option></select>
+                    </div>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 4px; align-items: center; justify-content: center; min-width: 60px;">
+                    <label style="font-size:0.75em; font-weight:bold; color:var(--text); text-align: center;">Limiting?</label>
                     <input type="checkbox" class="r-lim" onchange="handleLimChange(this)">
                 </div>
-            </div>
-            <div style="flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 4px;">
-                <label style="font-size:0.75em; font-weight:bold; color:var(--text);">Lab Mass</label>
-                <div style="display: flex; align-items: center; gap: 4px; width:100%;">
-                    <input type="number" step="any" class="r-mass" oninput="calcStoich(this, true)" style="flex:1; min-width:70px;" placeholder="Mass">
-                    <select class="r-mass-unit" onchange="calcStoich(this)" style="width:50px; font-size:0.8em;"><option value="g">g</option><option value="mg">mg</option><option value="kg">kg</option></select>
-                </div>
-                <div style="display: flex; align-items: center; justify-content: flex-end; margin-top: 2px;">
+                <div style="display: flex; align-items: center; justify-content: flex-end;">
                     <button onclick="const c=this.closest('.reagents-container'); this.closest('.reagent-row').remove(); calcStoichByContainer(c);" style="background:transparent; border:none; color:#e74c3c; cursor:pointer; font-weight:bold; font-size:1.1em;" title="Delete Reagent">×</button>
                 </div>
+            </div>
+            <!-- Second Line -->
+            <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; padding-top: 4px; border-top: 1px dashed #e1e4e8;">
+                <div style="flex: 1; min-width: 150px; display: flex; flex-direction: column; gap: 4px;">
+                    <label style="font-size:0.75em; font-weight:bold; color:#e74c3c;">Bottle Amount</label>
+                    <div style="display: flex; align-items: center; gap: 4px; width:100%;">
+                        <input type="number" step="any" class="r-pkgsz" style="flex:1; min-width:60px;">
+                        <select class="r-pkgu" onchange="calcStoich(this)" style="width:50px; font-size:0.8em;"><option value="g">g</option><option value="mg">mg</option><option value="kg">kg</option></select>
+                    </div>
+                </div>
+                <div style="flex: 1; min-width: 150px; display: flex; flex-direction: column; gap: 4px;">
+                    <label style="font-size:0.75em; font-weight:bold; color:#e74c3c;">Bottle Cost ($)</label>
+                    <input type="number" step="any" class="r-pkgpr" style="width:100%;" placeholder="Price">
+                </div>
+                <div style="flex: 2; min-width: 150px;"></div>
             </div>`;
         container.appendChild(targetRow);
     }
@@ -335,6 +357,32 @@ async function addReagentFromSmiles(side, stepId) {
         
     } catch (err) {
         inputs[0].value = "Error";
+    }
+}
+
+async function lookupSolventFromSmiles(side, stepId) {
+    const inputEl = document.getElementById(`solvent-smiles-${side}-${stepId}`);
+    const val = inputEl.value.trim();
+    if (!val) return;
+
+    const nameField = document.getElementById(`sname-${side}-${stepId}`);
+    if (nameField) nameField.value = "Fetching...";
+
+    try {
+        const res = await fetch('/api/synthesis/molecule-name', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ string_input: val })
+        });
+        if (res.ok) {
+            const data = await res.json();
+            if (nameField) nameField.value = data.name || "Unknown";
+        } else {
+            if (nameField) nameField.value = "Not Found";
+        }
+        inputEl.value = "";
+    } catch (err) {
+        if (nameField) nameField.value = "Error";
     }
 }
 
@@ -1100,14 +1148,16 @@ async function updateCharts(a, b, pA, pB) {
         const wfLabels = [];
         const wfAData = [];
         const wfBData = [];
-        const wfColors = [];
+        const wfAColors = [];
+        const wfBColors = [];
 
         // Route A waterfall
         let runA = 100;
         wfLabels.push('A Start');
         wfAData.push([0, runA]);
         wfBData.push(null);
-        wfColors.push('#0984e3');
+        wfAColors.push('#0984e3');
+        wfBColors.push('transparent');
 
         const labStepsA = collectStepData('vA');
         labStepsA.forEach((s, idx) => {
@@ -1116,21 +1166,24 @@ async function updateCharts(a, b, pA, pB) {
             wfLabels.push(`A S${s.step_id} → waste`);
             wfAData.push([nextRun, runA]);
             wfBData.push(null);
-            wfColors.push('#ff7675');
+            wfAColors.push('#ff7675');
+            wfBColors.push('transparent');
             runA = nextRun;
         });
 
         wfLabels.push('A Final');
         wfAData.push([0, runA]);
         wfBData.push(null);
-        wfColors.push('#00cec9');
+        wfAColors.push('#00cec9');
+        wfBColors.push('transparent');
 
         // Route B waterfall
         let runB = 100;
         wfLabels.push('B Start');
         wfAData.push(null);
         wfBData.push([0, runB]);
-        wfColors.push('#27ae60');
+        wfAColors.push('transparent');
+        wfBColors.push('#27ae60');
 
         const labStepsB = collectStepData('vB');
         labStepsB.forEach((s, idx) => {
@@ -1139,14 +1192,16 @@ async function updateCharts(a, b, pA, pB) {
             wfLabels.push(`B S${s.step_id} → waste`);
             wfAData.push(null);
             wfBData.push([nextRun, runB]);
-            wfColors.push('#ff7675');
+            wfAColors.push('transparent');
+            wfBColors.push('#ff7675');
             runB = nextRun;
         });
 
         wfLabels.push('B Final');
         wfAData.push(null);
         wfBData.push([0, runB]);
-        wfColors.push('#2ecc71');
+        wfAColors.push('transparent');
+        wfBColors.push('#2ecc71');
 
         waterfallChartInst = new Chart(wfCanvas, {
             type: 'bar',
@@ -1156,12 +1211,12 @@ async function updateCharts(a, b, pA, pB) {
                     {
                         label: 'Route A Mass',
                         data: wfAData,
-                        backgroundColor: wfColors.slice(0, wfAData.length)
+                        backgroundColor: wfAColors
                     },
                     {
                         label: 'Route B Mass',
                         data: wfBData,
-                        backgroundColor: wfColors.slice(wfAData.length)
+                        backgroundColor: wfBColors
                     }
                 ]
             },
