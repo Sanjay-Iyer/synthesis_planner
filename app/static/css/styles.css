@@ -150,7 +150,15 @@ h3 { font-size: 1.15rem; }
 .btn-orange { background: var(--orange); }
 .btn-danger { background: var(--danger); }
 .btn-ghost { background: #636e72; }
+.btn-green { background: #00b894; }
 .btn-sm { padding: 5px 10px; font-size: 0.75rem; }
+.btn:disabled, .btn[disabled] {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+    filter: none;
+}
 
 /* --- Cards --- */
 .card {

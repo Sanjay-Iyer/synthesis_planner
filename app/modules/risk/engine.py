@@ -4,6 +4,8 @@ Migrated from risk_audit_folder/reagent_risk_tool.py
 """
 import os
 import math
+import json
+import sqlite3
 import pandas as pd
 from pydantic import BaseModel
 from typing import List, Optional
@@ -57,6 +59,7 @@ class ReagentRiskResult(BaseModel):
     hazard: int
     substitutability: int
     warnings: List[str] = []
+    supply_chain_data: Optional[dict] = None
 
 
 # =================================================================
@@ -95,6 +98,71 @@ def load_country_stability() -> pd.DataFrame:
     df.to_csv(path, index=False, encoding='utf-8-sig')
     return df
 
+
+# =================================================================
+# TRADE DATA & HS6 MAPPING
+# =================================================================
+
+def get_hs6_for_inchikey(inchikey: str) -> Optional[str]:
+    """Look up HS6 code for a given InChIKey."""
+    path = "/home/sanjay/AV/synthesis-architect/database/compound_hs6_map.json"
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path, 'r') as f:
+            data = json.load(f)
+            return data.get("mappings", {}).get(inchikey, {}).get("hs6_code")
+    except Exception:
+        return None
+
+def get_supply_chain_concentration(hs6_code: str, year: int | None = None) -> dict:
+    """
+    Returns concentration metrics and risk flags for an HS6 code.
+    Risk flag thresholds:
+    - HIGH if top-1 share > 50% OR top-3 share > 80%
+    - MEDIUM if top-1 share > 30% OR top-3 share > 60%
+    - LOW otherwise
+    """
+    from app.modules.trade_data import db as trade_db
+    
+    data = trade_db.get_exporters(hs6_code, year)
+    if not data:
+        return {"status": "no_trade_data"}
+        
+    top_exporters = data.get("top_exporters", [])
+    if not top_exporters:
+        return {"status": "no_trade_data"}
+        
+    # Calculate top-1 and top-3 shares
+    top1_share = top_exporters[0]["share_of_top5_pct"] if len(top_exporters) >= 1 else 0
+    top3_share = sum(e["share_of_top5_pct"] for e in top_exporters[:3])
+    
+    risk_flag = "LOW"
+    if top1_share > 50 or top3_share > 80:
+        risk_flag = "HIGH"
+    elif top1_share > 30 or top3_share > 60:
+        risk_flag = "MEDIUM"
+        
+    # Data quality note
+    note = None
+    excluded = data.get("excluded_no_quantity", [])
+    if excluded:
+        # Check if any major player was excluded
+        top1_val = top_exporters[0]["trade_value_1000_usd"]
+        for excl in excluded:
+            if excl["trade_value_1000_usd"] > (top1_val * 0.5):
+                note = f"{excl['reporter']} (major exporter) excluded — no quantity reported"
+                break
+
+    return {
+        "status": "success",
+        "hs6_code": hs6_code,
+        "year": data.get("year"),
+        "top_exporters": top_exporters,
+        "concentration_top1_pct": top1_share,
+        "concentration_risk_flag": risk_flag,
+        "data_quality_note": note
+    }
 
 # =================================================================
 # RISK CALCULATION
@@ -153,9 +221,34 @@ def run_risk_assessment(reagents: List[ReagentRiskInput]) -> dict:
                     origin = mapping_row.iloc[0].get('Primary_Origin', 'Unknown')
                 hs_code = str(mapping_row.iloc[0].get('HS_Code', ''))
 
-            stability_row = df_stability[df_stability['Country'] == origin]
-            if not stability_row.empty:
+            if stability_row.empty:
+                stability = 50.0 # fallback
+            else:
                 stability = float(stability_row.iloc[0]['Stability_Score'])
+
+        # Trade Data Integration (Phase 3)
+        supply_chain_data = None
+        # 1. Try to get InChIKey from Compound DB
+        from app.modules.database.db import connect_db, normalize_name
+        conn = connect_db()
+        cursor = conn.cursor()
+        norm_name = normalize_name(r.name)
+        cursor.execute("SELECT inchikey, hs6_code FROM compounds WHERE normalized_name = ?", (norm_name,))
+        row = cursor.fetchone()
+        conn.close()
+        
+        target_hs6 = None
+        if row:
+            ikey = row["inchikey"]
+            target_hs6 = row["hs6_code"] # Maybe it's already there?
+            if not target_hs6 and ikey:
+                target_hs6 = get_hs6_for_inchikey(ikey)
+        
+        if target_hs6:
+            supply_chain_data = get_supply_chain_concentration(target_hs6)
+        else:
+            # Check if we have data by name hint in our mapping? No, user said InChIKey.
+            supply_chain_data = {"status": "no_hs6_mapping"}
 
         # Multi-dimensional Risk Calculation (Enhanced)
         warnings = []
@@ -230,7 +323,8 @@ def run_risk_assessment(reagents: List[ReagentRiskInput]) -> dict:
                 operational=round(oper_risk, 1),
                 regulatory=round(reg_risk, 1),
                 economic=round(econ_risk, 1)
-            )
+            ),
+            supply_chain_data=supply_chain_data
         ))
 
     # Summary statistics

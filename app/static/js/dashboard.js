@@ -602,10 +602,16 @@ async function runAnalysis() {
         lastAnalysis.vA = await getEstimate('vA');
         lastAnalysis.vB = await getEstimate('vB');
         displayDashboard(lastAnalysis.vA, lastAnalysis.vB);
-        
+
         // Also run and display the optimization audit automatically
         await runOptimizationAuditUI();
-    } catch (e) { alert("Analysis failed. Is the server running?"); }
+
+        // Unlock the "Add to Database" button now that we have fresh results
+        setDatabaseButtonEnabled(true);
+    } catch (e) {
+        setDatabaseButtonEnabled(false);
+        alert("Analysis failed. Is the server running?");
+    }
 }
 
 async function runOptimizationAuditUI() {
@@ -1775,3 +1781,115 @@ function matchProducedGrams(fromSide, toSide) {
         runAnalysis();
     }, 150);
 }
+
+/**
+ * Enables or disables the "Add to Database" button.
+ */
+function setDatabaseButtonEnabled(enabled) {
+    const btn = document.getElementById('addToDatabaseBtn');
+    if (btn) btn.disabled = !enabled;
+}
+
+/**
+ * Collects current analysis state and saves both routes to the SQLite database.
+ */
+async function addToDatabase() {
+    const targetMol = document.querySelector('h1').textContent.split(' — ')[0].trim() || "Unknown Target";
+    
+    const tasks = [];
+    
+    // Process Route A
+    const stepsA = collectStepData('vA');
+    if (stepsA && stepsA.length > 0 && lastAnalysis.vA) {
+        tasks.push(saveRouteToDb("Route A", targetMol, "vA", stepsA, lastAnalysis.vA));
+    }
+    
+    // Process Route B
+    const stepsB = collectStepData('vB');
+    if (stepsB && stepsB.length > 0 && lastAnalysis.vB) {
+        tasks.push(saveRouteToDb("Route B", targetMol, "vB", stepsB, lastAnalysis.vB));
+    }
+    
+    if (tasks.length === 0) {
+        showDatabaseToast("No valid analysis data to save.", "error");
+        return;
+    }
+    
+    setDatabaseButtonEnabled(false);
+    try {
+        await Promise.all(tasks);
+    } catch (err) {
+        console.error("Database save error:", err);
+    } finally {
+        // We leave it disabled or re-enable if needed. Re-enabling for now.
+        setDatabaseButtonEnabled(true);
+    }
+}
+
+/**
+ * Internal helper to POST a route to the database.
+ */
+async function saveRouteToDb(label, targetMol, side, steps, analysisResults) {
+    const sourceFile = document.getElementById(`filename-${side}`)?.value || null;
+    const targetMass = parseFloat(document.getElementById(`target-${side}`)?.value) || 1.0;
+    
+    const payload = {
+        route_label: label,
+        target_molecule: targetMol,
+        target_mass_kg: targetMass,
+        source_file: sourceFile,
+        route: { steps: steps },
+        analysis_results: {
+            total_cost: analysisResults.total_cost || 0,
+            cost_per_kg: analysisResults.cost_per_kg || 0,
+            e_factor: analysisResults.e_factor || 0,
+            overall_yield_percent: analysisResults.overall_yield || 100
+        }
+    };
+    
+    try {
+        const response = await fetch('/api/database/save-route', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        
+        const result = await response.json();
+        if (response.ok && result.success) {
+            let msg = `✅ ${label} saved — ${result.new_compounds} new, ${result.updated_compounds} updated`;
+            if (result.ambiguous_compounds.length > 0) {
+                msg += ` (${result.ambiguous_compounds.length} need review)`;
+            }
+            showDatabaseToast(msg, "success");
+        } else {
+            showDatabaseToast(`❌ Failed to save ${label}: ${result.detail || 'Unknown error'}`, "error");
+        }
+    } catch (err) {
+        showDatabaseToast(`❌ Network error saving ${label}`, "error");
+        throw err;
+    }
+}
+
+/**
+ * Displays a professional toast notification for database actions.
+ */
+function showDatabaseToast(message, type = "success") {
+    const toast = document.getElementById('db-toast');
+    if (!toast) return;
+    
+    toast.textContent = message;
+    toast.style.background = type === "success" ? "#00b894" : (type === "warning" ? "#fdcb6e" : "#d63031");
+    toast.style.color = "white";
+    toast.style.display = "block";
+    toast.style.opacity = "1";
+    
+    setTimeout(() => {
+        toast.style.transition = "opacity 0.6s ease";
+        toast.style.opacity = "0";
+        setTimeout(() => { 
+            toast.style.display = "none"; 
+            toast.style.transition = ""; 
+        }, 600);
+    }, 5000);
+}
+

@@ -180,6 +180,40 @@ function loadCSV(event) {
     reader.readAsText(file);
 }
 
+async function uploadWitsExcel(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const zone = document.getElementById('witsUploadZone');
+    zone.style.opacity = '0.5';
+    zone.querySelector('div:nth-child(2)').textContent = 'Uploading...';
+
+    try {
+        const res = await fetch('/api/trade/import', {
+            method: 'POST',
+            body: formData
+        });
+
+        if (!res.ok) throw new Error(await res.text());
+
+        const data = await res.json();
+        const s = data.summary;
+        alert(`✅ Success: Ingested ${s.compounds_processed} products.\nNew: ${s.new_entries.length}\nUpdated: ${s.updated_entries.length}\nWarnings: ${s.warnings.length}`);
+        
+        zone.classList.add('active');
+        zone.querySelector('div:first-child').textContent = '✅';
+        zone.querySelector('div:nth-child(2)').textContent = `Imported ${file.name}`;
+    } catch (e) {
+        console.error("WITS Upload Failed:", e);
+        alert(`❌ Import Failed: ${e.message}`);
+        zone.style.opacity = '1';
+        zone.querySelector('div:nth-child(2)').textContent = 'Import WITS Excel';
+    }
+}
+
 async function runRiskAssessment() {
     const reagents = collectReagentInputs();
     if (reagents.length === 0) { alert('Please enter at least one reagent.'); return; }
@@ -345,6 +379,27 @@ function displayRiskResults(data) {
 
     data.reagents.forEach(r => {
         const row = document.createElement('tr');
+        const sc = r.supply_chain_data;
+        let scHtml = '';
+        
+        if (sc && sc.status === 'success') {
+            const flagClass = sc.concentration_risk_flag.toLowerCase();
+            scHtml = `
+                <div style="margin-top:8px; padding:8px; background:#f8f9fa; border-radius:4px; border-left:3px solid var(--${flagClass === 'high' ? 'danger' : (flagClass === 'medium' ? 'orange' : 'secondary')});">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                        <span style="font-size:0.7rem; font-weight:700; color:var(--text-muted);">SUPPLY CHAIN CONCENTRATION</span>
+                        <span class="status-pill status-${flagClass}" style="font-size:0.6rem; padding:2px 6px;">${sc.concentration_risk_flag}</span>
+                    </div>
+                    <div style="font-size:0.75rem; margin-bottom:4px;">
+                        <b>Top Exporter:</b> ${sc.top_exporters[0].reporter} (${sc.concentration_top1_pct.toFixed(1)}% share)
+                    </div>
+                    ${sc.data_quality_note ? `<div style="font-size:0.65rem; color:var(--orange); font-style:italic;">⚠ ${sc.data_quality_note}</div>` : ''}
+                </div>
+            `;
+        } else if (sc && sc.status === 'no_trade_data') {
+            scHtml = `<div style="font-size:0.65rem; color:var(--text-muted); margin-top:5px;">ℹ No WITS trade data found for this compound.</div>`;
+        }
+
         row.innerHTML = `
             <td style="font-weight:600;">${r.name || 'Unknown'}</td>
             <td style="font-family:monospace; font-size:0.8rem;">${r.cas || 'No CAS'}</td>
@@ -364,6 +419,7 @@ function displayRiskResults(data) {
                         ⚠️ ${w}
                     </div>
                 `).join('')}
+                ${scHtml}
             </td>
         `;
         tbody.appendChild(row);

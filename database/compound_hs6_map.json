@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "mappings": {
+    "KKEYFWRCBNTPAC-UHFFFAOYSA-N": {
+      "hs6_code": "291736",
+      "name_hint": "Terephthalic acid",
+      "added_at": "2026-05-13T16:54:07.719389+00:00"
+    },
+    "WOZVHXUHUFLZGK-UHFFFAOYSA-N": {
+      "hs6_code": "291737",
+      "name_hint": "Dimethyl terephthalate",
+      "added_at": "2026-05-13T16:54:07.719919+00:00"
+    },
+    "LYCAIKOWRPUZTN-UHFFFAOYSA-N": {
+      "hs6_code": "290531",
+      "name_hint": "Ethylene glycol",
+      "added_at": "2026-05-13T16:54:07.720213+00:00"
+    },
+    "NIXOWILDQLNWCW-UHFFFAOYSA-N": {
+      "hs6_code": "291611",
+      "name_hint": "Acrylic acid",
+      "added_at": "2026-05-13T16:54:07.720402+00:00"
+    },
+    "LGRFSURHDFAFJT-UHFFFAOYSA-N": {
+      "hs6_code": "291735",
+      "name_hint": "Phthalic anhydride",
+      "added_at": "2026-05-13T16:54:07.720802+00:00"
+    }
+  }
+}

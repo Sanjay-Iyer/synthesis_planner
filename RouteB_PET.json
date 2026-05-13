@@ -1,0 +1,129 @@
+{
+  "routeB": {
+    "target": "1",
+    "steps": [
+      {
+        "step_id": 1,
+        "name": "Transesterification (High Purity Step)",
+        "product_mw": 254.23,
+        "reagents": [
+          {
+            "name": "Dimethyl terephthalate (HPLC Grade)",
+            "smiles": "COC(=O)c1ccc(C(=O)OC)cc1",
+            "selfies": "[C][O][C][=Branch1][C][=O][C][=C][C][=C][Branch1][#Branch1][C][=Branch1][C][=O][O][C][C][=C][Ring1][#Branch2]",
+            "mw": 194.18,
+            "pkg_size": 500,
+            "pkg_price": 200.0,
+            "cost_per_g": 0.40,
+            "moles": 0.05,
+            "mass": 10.0,
+            "mass_unit": "g",
+            "is_limiting": true
+          },
+          {
+            "name": "Ethylene glycol (Anhydrous)",
+            "smiles": "OCCO",
+            "selfies": "[O][C][C][O]",
+            "mw": 62.07,
+            "pkg_size": 1000,
+            "pkg_price": 50.0,
+            "cost_per_g": 0.05,
+            "moles": 0.2,
+            "mass": 13.0,
+            "mass_unit": "g",
+            "is_limiting": false
+          },
+          {
+            "name": "Manganese(II) acetate",
+            "mw": 173.02,
+            "pkg_size": 10,
+            "pkg_price": 50.0,
+            "cost_per_g": 5.0,
+            "moles": 0.001,
+            "mass": 0.1,
+            "mass_unit": "g",
+            "is_limiting": false
+          }
+        ],
+        "molarity": 1.0,
+        "solvent_volume": 50.0,
+        "solvent_volume_unit": "mL",
+        "solvent_volume_l": 0.05,
+        "solvent_name": "Ethylene glycol",
+        "solvent_density": 1.11,
+        "solvent_bottle_l": 1.0,
+        "solvent_bottle_price": 50.0,
+        "solvent_price_per_l": 50.0,
+        "yield_percent": 95,
+        "temperature": "180C",
+        "time": "3h",
+        "procedure": "Controlled transesterification using high-purity DMT and anhydrous EG with a Manganese catalyst. This route minimizes side products and ensures high conversion to BHET.",
+        "depends_on": []
+      },
+      {
+        "step_id": 2,
+        "name": "Polycondensation (Precision Vacuum)",
+        "product_mw": 192.16,
+        "reagents": [
+          {
+            "name": "Antimony trioxide catalyst",
+            "mw": 291.52,
+            "pkg_size": 100,
+            "pkg_price": 80.0,
+            "cost_per_g": 0.8,
+            "moles": 0.0005,
+            "mass": 0.15,
+            "mass_unit": "g",
+            "is_limiting": false
+          }
+        ],
+        "molarity": 2.0,
+        "solvent_volume": 0.0,
+        "solvent_volume_unit": "mL",
+        "solvent_volume_l": 0.0,
+        "solvent_name": "Neat",
+        "solvent_density": 1.0,
+        "solvent_bottle_l": 1.0,
+        "solvent_bottle_price": 0.0,
+        "solvent_price_per_l": 0.0,
+        "yield_percent": 95,
+        "temperature": "275C",
+        "time": "4h",
+        "procedure": "High-vacuum polycondensation of purified BHET. The use of specialized catalysts and precise vacuum control results in higher molecular weight and superior optical properties.",
+        "depends_on": [1]
+      },
+      {
+        "step_id": 3,
+        "name": "Solid State Polymerization (SSP)",
+        "product_mw": 192.16,
+        "reagents": [
+          {
+            "name": "Nitrogen Gas (UHP Grade)",
+            "mw": 28.01,
+            "pkg_size": 1000,
+            "pkg_price": 100.0,
+            "cost_per_g": 0.1,
+            "moles": 5,
+            "mass": 5.0,
+            "mass_unit": "g",
+            "is_limiting": false
+          }
+        ],
+        "molarity": 0.1,
+        "solvent_volume": 0.0,
+        "solvent_volume_unit": "mL",
+        "solvent_volume_l": 0.0,
+        "solvent_name": "N2 Atmosphere",
+        "solvent_density": 0.001,
+        "solvent_bottle_l": 1.0,
+        "solvent_bottle_price": 100.0,
+        "solvent_price_per_l": 100.0,
+        "yield_percent": 98,
+        "temperature": "210C",
+        "time": "12h",
+        "procedure": "Additional step to increase Intrinsic Viscosity (IV) for high-grade applications like bottle-grade PET. This involves heating polymer chips below their melting point under a flow of ultra-high purity nitrogen.",
+        "depends_on": [2]
+      }
+    ]
+  }
+}

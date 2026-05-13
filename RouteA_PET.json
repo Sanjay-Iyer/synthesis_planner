@@ -1,0 +1,110 @@
+{
+  "routeA": {
+    "target": "1",
+    "steps": [
+      {
+        "step_id": 1,
+        "name": "Esterification to PET Oligomers",
+        "product_mw": 192.16,
+        "reagents": [
+          {
+            "name": "Terephthalic acid (Polymer Grade)",
+            "smiles": "O=C(O)c1ccc(C(=O)O)cc1",
+            "selfies": "[O][=C][Branch1][C][O][C][=C][C][=C][Branch1][=Branch1][C][=Branch1][C][=O][O][C][=C][Ring1][=Branch2]",
+            "mw": 166.13,
+            "pkg_size": 1000,
+            "pkg_price": 300.0,
+            "cost_per_g": 0.30,
+            "moles": 1.2,
+            "mass": 200.0,
+            "mass_unit": "g",
+            "is_limiting": true
+          },
+          {
+            "name": "Ethylene glycol (Purified)",
+            "smiles": "OCCO",
+            "selfies": "[O][C][C][O]",
+            "mw": 62.07,
+            "pkg_size": 1000,
+            "pkg_price": 150.0,
+            "cost_per_g": 0.15,
+            "moles": 2.6,
+            "mass": 165.0,
+            "mass_unit": "g",
+            "is_limiting": false
+          },
+          {
+            "name": "Germanium dioxide catalyst",
+            "mw": 104.64,
+            "pkg_size": 10,
+            "pkg_price": 50.0,
+            "cost_per_g": 5.0,
+            "moles": 0.01,
+            "mass": 1.0,
+            "mass_unit": "g",
+            "is_limiting": false
+          }
+        ],
+        "molarity": 1.5,
+        "solvent_volume": 200.0,
+        "solvent_volume_unit": "mL",
+        "solvent_volume_l": 0.2,
+        "solvent_name": "Dowtherm A",
+        "solvent_density": 1.06,
+        "solvent_bottle_l": 1.0,
+        "solvent_bottle_price": 100.0,
+        "solvent_price_per_l": 100.0,
+        "yield_percent": 65,
+        "temperature": "260C",
+        "time": "6h",
+        "procedure": "Direct esterification using high-grade TPA and EG with a premium Germanium catalyst. This step produces PET oligomers with low diethylene glycol (DEG) content, though yield is limited by the equilibrium moisture removal rate.",
+        "depends_on": []
+      },
+      {
+        "step_id": 2,
+        "name": "Thermal Upgrading and Quality Finishing",
+        "product_mw": 192.16,
+        "reagents": [
+          {
+            "name": "PET Intermediate (Oligomer)",
+            "mw": 192.16,
+            "pkg_size": 1000,
+            "pkg_price": 800.0,
+            "cost_per_g": 0.80,
+            "moles": 1,
+            "mass": 150.0,
+            "mass_unit": "g",
+            "is_limiting": true
+          },
+          {
+            "name": "High-Performance UV Stabilizer",
+            "mw": 350.0,
+            "pkg_size": 10,
+            "pkg_price": 100.0,
+            "cost_per_g": 10.0,
+            "moles": 0.005,
+            "mass": 2.0,
+            "mass_unit": "g",
+            "is_limiting": false
+          }
+        ],
+        "molarity": 2.0,
+        "solvent_volume": 50.0,
+        "solvent_volume_unit": "mL",
+        "solvent_volume_l": 0.05,
+        "solvent_name": "Antioxidant Slurry",
+        "solvent_density": 0.9,
+        "solvent_bottle_l": 1.0,
+        "solvent_bottle_price": 250.0,
+        "solvent_price_per_l": 250.0,
+        "yield_percent": 65,
+        "temperature": "285C",
+        "time": "4h",
+        "procedure": "The oligomer is subjected to high-temperature finishing under high vacuum to increase chain length. Specialized UV stabilizers and antioxidants are added to ensure the final product meets bottle-grade transparency and durability standards.",
+        "depends_on": [
+          1
+        ]
+      }
+    ]
+  }
+}

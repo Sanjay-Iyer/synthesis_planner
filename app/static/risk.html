@@ -153,13 +153,20 @@
                     </label>
                 </div>
 
-                <div class="upload-zone" id="uploadZone" onclick="document.getElementById('csvInput').click()">
-                    <div style="font-size: 2rem; margin-bottom: 8px;">📄</div>
-                    <div style="font-weight: 500;">Click to upload CSV</div>
-                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">or enter reagents manually below</div>
-                    <a href="#" onclick="event.stopPropagation(); downloadSampleCSV();" style="font-size: 0.75rem; color: var(--primary); text-decoration: underline; margin-top: 10px; display: inline-block;">Download Sample CSV</a>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                    <div class="upload-zone" id="uploadZone" onclick="document.getElementById('csvInput').click()">
+                        <div style="font-size: 1.5rem; margin-bottom: 4px;">📄</div>
+                        <div style="font-size: 0.85rem; font-weight: 500;">Upload Reagents CSV</div>
+                        <a href="#" onclick="event.stopPropagation(); downloadSampleCSV();" style="font-size: 0.7rem; color: var(--primary); text-decoration: underline; display: block;">Sample CSV</a>
+                    </div>
+                    <div class="upload-zone" id="witsUploadZone" onclick="document.getElementById('witsInput').click()" style="border-color: var(--secondary);">
+                        <div style="font-size: 1.5rem; margin-bottom: 4px;">🌍</div>
+                        <div style="font-size: 0.85rem; font-weight: 500;">Import WITS Excel</div>
+                        <div style="font-size: 0.7rem; color: var(--text-muted);">(.xlsx world export data)</div>
+                    </div>
                 </div>
                 <input type="file" id="csvInput" style="display:none;" accept=".csv" onchange="loadCSV(event)">
+                <input type="file" id="witsInput" style="display:none;" accept=".xlsx,.xls" onchange="uploadWitsExcel(event)">
 
                 <div style="margin-top: 20px;">
                     <div class="reagent-input-row" id="inputHeader" style="font-weight:600; font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">

@@ -11,12 +11,20 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.modules.synthesis.router import router as synthesis_router
 from app.modules.risk.router import router as risk_router
+from app.modules.database.router import router as database_router
+from app.modules.trade_data.router import router as trade_data_router
+from app.modules.database.db import init_db
 
 # =================================================================
 # APP SETUP
 # =================================================================
 
 app = FastAPI(title="Synthesis Architect", version="2.0")
+
+@app.on_event("startup")
+def on_startup():
+    """Initialise the SQLite database schema on first launch."""
+    init_db()
 
 app.add_middleware(
     CORSMiddleware,
@@ -31,6 +39,8 @@ app.add_middleware(
 
 app.include_router(synthesis_router)
 app.include_router(risk_router)
+app.include_router(database_router)
+app.include_router(trade_data_router)
 
 # =================================================================
 # STATIC FILE SERVING
