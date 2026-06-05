@@ -22,6 +22,7 @@ class ReagentRiskInput(BaseModel):
     name: str
     cas: str = ""
     origin: Optional[str] = None
+    secondary_origin: Optional[str] = None
     mass_g: float = 0.0
     cost: float = 0.0
     # Advanced fields
@@ -48,9 +49,12 @@ class ReagentRiskResult(BaseModel):
     cas: str
     primary_origin: str
     stability_score: float
+    secondary_origin: str = "Unknown"
+    secondary_stability_score: float = 50.0
     mass_g: float
     cost: float
     risk_index: float
+    secondary_risk_index: float = 0.0
     risk_level: str
     hs_code: Optional[str] = None
     # New analytics fields
@@ -115,49 +119,115 @@ def get_hs6_for_inchikey(inchikey: str) -> Optional[str]:
     except Exception:
         return None
 
-def get_supply_chain_concentration(hs6_code: str, year: int | None = None) -> dict:
+def get_hs6_by_name_hint(name: str) -> Optional[str]:
+    """Try to find an HS6 code by matching the name against name hints."""
+    path = "/home/sanjay/AV/synthesis-architect/database/compound_hs6_map.json"
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path, 'r') as f:
+            data = json.load(f)
+            mappings = data.get("mappings", {})
+            name_lower = name.lower()
+            for key, val in mappings.items():
+                hint = val.get("name_hint", "").lower()
+                if hint and (hint in name_lower or name_lower in hint):
+                    return val.get("hs6_code")
+    except Exception:
+        pass
+    return None
+
+def lookup_suggested_origins(reagent_inputs: List[dict]) -> List[dict]:
+    """Look up suggested origins for a list of reagents based on trade data."""
+    results = []
+    df_mapping = load_reagent_mapping()
+    
+    for r in reagent_inputs:
+        name = r.get("name", "")
+        cas = r.get("cas", "")
+        
+        target_hs6 = None
+        
+        # 1. Try CAS Mapping
+        if cas:
+            mapping_row = df_mapping[df_mapping['Reagent_CAS'] == cas]
+            if not mapping_row.empty:
+                target_hs6 = str(mapping_row.iloc[0].get('HS_Code', ''))
+        
+        # 2. Try Name Hint
+        if not target_hs6 and name:
+            target_hs6 = get_hs6_by_name_hint(name)
+            
+        # 3. Try Database (normalized name)
+        if not target_hs6 and name:
+            try:
+                from app.modules.database.db import connect_db, normalize_name
+                conn = connect_db()
+                cursor = conn.cursor()
+                norm_name = normalize_name(name)
+                cursor.execute("SELECT hs6_code, inchikey FROM compounds WHERE normalized_name = ?", (norm_name,))
+                row = cursor.fetchone()
+                if row:
+                    target_hs6 = row["hs6_code"]
+                    if not target_hs6 and row["inchikey"]:
+                        target_hs6 = get_hs6_for_inchikey(row["inchikey"])
+                conn.close()
+            except: pass
+
+        suggested = {"primary": "Unknown", "secondary": "Unknown", "hs6": target_hs6}
+        if target_hs6:
+            clean_hs6 = "".join(filter(str.isdigit, target_hs6)).zfill(6)
+            suggested["hs6"] = clean_hs6
+            concentration = get_supply_chain_concentration(clean_hs6)
+            if concentration.get("status") == "success":
+                exporters = concentration.get("top_exporters", [])
+                if len(exporters) >= 1: suggested["primary"] = exporters[0]["reporter"]
+                if len(exporters) >= 2: suggested["secondary"] = exporters[1]["reporter"]
+        
+        results.append(suggested)
+    return results
+
+def get_supply_chain_concentration(hs6_code: str, year: Optional[int] = None) -> dict:
     """
     Returns concentration metrics and risk flags for an HS6 code.
-    Risk flag thresholds:
-    - HIGH if top-1 share > 50% OR top-3 share > 80%
-    - MEDIUM if top-1 share > 30% OR top-3 share > 60%
-    - LOW otherwise
+    Using the v1.1.0 schema structure.
     """
     from app.modules.trade_data import db as trade_db
     
-    data = trade_db.get_exporters(hs6_code, year)
-    if not data:
+    # Normalize HS6: digits only, padded to 6
+    clean_hs6 = "".join(filter(str.isdigit, hs6_code)).zfill(6)
+    
+    db = trade_db.load()
+    record = trade_db.get_trade_record(db, clean_hs6, year)
+    
+    if not record:
         return {"status": "no_trade_data"}
         
-    top_exporters = data.get("top_exporters", [])
+    top_exporters = record.get("top_exporters", [])
     if not top_exporters:
         return {"status": "no_trade_data"}
         
-    # Calculate top-1 and top-3 shares
-    top1_share = top_exporters[0]["share_of_top5_pct"] if len(top_exporters) >= 1 else 0
-    top3_share = sum(e["share_of_top5_pct"] for e in top_exporters[:3])
+    risk_summary = record.get("risk_summary", {})
+    top1_share = risk_summary.get("concentration_top1_pct", 0)
     
+    # Simple thresholds for backward compatibility in results
     risk_flag = "LOW"
-    if top1_share > 50 or top3_share > 80:
+    if top1_share > 50:
         risk_flag = "HIGH"
-    elif top1_share > 30 or top3_share > 60:
+    elif top1_share > 30:
         risk_flag = "MEDIUM"
         
-    # Data quality note
+    # Data quality note from source warnings
     note = None
-    excluded = data.get("excluded_no_quantity", [])
-    if excluded:
-        # Check if any major player was excluded
-        top1_val = top_exporters[0]["trade_value_1000_usd"]
-        for excl in excluded:
-            if excl["trade_value_1000_usd"] > (top1_val * 0.5):
-                note = f"{excl['reporter']} (major exporter) excluded — no quantity reported"
-                break
+    for warning in record.get("warnings", []):
+        if warning.get("code") == "excluded_rows_missing_quantity":
+            note = f"Data quality alert: {warning.get('count')} exporters excluded due to missing quantity."
+            break
 
     return {
         "status": "success",
-        "hs6_code": hs6_code,
-        "year": data.get("year"),
+        "hs6_code": clean_hs6,
+        "year": record.get("year"),
         "top_exporters": top_exporters,
         "concentration_top1_pct": top1_share,
         "concentration_risk_flag": risk_flag,
@@ -206,52 +276,89 @@ def run_risk_assessment(reagents: List[ReagentRiskInput]) -> dict:
     results = []
 
     for r in reagents:
-        # Look up country of origin via CAS number
-        origin = "Unknown"
-        hs_code = None
-        stability = 50.0  # Default for unknown
-
-        if r.origin:
-            origin = r.origin
+        # 1. Determine Origin (Priority: User > Mapping > DB > Fallback)
+        origin = r.origin or "Unknown"
+        secondary_origin = r.secondary_origin or "Unknown"
+        hs_code_from_mapping = None
         
         if r.cas:
             mapping_row = df_mapping[df_mapping['Reagent_CAS'] == r.cas]
             if not mapping_row.empty:
-                if not r.origin: # Only override if user didn't provide one
+                if not r.origin:
                     origin = mapping_row.iloc[0].get('Primary_Origin', 'Unknown')
-                hs_code = str(mapping_row.iloc[0].get('HS_Code', ''))
+                hs_code_from_mapping = str(mapping_row.iloc[0].get('HS_Code', ''))
 
-            if stability_row.empty:
-                stability = 50.0 # fallback
-            else:
-                stability = float(stability_row.iloc[0]['Stability_Score'])
-
-        # Trade Data Integration (Phase 3)
+        # 2. HS6 & Supply Chain Concentration (Defensive Handling)
         supply_chain_data = None
-        # 1. Try to get InChIKey from Compound DB
-        from app.modules.database.db import connect_db, normalize_name
-        conn = connect_db()
-        cursor = conn.cursor()
-        norm_name = normalize_name(r.name)
-        cursor.execute("SELECT inchikey, hs6_code FROM compounds WHERE normalized_name = ?", (norm_name,))
-        row = cursor.fetchone()
-        conn.close()
+        warnings = []
+        target_hs6 = hs_code_from_mapping
         
-        target_hs6 = None
-        if row:
-            ikey = row["inchikey"]
-            target_hs6 = row["hs6_code"] # Maybe it's already there?
-            if not target_hs6 and ikey:
-                target_hs6 = get_hs6_for_inchikey(ikey)
-        
-        if target_hs6:
-            supply_chain_data = get_supply_chain_concentration(target_hs6)
+        try:
+            from app.modules.database.db import connect_db, normalize_name
+            conn = connect_db()
+            cursor = conn.cursor()
+            norm_name = normalize_name(r.name)
+            
+            cursor.execute("PRAGMA table_info(compounds)")
+            cols = [c[1] for c in cursor.fetchall()]
+            
+            if "hs6_code" in cols:
+                cursor.execute("SELECT inchikey, hs6_code, primary_origin, secondary_origin FROM compounds WHERE normalized_name = ?", (norm_name,))
+            else:
+                cursor.execute("SELECT inchikey FROM compounds WHERE normalized_name = ?")
+            
+            row = cursor.fetchone()
+            
+            if row:
+                ikey = row["inchikey"]
+                db_hs6 = row["hs6_code"] if "hs6_code" in cols else None
+                if db_hs6:
+                    target_hs6 = db_hs6
+                elif ikey:
+                    target_hs6 = get_hs6_for_inchikey(ikey)
+                
+                # If DB has origins and we don't have user/mapping input, use them
+                if origin == "Unknown" and "primary_origin" in cols and row["primary_origin"]:
+                    origin = row["primary_origin"]
+                    secondary_origin = row["secondary_origin"] or "Unknown"
+            
+            if target_hs6:
+                supply_chain_data = get_supply_chain_concentration(target_hs6)
+                if supply_chain_data.get("status") == "success":
+                    top_exporters = supply_chain_data.get("top_exporters", [])
+                    if top_exporters:
+                        # Trade Data Override
+                        origin = top_exporters[0]["reporter"]
+                        secondary_origin = top_exporters[1]["reporter"] if len(top_exporters) > 1 else "Unknown"
+                        
+                        # Sync back to DB for future use
+                        if "primary_origin" in cols:
+                            cursor.execute("UPDATE compounds SET primary_origin = ?, secondary_origin = ? WHERE normalized_name = ?", 
+                                         (origin, secondary_origin, norm_name))
+                            conn.commit()
+            else:
+                supply_chain_data = {"status": "no_hs6_mapping"}
+                warnings.append(f"No HS6 code available for {r.name}; supply chain lookup skipped.")
+            
+            conn.close()
+        except Exception as e:
+            supply_chain_data = {"status": "error", "detail": str(e)}
+            warnings.append(f"Technical error during HS6 lookup for {r.name}.")
+
+        # 3. Stability Lookup for Primary & Secondary
+        stability_row = df_stability[df_stability['Country'] == origin]
+        if not stability_row.empty:
+            stability = float(stability_row.iloc[0]['Stability_Score'])
         else:
-            # Check if we have data by name hint in our mapping? No, user said InChIKey.
-            supply_chain_data = {"status": "no_hs6_mapping"}
+            stability = 50.0 # Neutral default
+            
+        sec_stability_row = df_stability[df_stability['Country'] == secondary_origin]
+        if not sec_stability_row.empty:
+            sec_stability = float(sec_stability_row.iloc[0]['Stability_Score'])
+        else:
+            sec_stability = 50.0
 
         # Multi-dimensional Risk Calculation (Enhanced)
-        warnings = []
         if origin == "Unknown":
             warnings.append("Unverified Origin (Opacity Risk)")
         
@@ -262,58 +369,50 @@ def run_risk_assessment(reagents: List[ReagentRiskInput]) -> dict:
             warnings.append(f"REGULATORY FLAG: {REGULATORY_CAS[r.cas]}")
 
         # 1. Geographic Risk & Opacity (0-100)
-        # Apply Opacity Multiplier (1.5x) if origin is unknown
         geo_base = 100 - stability
-        if origin == "Unknown":
-            geo_risk = min(100, geo_base * 1.5)
-        else:
-            geo_risk = geo_base
+        geo_risk = min(100, geo_base * 1.5) if origin == "Unknown" else geo_base
+        
+        sec_geo_base = 100 - sec_stability
+        sec_geo_risk = min(100, sec_geo_base * 1.5) if secondary_origin == "Unknown" else sec_geo_base
         
         # 2. Operational Risk (Lead time + Supplier scarcity)
         lt_risk = min(100, (r.lead_time_days / 30) * 100)
         scarcity_risk = max(0, 100 - (r.supplier_count * 20))
-        # Boost scarcity if it's a critical mineral
         if r.cas in CRITICAL_CAS:
             scarcity_risk = 100
         oper_risk = (lt_risk * 0.5) + (scarcity_risk * 0.5)
         
         # 3. Regulatory & Hazard Risk (0-100)
-        # Combine Hazard Score and Regulatory Score
-        # Auto-boost for flagged materials (DCM, etc)
         reg_val = r.regulatory_score
         if r.cas in REGULATORY_CAS:
             reg_val = 10  # Max risk
         reg_risk = (r.hazard_score * 4) + (reg_val * 6)
         
         # 4. Economic Risk (Substitutability & Cost-at-risk)
-        # Harder to replace = higher risk
         econ_risk = r.substitutability * 10
 
         # Weighted Component Score (0-100)
-        # Shifting weights to emphasize Regulatory and Geographic risk as requested
-        composite_score = (
-            geo_risk * 0.30 + 
-            oper_risk * 0.20 + 
-            reg_risk * 0.30 + 
-            econ_risk * 0.20
-        )
+        composite_score = (geo_risk * 0.30 + oper_risk * 0.20 + reg_risk * 0.30 + econ_risk * 0.20)
+        sec_composite_score = (sec_geo_risk * 0.30 + oper_risk * 0.20 + reg_risk * 0.30 + econ_risk * 0.20)
 
-        # Final Risk Index: Composite Score * Exposure Multiplier
-        # Exposure multiplier accounts for Mass and Cost influence
-        # Logarithmic mass + normalized cost factor
+        # Final Risk Index
         exposure_multiplier = (math.log10(r.mass_g + 1) * 0.7) + (math.log10(r.cost + 1) * 0.3) + 1
         risk_index = composite_score * exposure_multiplier
+        secondary_risk_index = sec_composite_score * exposure_multiplier
 
         results.append(ReagentRiskResult(
             name=r.name,
             cas=r.cas,
             primary_origin=origin,
             stability_score=stability,
+            secondary_origin=secondary_origin,
+            secondary_stability_score=sec_stability,
             mass_g=r.mass_g,
             cost=r.cost,
             risk_index=round(risk_index, 2),
+            secondary_risk_index=round(secondary_risk_index, 2),
             risk_level=label_risk(risk_index),
-            hs_code=hs_code,
+            hs_code=target_hs6,
             lead_time=r.lead_time_days,
             hazard=r.hazard_score,
             substitutability=r.substitutability,

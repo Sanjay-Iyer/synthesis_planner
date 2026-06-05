@@ -47,7 +47,8 @@ function addReagentInputRow(data = null) {
             <input type="text" class="cas-input r-cas" placeholder="e.g. 7447-39-4" value="${data?.cas || ''}" oninput="checkCAS(this)" style="width:100%;">
             <span class="status-dot" style="position:absolute; right:8px; width:8px; height:8px; border-radius:50%; background:#dfe6e9;" title="CAS Status"></span>
         </div>
-        <input type="text" class="origin-input r-origin" placeholder="Origin" value="${data?.origin || ''}">
+        <input type="text" class="origin-input r-origin" placeholder="Primary" value="${data?.origin || ''}">
+        <input type="text" class="origin-input r-secondary-origin" placeholder="Secondary" value="${data?.secondary_origin || ''}">
         <input type="number" step="any" class="r-mass" placeholder="Mass" value="${data?.mass_g || ''}">
         <input type="number" step="any" class="r-cost" placeholder="Cost" value="${data?.cost || ''}">
         <!-- Advanced fields -->
@@ -109,6 +110,7 @@ function collectReagentInputs() {
             name: name,
             cas: row.querySelector('.r-cas').value.trim(),
             origin: row.querySelector('.r-origin').value.trim(),
+            secondary_origin: row.querySelector('.r-secondary-origin').value.trim(),
             mass_g: parseFloat(row.querySelector('.r-mass').value) || 0,
             cost: parseFloat(row.querySelector('.r-cost').value) || 0,
             lead_time_days: parseInt(row.querySelector('.r-lead').value) || 14,
@@ -162,6 +164,7 @@ function loadCSV(event) {
                 name: nameIdx >= 0 ? cols[nameIdx] : cols[0],
                 cas: casIdx >= 0 ? cols[casIdx] : '',
                 origin: originIdx >= 0 ? cols[originIdx] : '',
+                secondary_origin: '', 
                 mass_g: massIdx >= 0 ? parseFloat(cols[massIdx]) || 0 : 0,
                 cost: costIdx >= 0 ? parseFloat(cols[costIdx]) || 0 : 0,
                 lead_time_days: leadIdx >= 0 ? parseInt(cols[leadIdx]) || 14 : 14,
@@ -303,33 +306,59 @@ function renderStackedBarChart(reagents) {
     const ctx = document.getElementById('stackedBarChart').getContext('2d');
     if (stackedBarChart) stackedBarChart.destroy();
 
-    const countryMap = {};
+    const primaryMap = {};
+    const secondaryMap = {};
+    const allCountries = new Set();
+
     reagents.forEach(r => {
-        const origin = r.primary_origin || 'Unknown';
-        if (!countryMap[origin]) countryMap[origin] = 0;
-        countryMap[origin] += r.risk_index;
+        const p_origin = r.primary_origin || 'Unknown';
+        const s_origin = r.secondary_origin || 'Unknown';
+        
+        allCountries.add(p_origin);
+        allCountries.add(s_origin);
+
+        primaryMap[p_origin] = (primaryMap[p_origin] || 0) + (r.risk_index || 0);
+        secondaryMap[s_origin] = (secondaryMap[s_origin] || 0) + (r.secondary_risk_index || 0);
     });
 
-    const labels = Object.keys(countryMap);
-    const data = Object.values(countryMap);
+    const labels = Array.from(allCountries).sort();
+    const primaryData = labels.map(l => primaryMap[l] || 0);
+    const secondaryData = labels.map(l => secondaryMap[l] || 0);
 
     stackedBarChart = new Chart(ctx, {
         type: 'bar',
         data: {
             labels: labels,
-            datasets: [{
-                label: 'Total Risk Exposure',
-                data: data,
-                backgroundColor: 'rgba(214, 48, 49, 0.7)',
-                borderRadius: 5
-            }]
+            datasets: [
+                {
+                    label: 'Primary Origin Exposure',
+                    data: primaryData,
+                    backgroundColor: 'rgba(214, 48, 49, 0.8)',
+                    borderRadius: 5
+                },
+                {
+                    label: 'Secondary Origin Exposure',
+                    data: secondaryData,
+                    backgroundColor: 'rgba(9, 132, 227, 0.6)',
+                    borderRadius: 5
+                }
+            ]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { legend: { display: false } },
+            plugins: { 
+                legend: { display: true, labels: { color: '#bdc3c7' } },
+                title: { display: false }
+            },
             scales: {
-                y: { beginAtZero: true, title: { display: true, text: 'Risk Exposure' } }
+                x: { ticks: { color: '#bdc3c7' }, grid: { display: false } },
+                y: { 
+                    beginAtZero: true, 
+                    title: { display: true, text: 'Aggregated Risk Index', color: '#bdc3c7' },
+                    ticks: { color: '#bdc3c7' },
+                    grid: { color: 'rgba(255,255,255,0.08)' }
+                }
             }
         }
     });
@@ -403,7 +432,10 @@ function displayRiskResults(data) {
         row.innerHTML = `
             <td style="font-weight:600;">${r.name || 'Unknown'}</td>
             <td style="font-family:monospace; font-size:0.8rem;">${r.cas || 'No CAS'}</td>
-            <td>${r.primary_origin || 'Unknown'}</td>
+            <td>
+                <div style="font-weight:600; color:var(--primary);">${r.primary_origin || 'Unknown'}</div>
+                <div style="font-size:0.7rem; color:var(--text-muted); border-top:1px solid #eee; margin-top:4px; padding-top:4px;">Secondary: ${r.secondary_origin || 'Unknown'}</div>
+            </td>
             <td>${Math.round(r.stability_score || 0)}/100</td>
             <td>${(r.mass_g || 0).toLocaleString()}</td>
             <td>$${(r.cost || 0).toLocaleString()}</td>
@@ -488,7 +520,8 @@ function renderRiskChart(reagents) {
                             const r = reagents[ctx.dataIndex];
                             return [
                                 r.name,
-                                `Origin: ${r.primary_origin} (${r.stability_score}/100)`,
+                                `Primary: ${r.primary_origin} (${r.stability_score}/100)`,
+                                `Secondary: ${r.secondary_origin} (${r.secondary_stability_score}/100)`,
                                 `Mass: ${r.mass_g.toLocaleString()}g`,
                                 `Cost: $${r.cost.toLocaleString()}`,
                                 `Risk: ${r.risk_index.toLocaleString()}`
@@ -568,4 +601,52 @@ function downloadSampleCSV() {
     a.href = URL.createObjectURL(blob);
     a.download = 'sample_risk_reagents.csv';
     a.click();
+}
+
+async function autoLookupOrigins() {
+    const reagents = collectReagentInputs();
+    if (reagents.length === 0) { alert('Please enter at least one reagent.'); return; }
+
+    const btn = document.querySelector('button[onclick="autoLookupOrigins()"]');
+    const oldText = btn.textContent;
+    btn.textContent = 'Searching...';
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(`${API_BASE}/api/risk/lookup-origins`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reagents })
+        });
+        
+        if (!res.ok) throw new Error(await res.text());
+
+        const suggestions = await res.json();
+        const rows = document.querySelectorAll('#reagentRows .reagent-input-row');
+        
+        suggestions.forEach((s, i) => {
+            if (i < rows.length) {
+                const row = rows[i];
+                const pInput = row.querySelector('.r-origin');
+                const sInput = row.querySelector('.r-secondary-origin');
+                
+                if (!pInput.value || pInput.value === 'Unknown') pInput.value = s.primary;
+                if (!sInput.value || sInput.value === 'Unknown') sInput.value = s.secondary;
+                
+                // Add visual highlight
+                pInput.style.background = '#e3f2fd';
+                sInput.style.background = '#e3f2fd';
+                setTimeout(() => {
+                    pInput.style.background = '';
+                    sInput.style.background = '';
+                }, 1000);
+            }
+        });
+    } catch (e) {
+        console.error("Auto-lookup failed:", e);
+        alert('Lookup failed. Check console.');
+    } finally {
+        btn.textContent = oldText;
+        btn.disabled = false;
+    }
 }

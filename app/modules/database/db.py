@@ -57,6 +57,9 @@ def init_db():
         mw REAL,
         exact_mw REAL,
         cas TEXT,
+        hs6_code TEXT,
+        primary_origin TEXT,
+        secondary_origin TEXT,
         compound_type TEXT,
         is_defined_structure INTEGER DEFAULT 1,
         dedupe_basis TEXT,
@@ -66,6 +69,30 @@ def init_db():
         notes TEXT
     )
     """)
+
+    # --- Schema Migrations ---
+    cursor.execute("PRAGMA table_info(compounds)")
+    columns = [col[1] for col in cursor.fetchall()]
+    
+    if "hs6_code" not in columns:
+        try:
+            cursor.execute("ALTER TABLE compounds ADD COLUMN hs6_code TEXT")
+        except sqlite3.OperationalError:
+            pass
+            
+    if "primary_origin" not in columns:
+        try:
+            cursor.execute("ALTER TABLE compounds ADD COLUMN primary_origin TEXT")
+        except sqlite3.OperationalError:
+            pass
+
+    if "secondary_origin" not in columns:
+        try:
+            cursor.execute("ALTER TABLE compounds ADD COLUMN secondary_origin TEXT")
+        except sqlite3.OperationalError:
+            pass
+
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_compounds_hs6_code ON compounds(hs6_code)")
 
     # Partial unique indexes for SQLite 3.9+
     try:

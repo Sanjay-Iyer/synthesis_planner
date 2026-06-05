@@ -21,14 +21,14 @@
         .upload-zone.active { border-color: var(--secondary); background: rgba(39, 174, 96, 0.05); }
         .reagent-input-row {
             display: grid;
-            grid-template-columns: 2fr 1.2fr 1.2fr 0.8fr 0.8fr auto;
+            grid-template-columns: 2fr 1.2fr 1.2fr 1.2fr 0.8fr 0.8fr auto;
             gap: 12px;
             margin-bottom: 8px;
             align-items: center;
             transition: all 0.3s ease;
         }
         .reagent-input-row.advanced {
-            grid-template-columns: 2fr 1.2fr 1fr 0.7fr 0.7fr 0.7fr 0.7fr 0.7fr 0.7fr auto;
+            grid-template-columns: 2fr 1.2fr 1fr 1fr 0.7fr 0.7fr 0.7fr 0.7fr 0.7fr 0.7fr auto;
         }
         .reagent-input-row .adv-field { display: none; }
         .reagent-input-row.advanced .adv-field { display: block; }
@@ -173,6 +173,7 @@
                         <div>Reagent Name</div>
                         <div>CAS Number</div>
                         <div>Primary Origin</div>
+                        <div>Secondary Origin</div>
                         <div>Mass (g)</div>
                         <div>Cost ($)</div>
                         <div class="adv-field">Lead (d)</div>
@@ -188,6 +189,9 @@
                 <div style="display: flex; gap: 10px; margin-top: 20px;">
                     <button class="btn btn-secondary" onclick="runRiskAssessment()" style="flex: 2; padding: 14px; font-size: 0.95rem;">
                         🌍 Run Risk Assessment
+                    </button>
+                    <button class="btn btn-ghost" onclick="autoLookupOrigins()" style="flex: 1.5; padding: 14px; font-size: 0.95rem; border: 1px solid var(--secondary); color: var(--secondary);">
+                        🔍 Auto-Lookup Origins
                     </button>
                     <button class="btn btn-ghost" onclick="saveMappings()" style="flex: 1; padding: 14px; font-size: 0.95rem; border: 1px solid var(--border);">
                         💾 Save Mappings

@@ -1,0 +1,1704 @@
+{
+  "schema_version": 1,
+  "last_updated": "2026-05-13T18:32:47.398189+00:00",
+  "trade_data": {
+    "291714": {
+      "hs6_code": "291714",
+      "product_description": "Maleic anhydride",
+      "years": {
+        "2024": {
+          "trade_flow": "Export",
+          "partner": "World",
+          "quantity_unit": "Kg",
+          "source_file": "WITS-By-HS6Product (13).xlsx",
+          "ingested_at": "2026-05-13T17:00:13.102796+00:00",
+          "top_n_actual": 5,
+          "top_exporters": [
+            {
+              "rank": 1,
+              "reporter": "China",
+              "quantity": 198974000.0,
+              "trade_value_1000_usd": 170812.04,
+              "share_of_top5_pct": 58.53
+            },
+            {
+              "rank": 2,
+              "reporter": "United States",
+              "quantity": 47346700.0,
+              "trade_value_1000_usd": 64133.3,
+              "share_of_top5_pct": 13.93
+            },
+            {
+              "rank": 3,
+              "reporter": "Korea, Rep.",
+              "quantity": 39184800.0,
+              "trade_value_1000_usd": 41767.31,
+              "share_of_top5_pct": 11.53
+            },
+            {
+              "rank": 4,
+              "reporter": "Other Asia, nes",
+              "quantity": 31810500.0,
+              "trade_value_1000_usd": 34574.7,
+              "share_of_top5_pct": 9.36
+            },
+            {
+              "rank": 5,
+              "reporter": "Malaysia",
+              "quantity": 22657700.0,
+              "trade_value_1000_usd": 25657.92,
+              "share_of_top5_pct": 6.66
+            }
+          ],
+          "excluded_no_quantity": [
+            {
+              "reporter": "Belgium",
+              "trade_value_1000_usd": 697.88
+            },
+            {
+              "reporter": "Ukraine",
+              "trade_value_1000_usd": 0.12
+            },
+            {
+              "reporter": "Estonia",
+              "trade_value_1000_usd": 0.06
+            }
+          ],
+          "total_top5_quantity": 339973700.0,
+          "concentration_top1_pct": 58.53
+        }
+      }
+    },
+    "291735": {
+      "hs6_code": "291735",
+      "product_description": "Phthalic anhydride",
+      "years": {
+        "2024": {
+          "trade_flow": "Export",
+          "partner": "World",
+          "quantity_unit": "Kg",
+          "source_file": "WITS-By-HS6Product (16).xlsx",
+          "ingested_at": "2026-05-13T17:00:13.117098+00:00",
+          "top_n_actual": 5,
+          "top_exporters": [
+            {
+              "rank": 1,
+              "reporter": "China",
+              "quantity": 136974000.0,
+              "trade_value_1000_usd": 135002.99,
+              "share_of_top5_pct": 30.19
+            },
+            {
+              "rank": 2,
+              "reporter": "Korea, Rep.",
+              "quantity": 101896000.0,
+              "trade_value_1000_usd": 104902.31,
+              "share_of_top5_pct": 22.46
+            },
+            {
+              "rank": 3,
+              "reporter": "Other Asia, nes",
+              "quantity": 97969600.0,
+              "trade_value_1000_usd": 104473.09,
+              "share_of_top5_pct": 21.59
+            },
+            {
+              "rank": 4,
+              "reporter": "Belgium",
+              "quantity": 76442600.0,
+              "trade_value_1000_usd": 95209.01,
+              "share_of_top5_pct": 16.85
+            },
+            {
+              "rank": 5,
+              "reporter": "Japan",
+              "quantity": 40419100.0,
+              "trade_value_1000_usd": 38078.26,
+              "share_of_top5_pct": 8.91
+            }
+          ],
+          "excluded_no_quantity": [
+            {
+              "reporter": "Australia",
+              "trade_value_1000_usd": 0.58
+            }
+          ],
+          "total_top5_quantity": 453701300.0,
+          "concentration_top1_pct": 30.19
+        }
+      }
+    },
+    "290250": {
+      "hs6_code": "290250",
+      "product_description": "Styrene",
+      "years": {
+        "2024": {
+          "trade_flow": "Export",
+          "partner": "World",
+          "quantity_unit": "Kg",
+          "source_file": "WITS-By-HS6Product (2).xlsx",
+          "ingested_at": "2026-05-13T17:00:13.132204+00:00",
+          "top_n_actual": 5,
+          "top_exporters": [
+            {
+              "rank": 1,
+              "reporter": "Saudi Arabia",
+              "quantity": 1284010000.0,
+              "trade_value_1000_usd": 1434857.11,
+              "share_of_top5_pct": 36.15
+            },
+            {
+              "rank": 2,
+              "reporter": "Netherlands",
+              "quantity": 1130860000.0,
+              "trade_value_1000_usd": 1392732.98,
+              "share_of_top5_pct": 31.84
+            },
+            {
+              "rank": 3,
+              "reporter": "Singapore",
+              "quantity": 470266000.0,
+              "trade_value_1000_usd": 530092.97,
+              "share_of_top5_pct": 13.24
+            },
+            {
+              "rank": 4,
+              "reporter": "European Union",
+              "quantity": 337170000.0,
+              "trade_value_1000_usd": 415664.84,
+              "share_of_top5_pct": 9.49
+            },
+            {
+              "rank": 5,
+              "reporter": "Other Asia, nes",
+              "quantity": 329600000.0,
+              "trade_value_1000_usd": 442913.87,
+              "share_of_top5_pct": 9.28
+            }
+          ],
+          "excluded_no_quantity": [
+            {
+              "reporter": "United States",
+              "trade_value_1000_usd": 1700606.29
+            },
+            {
+              "reporter": "Korea, Rep.",
+              "trade_value_1000_usd": 334504.0
+            },
+            {
+              "reporter": "Turkey",
+              "trade_value_1000_usd": 24227.49
+            },
+            {
+              "reporter": "Czech Republic",
+              "trade_value_1000_usd": 17251.21
+            },
+            {
+              "reporter": "Denmark",
+              "trade_value_1000_usd": 38.02
+            },
+            {
+              "reporter": "Switzerland",
+              "trade_value_1000_usd": 27.97
+            },
+            {
+              "reporter": "Latvia",
+              "trade_value_1000_usd": 26.63
+            },
+            {
+              "reporter": "Ukraine",
+              "trade_value_1000_usd": 0.1
+            }
+          ],
+          "total_top5_quantity": 3551906000.0,
+          "concentration_top1_pct": 36.15
+        }
+      }
+    },
+    "292122": {
+      "hs6_code": "292122",
+      "product_description": "Hexamethylenediamine and its salts",
+      "years": {
+        "2024": {
+          "trade_flow": "Export",
+          "partner": "World",
+          "quantity_unit": "Kg",
+          "source_file": "WITS-By-HS6Product (7).xlsx",
+          "ingested_at": "2026-05-13T17:00:13.144099+00:00",
+          "top_n_actual": 5,
+          "top_exporters": [
+            {
+              "rank": 1,
+              "reporter": "France",
+              "quantity": 251509000.0,
+              "trade_value_1000_usd": 477439.23,
+              "share_of_top5_pct": 45.4
+            },
+            {
+              "rank": 2,
+              "reporter": "United States",
+              "quantity": 235042000.0,
+              "trade_value_1000_usd": 597210.79,
+              "share_of_top5_pct": 42.42
+            },
+            {
+              "rank": 3,
+              "reporter": "European Union",
+              "quantity": 42475900.0,
+              "trade_value_1000_usd": 111960.83,
+              "share_of_top5_pct": 7.67
+            },
+            {
+              "rank": 4,
+              "reporter": "Belgium",
+              "quantity": 14329500.0,
+              "trade_value_1000_usd": 38974.83,
+              "share_of_top5_pct": 2.59
+            },
+            {
+              "rank": 5,
+              "reporter": "Netherlands",
+              "quantity": 10685500.0,
+              "trade_value_1000_usd": 27800.41,
+              "share_of_top5_pct": 1.93
+            }
+          ],
+          "excluded_no_quantity": [],
+          "total_top5_quantity": 554041900.0,
+          "concentration_top1_pct": 45.4
+        }
+      }
+    },
+    "291736": {
+      "hs6_code": "291736",
+      "product_description": "Terephthalic acid and its salts",
+      "years": {
+        "2024": {
+          "trade_flow": "Export",
+          "partner": "World",
+          "quantity_unit": "Kg",
+          "source_file": "WITS-By-HS6Product (6).xlsx",
+          "ingested_at": "2026-05-13T17:00:13.159709+00:00",
+          "top_n_actual": 5,
+          "top_exporters": [
+            {
+              "rank": 1,
+              "reporter": "China",
+              "quantity": 4417980000.0,
+              "trade_value_1000_usd": 3180984.25,
+              "share_of_top5_pct": 47.86
+            },
+            {
+              "rank": 2,
+              "reporter": "Korea, Rep.",
+              "quantity": 2198330000.0,
+              "trade_value_1000_usd": 1637965.27,
+              "share_of_top5_pct": 23.81
+            },
+            {
+              "rank": 3,
+              "reporter": "Thailand",
+              "quantity": 1201440000.0,
+              "trade_value_1000_usd": 889766.91,
+              "share_of_top5_pct": 13.01
+            },
+            {
+              "rank": 4,
+              "reporter": "Other Asia, nes",
+              "quantity": 827356000.0,
+              "trade_value_1000_usd": 643211.24,
+              "share_of_top5_pct": 8.96
+            },
+            {
+              "rank": 5,
+              "reporter": "Belgium",
+              "quantity": 586607000.0,
+              "trade_value_1000_usd": 472176.44,
+              "share_of_top5_pct": 6.35
+            }
+          ],
+          "excluded_no_quantity": [
+            {
+              "reporter": "European Union",
+              "trade_value_1000_usd": 147777.46
+            },
+            {
+              "reporter": "United States",
+              "trade_value_1000_usd": 10641.83
+            },
+            {
+              "reporter": "India",
+              "trade_value_1000_usd": 6355.75
+            },
+            {
+              "reporter": "Finland",
+              "trade_value_1000_usd": 66.11
+            },
+            {
+              "reporter": "Turkey",
+              "trade_value_1000_usd": 0.35
+            },
+            {
+              "reporter": "Singapore",
+              "trade_value_1000_usd": 0.17
+            },
+            {
+              "reporter": "Sweden",
+              "trade_value_1000_usd": 0.09
+            }
+          ],
+          "total_top5_quantity": 9231713000.0,
+          "concentration_top1_pct": 47.86
+        }
+      }
+    },
+    "293371": {
+      "hs6_code": "293371",
+      "product_description": "6-Hexanelactam (epsilon-caprolactam)",
+      "years": {
+        "2024": {
+          "trade_flow": "Export",
+          "partner": "World",
+          "quantity_unit": "Kg",
+          "source_file": "WITS-By-HS6Product (10).xlsx",
+          "ingested_at": "2026-05-13T17:00:13.172672+00:00",
+          "top_n_actual": 5,
+          "top_exporters": [
+            {
+              "rank": 1,
+              "reporter": "Belgium",
+              "quantity": 270878000.0,
+              "trade_value_1000_usd": 471439.4,
+              "share_of_top5_pct": 46.81
+            },
+            {
+              "rank": 2,
+              "reporter": "China",
+              "quantity": 200229000.0,
+              "trade_value_1000_usd": 296907.78,
+              "share_of_top5_pct": 34.6
+            },
+            {
+              "rank": 3,
+              "reporter": "Netherlands",
+              "quantity": 53484100.0,
+              "trade_value_1000_usd": 101966.75,
+              "share_of_top5_pct": 9.24
+            },
+            {
+              "rank": 4,
+              "reporter": "Thailand",
+              "quantity": 28373200.0,
+              "trade_value_1000_usd": 47232.73,
+              "share_of_top5_pct": 4.9
+            },
+            {
+              "rank": 5,
+              "reporter": "Japan",
+              "quantity": 25752300.0,
+              "trade_value_1000_usd": 39489.03,
+              "share_of_top5_pct": 4.45
+            }
+          ],
+          "excluded_no_quantity": [
+            {
+              "reporter": "Kazakhstan",
+              "trade_value_1000_usd": 0.07
+            }
+          ],
+          "total_top5_quantity": 578716600.0,
+          "concentration_top1_pct": 46.81
+        }
+      }
+    },
+    "291030": {
+      "hs6_code": "291030",
+      "product_description": "1-Chloro-2,3-epoxypropane (epichlorohydrin)",
+      "years": {
+        "2024": {
+          "trade_flow": "Export",
+          "partner": "World",
+          "quantity_unit": "Kg",
+          "source_file": "WITS-By-HS6Product (12).xlsx",
+          "ingested_at": "2026-05-13T17:00:13.185689+00:00",
+          "top_n_actual": 5,
+          "top_exporters": [
+            {
+              "rank": 1,
+              "reporter": "Thailand",
+              "quantity": 107892000.0,
+              "trade_value_1000_usd": 122221.04,
+              "share_of_top5_pct": 33.96
+            },
+            {
+              "rank": 2,
+              "reporter": "China",
+              "quantity": 84352700.0,
+              "trade_value_1000_usd": 91832.48,
+              "share_of_top5_pct": 26.55
+            },
+            {
+              "rank": 3,
+              "reporter": "Korea, Rep.",
+              "quantity": 54979600.0,
+              "trade_value_1000_usd": 73061.29,
+              "share_of_top5_pct": 17.3
+            },
+            {
+              "rank": 4,
+              "reporter": "Germany",
+              "quantity": 37073600.0,
+              "trade_value_1000_usd": 63807.68,
+              "share_of_top5_pct": 11.67
+            },
+            {
+              "rank": 5,
+              "reporter": "European Union",
+              "quantity": 33431200.0,
+              "trade_value_1000_usd": 55334.9,
+              "share_of_top5_pct": 10.52
+            }
+          ],
+          "excluded_no_quantity": [
+            {
+              "reporter": "France",
+              "trade_value_1000_usd": 37417.15
+            },
+            {
+              "reporter": "United Kingdom",
+              "trade_value_1000_usd": 799.52
+            },
+            {
+              "reporter": "Singapore",
+              "trade_value_1000_usd": 59.84
+            },
+            {
+              "reporter": "Belgium",
+              "trade_value_1000_usd": 52.6
+            },
+            {
+              "reporter": "Ukraine",
+              "trade_value_1000_usd": 0.29
+            }
+          ],
+          "total_top5_quantity": 317729100.0,
+          "concentration_top1_pct": 33.96
+        }
+      }
+    },
+    "292610": {
+      "hs6_code": "292610",
+      "product_description": "Acrylonitrile",
+      "years": {
+        "2024": {
+          "trade_flow": "Export",
+          "partner": "World",
+          "quantity_unit": "Kg",
+          "source_file": "WITS-By-HS6Product (14).xlsx",
+          "ingested_at": "2026-05-13T17:00:13.198583+00:00",
+          "top_n_actual": 5,
+          "top_exporters": [
+            {
+              "rank": 1,
+              "reporter": "Other Asia, nes",
+              "quantity": 261641000.0,
+              "trade_value_1000_usd": 289496.93,
+              "share_of_top5_pct": 26.53
+            },
+            {
+              "rank": 2,
+              "reporter": "China",
+              "quantity": 227170000.0,
+              "trade_value_1000_usd": 256627.22,
+              "share_of_top5_pct": 23.04
+            },
+            {
+              "rank": 3,
+              "reporter": "United States",
+              "quantity": 196514000.0,
+              "trade_value_1000_usd": 269550.55,
+              "share_of_top5_pct": 19.93
+            },
+            {
+              "rank": 4,
+              "reporter": "Korea, Rep.",
+              "quantity": 175916000.0,
+              "trade_value_1000_usd": 218167.74,
+              "share_of_top5_pct": 17.84
+            },
+            {
+              "rank": 5,
+              "reporter": "Germany",
+              "quantity": 124846000.0,
+              "trade_value_1000_usd": 200914.01,
+              "share_of_top5_pct": 12.66
+            }
+          ],
+          "excluded_no_quantity": [
+            {
+              "reporter": "European Union",
+              "trade_value_1000_usd": 44356.87
+            },
+            {
+              "reporter": "India",
+              "trade_value_1000_usd": 10902.63
+            },
+            {
+              "reporter": "United Kingdom",
+              "trade_value_1000_usd": 191.87
+            }
+          ],
+          "total_top5_quantity": 986087000.0,
+          "concentration_top1_pct": 26.53
+        }
+      }
+    },
+    "292910": {
+      "hs6_code": "292910",
+      "product_description": "Isocyanates",
+      "years": {
+        "2024": {
+          "trade_flow": "Export",
+          "partner": "World",
+          "quantity_unit": "Kg",
+          "source_file": "WITS-By-HS6Product (5).xlsx",
+          "ingested_at": "2026-05-13T17:00:13.214234+00:00",
+          "top_n_actual": 5,
+          "top_exporters": [
+            {
+              "rank": 1,
+              "reporter": "China",
+              "quantity": 523306000.0,
+              "trade_value_1000_usd": 1073871.95,
+              "share_of_top5_pct": 32.59
+            },
+            {
+              "rank": 2,
+              "reporter": "Korea, Rep.",
+              "quantity": 434802000.0,
+              "trade_value_1000_usd": 819595.93,
+              "share_of_top5_pct": 27.08
+            },
+            {
+              "rank": 3,
+              "reporter": "Hungary",
+              "quantity": 255743000.0,
+              "trade_value_1000_usd": 541152.01,
+              "share_of_top5_pct": 15.93
+            },
+            {
+              "rank": 4,
+              "reporter": "Germany",
+              "quantity": 223020000.0,
+              "trade_value_1000_usd": 624824.42,
+              "share_of_top5_pct": 13.89
+            },
+            {
+              "rank": 5,
+              "reporter": "Japan",
+              "quantity": 169014000.0,
+              "trade_value_1000_usd": 451554.97,
+              "share_of_top5_pct": 10.52
+            }
+          ],
+          "excluded_no_quantity": [
+            {
+              "reporter": "European Union",
+              "trade_value_1000_usd": 716081.21
+            },
+            {
+              "reporter": "Belgium",
+              "trade_value_1000_usd": 351351.93
+            },
+            {
+              "reporter": "India",
+              "trade_value_1000_usd": 11509.72
+            },
+            {
+              "reporter": "United Kingdom",
+              "trade_value_1000_usd": 8017.78
+            },
+            {
+              "reporter": "Czech Republic",
+              "trade_value_1000_usd": 7525.79
+            },
+            {
+              "reporter": "Canada",
+              "trade_value_1000_usd": 2387.46
+            },
+            {
+              "reporter": "Lithuania",
+              "trade_value_1000_usd": 1462.65
+            },
+            {
+              "reporter": "Ukraine",
+              "trade_value_1000_usd": 216.7
+            },
+            {
+              "reporter": "Armenia",
+              "trade_value_1000_usd": 1.24
+            }
+          ],
+          "total_top5_quantity": 1605885000.0,
+          "concentration_top1_pct": 32.59
+        }
+      }
+    },
+    "290531": {
+      "hs6_code": "290531",
+      "product_description": "Ethylene glycol (ethanediol)",
+      "years": {
+        "2024": {
+          "trade_flow": "Export",
+          "partner": "World",
+          "quantity_unit": "Kg",
+          "source_file": "WITS-By-HS6Product (8).xlsx",
+          "ingested_at": "2026-05-13T17:00:13.232217+00:00",
+          "top_n_actual": 5,
+          "top_exporters": [
+            {
+              "rank": 1,
+              "reporter": "Saudi Arabia",
+              "quantity": 6020910000.0,
+              "trade_value_1000_usd": 2783951.66,
+              "share_of_top5_pct": 50.29
+            },
+            {
+              "rank": 2,
+              "reporter": "United States",
+              "quantity": 3335180000.0,
+              "trade_value_1000_usd": 1752733.68,
+              "share_of_top5_pct": 27.86
+            },
+            {
+              "rank": 3,
+              "reporter": "Kuwait",
+              "quantity": 1284650000.0,
+              "trade_value_1000_usd": 873899.49,
+              "share_of_top5_pct": 10.73
+            },
+            {
+              "rank": 4,
+              "reporter": "Canada",
+              "quantity": 870448000.0,
+              "trade_value_1000_usd": 754993.21,
+              "share_of_top5_pct": 7.27
+            },
+            {
+              "rank": 5,
+              "reporter": "Belgium",
+              "quantity": 460791000.0,
+              "trade_value_1000_usd": 319686.17,
+              "share_of_top5_pct": 3.85
+            }
+          ],
+          "excluded_no_quantity": [
+            {
+              "reporter": "Singapore",
+              "trade_value_1000_usd": 275756.8
+            },
+            {
+              "reporter": "Spain",
+              "trade_value_1000_usd": 6332.69
+            },
+            {
+              "reporter": "Austria",
+              "trade_value_1000_usd": 1801.94
+            },
+            {
+              "reporter": "United Kingdom",
+              "trade_value_1000_usd": 1719.84
+            },
+            {
+              "reporter": "Armenia",
+              "trade_value_1000_usd": 3.71
+            },
+            {
+              "reporter": "Ukraine",
+              "trade_value_1000_usd": 0.02
+            }
+          ],
+          "total_top5_quantity": 11971979000.0,
+          "concentration_top1_pct": 50.29
+        }
+      }
+    },
+    "291611": {
+      "hs6_code": "291611",
+      "product_description": "Acrylic acid and its salts",
+      "years": {
+        "2024": {
+          "trade_flow": "Export",
+          "partner": "World",
+          "quantity_unit": "Kg",
+          "source_file": "WITS-By-HS6Product (4).xlsx",
+          "ingested_at": "2026-05-13T17:00:13.246359+00:00",
+          "top_n_actual": 5,
+          "top_exporters": [
+            {
+              "rank": 1,
+              "reporter": "Saudi Arabia",
+              "quantity": 158715000.0,
+              "trade_value_1000_usd": 174506.43,
+              "share_of_top5_pct": 40.14
+            },
+            {
+              "rank": 2,
+              "reporter": "Indonesia",
+              "quantity": 72653700.0,
+              "trade_value_1000_usd": 59268.95,
+              "share_of_top5_pct": 18.37
+            },
+            {
+              "rank": 3,
+              "reporter": "Germany",
+              "quantity": 62421400.0,
+              "trade_value_1000_usd": 76638.82,
+              "share_of_top5_pct": 15.79
+            },
+            {
+              "rank": 4,
+              "reporter": "Malaysia",
+              "quantity": 58117900.0,
+              "trade_value_1000_usd": 50979.93,
+              "share_of_top5_pct": 14.7
+            },
+            {
+              "rank": 5,
+              "reporter": "France",
+              "quantity": 43506100.0,
+              "trade_value_1000_usd": 55969.83,
+              "share_of_top5_pct": 11.0
+            }
+          ],
+          "excluded_no_quantity": [
+            {
+              "reporter": "China",
+              "trade_value_1000_usd": 94693.16
+            },
+            {
+              "reporter": "Belgium",
+              "trade_value_1000_usd": 73872.35
+            },
+            {
+              "reporter": "United States",
+              "trade_value_1000_usd": 20470.44
+            },
+            {
+              "reporter": "Singapore",
+              "trade_value_1000_usd": 10290.59
+            },
+            {
+              "reporter": "Spain",
+              "trade_value_1000_usd": 1007.98
+            },
+            {
+              "reporter": "Austria",
+              "trade_value_1000_usd": 14.15
+            },
+            {
+              "reporter": "Hungary",
+              "trade_value_1000_usd": 10.11
+            },
+            {
+              "reporter": "Slovak Republic",
+              "trade_value_1000_usd": 0.92
+            },
+            {
+              "reporter": "Ukraine",
+              "trade_value_1000_usd": 0.35
+            },
+            {
+              "reporter": "Croatia",
+              "trade_value_1000_usd": 0.07
+            },
+            {
+              "reporter": "Lithuania",
+              "trade_value_1000_usd": 0.02
+            }
+          ],
+          "total_top5_quantity": 395414100.0,
+          "concentration_top1_pct": 40.14
+        }
+      }
+    },
+    "291614": {
+      "hs6_code": "291614",
+      "product_description": "Esters of methacrylic acid",
+      "years": {
+        "2024": {
+          "trade_flow": "Export",
+          "partner": "World",
+          "quantity_unit": "Kg",
+          "source_file": "WITS-By-HS6Product (3).xlsx",
+          "ingested_at": "2026-05-13T17:00:13.263468+00:00",
+          "top_n_actual": 5,
+          "top_exporters": [
+            {
+              "rank": 1,
+              "reporter": "China",
+              "quantity": 315486000.0,
+              "trade_value_1000_usd": 628772.16,
+              "share_of_top5_pct": 37.87
+            },
+            {
+              "rank": 2,
+              "reporter": "Saudi Arabia",
+              "quantity": 200738000.0,
+              "trade_value_1000_usd": 294019.55,
+              "share_of_top5_pct": 24.1
+            },
+            {
+              "rank": 3,
+              "reporter": "Japan",
+              "quantity": 113616000.0,
+              "trade_value_1000_usd": 256328.21,
+              "share_of_top5_pct": 13.64
+            },
+            {
+              "rank": 4,
+              "reporter": "United States",
+              "quantity": 112056000.0,
+              "trade_value_1000_usd": 261111.2,
+              "share_of_top5_pct": 13.45
+            },
+            {
+              "rank": 5,
+              "reporter": "Netherlands",
+              "quantity": 91075700.0,
+              "trade_value_1000_usd": 232744.84,
+              "share_of_top5_pct": 10.93
+            }
+          ],
+          "excluded_no_quantity": [
+            {
+              "reporter": "France",
+              "trade_value_1000_usd": 29323.2
+            },
+            {
+              "reporter": "Ukraine",
+              "trade_value_1000_usd": 0.09
+            }
+          ],
+          "total_top5_quantity": 832971700.0,
+          "concentration_top1_pct": 37.87
+        }
+      }
+    },
+    "290124": {
+      "hs6_code": "290124",
+      "product_description": "Buta-1,3-diene and isoprene",
+      "years": {
+        "2024": {
+          "trade_flow": "Export",
+          "partner": "World",
+          "quantity_unit": "Kg",
+          "source_file": "WITS-By-HS6Product (9).xlsx",
+          "ingested_at": "2026-05-13T17:00:13.278387+00:00",
+          "top_n_actual": 5,
+          "top_exporters": [
+            {
+              "rank": 1,
+              "reporter": "Korea, Rep.",
+              "quantity": 310566000.0,
+              "trade_value_1000_usd": 419335.67,
+              "share_of_top5_pct": 24.91
+            },
+            {
+              "rank": 2,
+              "reporter": "Netherlands",
+              "quantity": 293339000.0,
+              "trade_value_1000_usd": 259593.4,
+              "share_of_top5_pct": 23.52
+            },
+            {
+              "rank": 3,
+              "reporter": "Malaysia",
+              "quantity": 241082000.0,
+              "trade_value_1000_usd": 187272.87,
+              "share_of_top5_pct": 19.33
+            },
+            {
+              "rank": 4,
+              "reporter": "Germany",
+              "quantity": 233721000.0,
+              "trade_value_1000_usd": 225045.08,
+              "share_of_top5_pct": 18.74
+            },
+            {
+              "rank": 5,
+              "reporter": "India",
+              "quantity": 168270000.0,
+              "trade_value_1000_usd": 198162.86,
+              "share_of_top5_pct": 13.49
+            }
+          ],
+          "excluded_no_quantity": [
+            {
+              "reporter": "Belgium",
+              "trade_value_1000_usd": 107372.29
+            },
+            {
+              "reporter": "United Kingdom",
+              "trade_value_1000_usd": 50.45
+            },
+            {
+              "reporter": "Kazakhstan",
+              "trade_value_1000_usd": 0.13
+            }
+          ],
+          "total_top5_quantity": 1246978000.0,
+          "concentration_top1_pct": 24.91
+        }
+      }
+    },
+    "290723": {
+      "hs6_code": "290723",
+      "product_description": "4,4-Isopropylidenediphenol (bisphenol A, diphen",
+      "years": {
+        "2024": {
+          "trade_flow": "Export",
+          "partner": "World",
+          "quantity_unit": "Kg",
+          "source_file": "WITS-By-HS6Product (15).xlsx",
+          "ingested_at": "2026-05-13T17:00:13.292734+00:00",
+          "top_n_actual": 5,
+          "top_exporters": [
+            {
+              "rank": 1,
+              "reporter": "Other Asia, nes",
+              "quantity": 247369000.0,
+              "trade_value_1000_usd": 316047.2,
+              "share_of_top5_pct": 79.95
+            },
+            {
+              "rank": 2,
+              "reporter": "Netherlands",
+              "quantity": 25610300.0,
+              "trade_value_1000_usd": 40436.43,
+              "share_of_top5_pct": 8.28
+            },
+            {
+              "rank": 3,
+              "reporter": "China",
+              "quantity": 25221000.0,
+              "trade_value_1000_usd": 30046.18,
+              "share_of_top5_pct": 8.15
+            },
+            {
+              "rank": 4,
+              "reporter": "Japan",
+              "quantity": 8128230.0,
+              "trade_value_1000_usd": 9017.24,
+              "share_of_top5_pct": 2.63
+            },
+            {
+              "rank": 5,
+              "reporter": "Poland",
+              "quantity": 3074020.0,
+              "trade_value_1000_usd": 5300.14,
+              "share_of_top5_pct": 0.99
+            }
+          ],
+          "excluded_no_quantity": [
+            {
+              "reporter": "Korea, Rep.",
+              "trade_value_1000_usd": 344692.34
+            },
+            {
+              "reporter": "Thailand",
+              "trade_value_1000_usd": 96300.58
+            },
+            {
+              "reporter": "India",
+              "trade_value_1000_usd": 1850.96
+            },
+            {
+              "reporter": "Singapore",
+              "trade_value_1000_usd": 305.12
+            }
+          ],
+          "total_top5_quantity": 309402550.0,
+          "concentration_top1_pct": 79.95
+        }
+      }
+    },
+    "291010": {
+      "hs6_code": "291010",
+      "product_description": "Oxirane (ethylene oxide)",
+      "years": {
+        "2024": {
+          "trade_flow": "Export",
+          "partner": "World",
+          "quantity_unit": "Kg",
+          "source_file": "WITS-By-HS6Product (11).xlsx",
+          "ingested_at": "2026-05-13T17:00:13.307850+00:00",
+          "top_n_actual": 5,
+          "top_exporters": [
+            {
+              "rank": 1,
+              "reporter": "Germany",
+              "quantity": 136574000.0,
+              "trade_value_1000_usd": 177691.44,
+              "share_of_top5_pct": 43.91
+            },
+            {
+              "rank": 2,
+              "reporter": "Netherlands",
+              "quantity": 87764100.0,
+              "trade_value_1000_usd": 110088.4,
+              "share_of_top5_pct": 28.22
+            },
+            {
+              "rank": 3,
+              "reporter": "Belgium",
+              "quantity": 60259800.0,
+              "trade_value_1000_usd": 81396.58,
+              "share_of_top5_pct": 19.38
+            },
+            {
+              "rank": 4,
+              "reporter": "European Union",
+              "quantity": 19410400.0,
+              "trade_value_1000_usd": 33037.78,
+              "share_of_top5_pct": 6.24
+            },
+            {
+              "rank": 5,
+              "reporter": "United States",
+              "quantity": 7004810.0,
+              "trade_value_1000_usd": 23474.96,
+              "share_of_top5_pct": 2.25
+            }
+          ],
+          "excluded_no_quantity": [
+            {
+              "reporter": "Guatemala",
+              "trade_value_1000_usd": 47.38
+            },
+            {
+              "reporter": "Kazakhstan",
+              "trade_value_1000_usd": 20.57
+            }
+          ],
+          "total_top5_quantity": 311013110.0,
+          "concentration_top1_pct": 43.91
+        }
+      }
+    },
+    "381230": {
+      "hs6_code": "381230",
+      "product_description": "Anti-oxidising preparations and stabilisers for",
+      "years": {
+        "2024": {
+          "trade_flow": "Export",
+          "partner": "World",
+          "quantity_unit": "Kg",
+          "source_file": "WITS-By-HS6Product (19).xlsx",
+          "ingested_at": "2026-05-13T18:32:47.304900+00:00",
+          "top_n_actual": 5,
+          "top_exporters": [
+            {
+              "rank": 1,
+              "reporter": "China",
+              "quantity": 274694000.0,
+              "trade_value_1000_usd": 671898.98,
+              "share_of_top5_pct": 39.9
+            },
+            {
+              "rank": 2,
+              "reporter": "Germany",
+              "quantity": 124712000.0,
+              "trade_value_1000_usd": 499314.47,
+              "share_of_top5_pct": 18.12
+            },
+            {
+              "rank": 3,
+              "reporter": "European Union",
+              "quantity": 102992000.0,
+              "trade_value_1000_usd": 509679.68,
+              "share_of_top5_pct": 14.96
+            },
+            {
+              "rank": 4,
+              "reporter": "Italy",
+              "quantity": 100986000.0,
+              "trade_value_1000_usd": 342913.45,
+              "share_of_top5_pct": 14.67
+            },
+            {
+              "rank": 5,
+              "reporter": "Turkey",
+              "quantity": 85039200.0,
+              "trade_value_1000_usd": 174850.16,
+              "share_of_top5_pct": 12.35
+            }
+          ],
+          "excluded_no_quantity": [
+            {
+              "reporter": "United Kingdom",
+              "trade_value_1000_usd": 80670.9
+            },
+            {
+              "reporter": "Peru",
+              "trade_value_1000_usd": 4583.23
+            },
+            {
+              "reporter": "Romania",
+              "trade_value_1000_usd": 279.21
+            },
+            {
+              "reporter": "Trinidad and Tobago",
+              "trade_value_1000_usd": 45.93
+            }
+          ],
+          "total_top5_quantity": 688423200.0,
+          "concentration_top1_pct": 39.9
+        }
+      }
+    },
+    "280430": {
+      "hs6_code": "280430",
+      "product_description": "Nitrogen",
+      "years": {
+        "2024": {
+          "trade_flow": "Export",
+          "partner": "World",
+          "quantity_unit": "m\u00b3",
+          "source_file": "WITS-By-HS6Product (22).xlsx",
+          "ingested_at": "2026-05-13T18:32:47.325303+00:00",
+          "top_n_actual": 5,
+          "top_exporters": [
+            {
+              "rank": 1,
+              "reporter": "Belgium",
+              "quantity": 298518000.0,
+              "trade_value_1000_usd": 42595.07,
+              "share_of_top5_pct": 54.17
+            },
+            {
+              "rank": 2,
+              "reporter": "Germany",
+              "quantity": 129552000.0,
+              "trade_value_1000_usd": 25642.37,
+              "share_of_top5_pct": 23.51
+            },
+            {
+              "rank": 3,
+              "reporter": "Netherlands",
+              "quantity": 48095400.0,
+              "trade_value_1000_usd": 24494.86,
+              "share_of_top5_pct": 8.73
+            },
+            {
+              "rank": 4,
+              "reporter": "Poland",
+              "quantity": 43715700.0,
+              "trade_value_1000_usd": 7020.56,
+              "share_of_top5_pct": 7.93
+            },
+            {
+              "rank": 5,
+              "reporter": "Italy",
+              "quantity": 31179000.0,
+              "trade_value_1000_usd": 12832.08,
+              "share_of_top5_pct": 5.66
+            }
+          ],
+          "excluded_no_quantity": [
+            {
+              "reporter": "United States",
+              "trade_value_1000_usd": 33760.69
+            },
+            {
+              "reporter": "European Union",
+              "trade_value_1000_usd": 26032.17
+            },
+            {
+              "reporter": "France",
+              "trade_value_1000_usd": 21285.44
+            },
+            {
+              "reporter": "Czech Republic",
+              "trade_value_1000_usd": 14535.75
+            },
+            {
+              "reporter": "Austria",
+              "trade_value_1000_usd": 11427.74
+            },
+            {
+              "reporter": "Kuwait",
+              "trade_value_1000_usd": 5675.84
+            },
+            {
+              "reporter": "Singapore",
+              "trade_value_1000_usd": 4619.48
+            },
+            {
+              "reporter": "Thailand",
+              "trade_value_1000_usd": 3077.7
+            },
+            {
+              "reporter": "Estonia",
+              "trade_value_1000_usd": 2588.26
+            },
+            {
+              "reporter": "Spain",
+              "trade_value_1000_usd": 2491.77
+            },
+            {
+              "reporter": "Other Asia, nes",
+              "trade_value_1000_usd": 1862.93
+            },
+            {
+              "reporter": "Guatemala",
+              "trade_value_1000_usd": 1308.66
+            },
+            {
+              "reporter": "South Africa",
+              "trade_value_1000_usd": 1193.5
+            },
+            {
+              "reporter": "Hong Kong, China",
+              "trade_value_1000_usd": 1166.04
+            },
+            {
+              "reporter": "Hungary",
+              "trade_value_1000_usd": 1143.07
+            },
+            {
+              "reporter": "Australia",
+              "trade_value_1000_usd": 1080.49
+            },
+            {
+              "reporter": "Romania",
+              "trade_value_1000_usd": 867.34
+            },
+            {
+              "reporter": "Canada",
+              "trade_value_1000_usd": 677.17
+            },
+            {
+              "reporter": "Oman",
+              "trade_value_1000_usd": 533.54
+            },
+            {
+              "reporter": "Costa Rica",
+              "trade_value_1000_usd": 499.19
+            },
+            {
+              "reporter": "Indonesia",
+              "trade_value_1000_usd": 440.57
+            },
+            {
+              "reporter": "Japan",
+              "trade_value_1000_usd": 424.25
+            },
+            {
+              "reporter": "Egypt, Arab Rep.",
+              "trade_value_1000_usd": 371.89
+            },
+            {
+              "reporter": "Algeria",
+              "trade_value_1000_usd": 299.05
+            },
+            {
+              "reporter": "Saudi Arabia",
+              "trade_value_1000_usd": 267.28
+            },
+            {
+              "reporter": "Israel",
+              "trade_value_1000_usd": 246.0
+            },
+            {
+              "reporter": "Greece",
+              "trade_value_1000_usd": 229.84
+            },
+            {
+              "reporter": "Cote d'Ivoire",
+              "trade_value_1000_usd": 229.44
+            },
+            {
+              "reporter": "Colombia",
+              "trade_value_1000_usd": 180.38
+            },
+            {
+              "reporter": "Nicaragua",
+              "trade_value_1000_usd": 176.27
+            },
+            {
+              "reporter": "New Zealand",
+              "trade_value_1000_usd": 157.3
+            },
+            {
+              "reporter": "Senegal",
+              "trade_value_1000_usd": 147.61
+            },
+            {
+              "reporter": "India",
+              "trade_value_1000_usd": 139.85
+            },
+            {
+              "reporter": "Korea, Rep.",
+              "trade_value_1000_usd": 117.88
+            },
+            {
+              "reporter": "Guyana",
+              "trade_value_1000_usd": 114.85
+            },
+            {
+              "reporter": "Bahrain",
+              "trade_value_1000_usd": 61.82
+            },
+            {
+              "reporter": "Ecuador",
+              "trade_value_1000_usd": 60.55
+            },
+            {
+              "reporter": "Chile",
+              "trade_value_1000_usd": 58.19
+            },
+            {
+              "reporter": "Tunisia",
+              "trade_value_1000_usd": 36.51
+            },
+            {
+              "reporter": "Zimbabwe",
+              "trade_value_1000_usd": 34.73
+            },
+            {
+              "reporter": "El Salvador",
+              "trade_value_1000_usd": 34.58
+            },
+            {
+              "reporter": "Togo",
+              "trade_value_1000_usd": 30.52
+            },
+            {
+              "reporter": "Jordan",
+              "trade_value_1000_usd": 30.0
+            },
+            {
+              "reporter": "Zambia",
+              "trade_value_1000_usd": 29.22
+            },
+            {
+              "reporter": "Bahamas, The",
+              "trade_value_1000_usd": 28.65
+            },
+            {
+              "reporter": "Malta",
+              "trade_value_1000_usd": 26.27
+            },
+            {
+              "reporter": "Panama",
+              "trade_value_1000_usd": 16.23
+            },
+            {
+              "reporter": "Morocco",
+              "trade_value_1000_usd": 12.34
+            },
+            {
+              "reporter": "Honduras",
+              "trade_value_1000_usd": 9.02
+            },
+            {
+              "reporter": "Barbados",
+              "trade_value_1000_usd": 3.11
+            },
+            {
+              "reporter": "Iceland",
+              "trade_value_1000_usd": 2.16
+            },
+            {
+              "reporter": "Suriname",
+              "trade_value_1000_usd": 1.91
+            },
+            {
+              "reporter": "Lebanon",
+              "trade_value_1000_usd": 1.44
+            },
+            {
+              "reporter": "Peru",
+              "trade_value_1000_usd": 1.43
+            },
+            {
+              "reporter": "Bosnia and Herzegovina",
+              "trade_value_1000_usd": 1.1
+            },
+            {
+              "reporter": "Angola",
+              "trade_value_1000_usd": 0.72
+            },
+            {
+              "reporter": "Benin",
+              "trade_value_1000_usd": 0.25
+            },
+            {
+              "reporter": "Paraguay",
+              "trade_value_1000_usd": 0.01
+            }
+          ],
+          "total_top5_quantity": 551060100.0,
+          "concentration_top1_pct": 54.17
+        }
+      }
+    },
+    "282580": {
+      "hs6_code": "282580",
+      "product_description": "Antimony oxides",
+      "years": {
+        "2024": {
+          "trade_flow": "Export",
+          "partner": "World",
+          "quantity_unit": "Kg",
+          "source_file": "WITS-By-HS6Product (21).xlsx",
+          "ingested_at": "2026-05-13T18:32:47.341191+00:00",
+          "top_n_actual": 5,
+          "top_exporters": [
+            {
+              "rank": 1,
+              "reporter": "China",
+              "quantity": 30420700.0,
+              "trade_value_1000_usd": 454036.73,
+              "share_of_top5_pct": 47.99
+            },
+            {
+              "rank": 2,
+              "reporter": "Belgium",
+              "quantity": 9094460.0,
+              "trade_value_1000_usd": 148140.02,
+              "share_of_top5_pct": 14.35
+            },
+            {
+              "rank": 3,
+              "reporter": "European Union",
+              "quantity": 8887970.0,
+              "trade_value_1000_usd": 154881.11,
+              "share_of_top5_pct": 14.02
+            },
+            {
+              "rank": 4,
+              "reporter": "France",
+              "quantity": 7716710.0,
+              "trade_value_1000_usd": 128406.78,
+              "share_of_top5_pct": 12.17
+            },
+            {
+              "rank": 5,
+              "reporter": "United States",
+              "quantity": 7268460.0,
+              "trade_value_1000_usd": 24673.89,
+              "share_of_top5_pct": 11.47
+            }
+          ],
+          "excluded_no_quantity": [
+            {
+              "reporter": "Korea, Rep.",
+              "trade_value_1000_usd": 24249.69
+            },
+            {
+              "reporter": "Malaysia",
+              "trade_value_1000_usd": 5408.52
+            }
+          ],
+          "total_top5_quantity": 63388300.0,
+          "concentration_top1_pct": 47.99
+        }
+      }
+    },
+    "291529": {
+      "hs6_code": "291529",
+      "product_description": "Salts of acetic acid (excl. of sodium and cobal",
+      "years": {
+        "2024": {
+          "trade_flow": "Export",
+          "partner": "World",
+          "quantity_unit": "Kg",
+          "source_file": "WITS-By-HS6Product (20).xlsx",
+          "ingested_at": "2026-05-13T18:32:47.361393+00:00",
+          "top_n_actual": 5,
+          "top_exporters": [
+            {
+              "rank": 1,
+              "reporter": "China",
+              "quantity": 80001400.0,
+              "trade_value_1000_usd": 94306.4,
+              "share_of_top5_pct": 53.58
+            },
+            {
+              "rank": 2,
+              "reporter": "Netherlands",
+              "quantity": 30399700.0,
+              "trade_value_1000_usd": 85338.41,
+              "share_of_top5_pct": 20.36
+            },
+            {
+              "rank": 3,
+              "reporter": "European Union",
+              "quantity": 16369400.0,
+              "trade_value_1000_usd": 64965.19,
+              "share_of_top5_pct": 10.96
+            },
+            {
+              "rank": 4,
+              "reporter": "India",
+              "quantity": 13343900.0,
+              "trade_value_1000_usd": 22642.56,
+              "share_of_top5_pct": 8.94
+            },
+            {
+              "rank": 5,
+              "reporter": "Germany",
+              "quantity": 9188400.0,
+              "trade_value_1000_usd": 38380.76,
+              "share_of_top5_pct": 6.15
+            }
+          ],
+          "excluded_no_quantity": [
+            {
+              "reporter": "United Kingdom",
+              "trade_value_1000_usd": 20074.16
+            },
+            {
+              "reporter": "Singapore",
+              "trade_value_1000_usd": 323.55
+            }
+          ],
+          "total_top5_quantity": 149302800.0,
+          "concentration_top1_pct": 53.58
+        }
+      }
+    },
+    "390760": {
+      "hs6_code": "390760",
+      "product_description": "Polyethylene terephthalate, in primary forms",
+      "years": {
+        "2024": {
+          "trade_flow": "Export",
+          "partner": "World",
+          "quantity_unit": "Kg",
+          "source_file": "WITS-By-HS6Product (18).xlsx",
+          "ingested_at": "2026-05-13T18:32:47.382878+00:00",
+          "top_n_actual": 5,
+          "top_exporters": [
+            {
+              "rank": 1,
+              "reporter": "China",
+              "quantity": 6988090000.0,
+              "trade_value_1000_usd": 6282268.51,
+              "share_of_top5_pct": 70.87
+            },
+            {
+              "rank": 2,
+              "reporter": "Other Asia, nes",
+              "quantity": 988498000.0,
+              "trade_value_1000_usd": 1094906.48,
+              "share_of_top5_pct": 10.03
+            },
+            {
+              "rank": 3,
+              "reporter": "Korea, Rep.",
+              "quantity": 753172000.0,
+              "trade_value_1000_usd": 1036929.24,
+              "share_of_top5_pct": 7.64
+            },
+            {
+              "rank": 4,
+              "reporter": "Lithuania",
+              "quantity": 571885000.0,
+              "trade_value_1000_usd": 684460.03,
+              "share_of_top5_pct": 5.8
+            },
+            {
+              "rank": 5,
+              "reporter": "Thailand",
+              "quantity": 558344000.0,
+              "trade_value_1000_usd": 559769.2,
+              "share_of_top5_pct": 5.66
+            }
+          ],
+          "excluded_no_quantity": [
+            {
+              "reporter": "Japan",
+              "trade_value_1000_usd": 199645.45
+            },
+            {
+              "reporter": "France",
+              "trade_value_1000_usd": 135353.72
+            },
+            {
+              "reporter": "Bulgaria",
+              "trade_value_1000_usd": 45018.76
+            },
+            {
+              "reporter": "Algeria",
+              "trade_value_1000_usd": 1619.13
+            }
+          ],
+          "total_top5_quantity": 9859989000.0,
+          "concentration_top1_pct": 70.87
+        }
+      }
+    },
+    "282560": {
+      "hs6_code": "282560",
+      "product_description": "Germanium oxides and zirconium dioxides",
+      "years": {
+        "2024": {
+          "trade_flow": "Export",
+          "partner": "World",
+          "quantity_unit": "Kg",
+          "source_file": "WITS-By-HS6Product (17).xlsx",
+          "ingested_at": "2026-05-13T18:32:47.398138+00:00",
+          "top_n_actual": 5,
+          "top_exporters": [
+            {
+              "rank": 1,
+              "reporter": "China",
+              "quantity": 19859900.0,
+              "trade_value_1000_usd": 141758.13,
+              "share_of_top5_pct": 66.7
+            },
+            {
+              "rank": 2,
+              "reporter": "United States",
+              "quantity": 3015600.0,
+              "trade_value_1000_usd": 41319.8,
+              "share_of_top5_pct": 10.13
+            },
+            {
+              "rank": 3,
+              "reporter": "South Africa",
+              "quantity": 2847470.0,
+              "trade_value_1000_usd": 17813.29,
+              "share_of_top5_pct": 9.56
+            },
+            {
+              "rank": 4,
+              "reporter": "France",
+              "quantity": 2293720.0,
+              "trade_value_1000_usd": 27035.29,
+              "share_of_top5_pct": 7.7
+            },
+            {
+              "rank": 5,
+              "reporter": "Japan",
+              "quantity": 1756510.0,
+              "trade_value_1000_usd": 44989.07,
+              "share_of_top5_pct": 5.9
+            }
+          ],
+          "excluded_no_quantity": [
+            {
+              "reporter": "Singapore",
+              "trade_value_1000_usd": 180.94
+            }
+          ],
+          "total_top5_quantity": 29773200.0,
+          "concentration_top1_pct": 66.7
+        }
+      }
+    }
+  }
+}

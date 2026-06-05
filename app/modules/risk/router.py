@@ -28,6 +28,14 @@ def update_mapping(data: MappingUpdate):
     return {"success": success}
 
 
+@router.post("/lookup-origins")
+def lookup_origins(request: RiskRequest):
+    """Auto-fill suggested origins based on trade data and name matching."""
+    from .engine import lookup_suggested_origins
+    reagent_dicts = [r.dict() for r in request.reagents]
+    return lookup_suggested_origins(reagent_dicts)
+
+
 @router.get("/mappings")
 def get_mappings():
     """Fetch the current CAS-to-Origin mapping database."""
