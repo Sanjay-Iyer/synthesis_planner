@@ -319,6 +319,47 @@ th {
     margin-bottom: 15px;
 }
 
+/* --- Partial-data highlighting (draft / incomplete routes) --- */
+/* Red: required for analysis but missing. Amber: extractor flagged for review. */
+input.field-missing, select.field-missing, textarea.field-missing {
+    border: 1px solid var(--danger) !important;
+    background: #fff5f5;
+}
+input.needs-review, select.needs-review, textarea.needs-review {
+    border: 1px solid var(--orange) !important;
+    background: #fffaf0;
+}
+.draft-banner {
+    background: #fff5f5;
+    border: 1px solid #ffc9c9;
+    border-left: 5px solid var(--danger);
+    border-radius: var(--radius-xs);
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    font-size: 0.9em;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.draft-banner.complete {
+    background: #ebfbee;
+    border-color: #c1e9c5;
+    border-left-color: var(--secondary);
+}
+.draft-badge {
+    display: inline-block;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    background: var(--danger);
+    color: white;
+}
+.draft-badge.review { background: var(--orange); color: #333; }
+
 /* --- Animations --- */
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }

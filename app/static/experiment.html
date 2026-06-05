@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Experiment Setup — Synthesis Planner</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        .setup-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-top: 20px; align-items: start; }
+        @media (max-width: 1024px) { .setup-grid { grid-template-columns: 1fr; } }
+        #elnText { width: 100%; min-height: 320px; font-family: 'Inter', sans-serif; font-size: 0.9rem; line-height: 1.6; resize: vertical; }
+        .draft-step { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; margin-bottom: 14px; background: #fafbfc; }
+        .draft-step h4 { margin-bottom: 8px; color: var(--primary); }
+        .draft-field { font-size: 0.8rem; margin-right: 14px; }
+        .draft-field .k { color: var(--text-muted); }
+        .draft-field .v { font-weight: 600; }
+        .draft-missing { color: var(--danger); font-style: italic; font-weight: 600; }
+        .reagent-line { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 8px 10px; border-top: 1px dashed var(--border); align-items: center; }
+        .reagent-line:first-of-type { border-top: none; }
+        .muted { color: var(--text-muted); font-size: 0.82rem; }
+        .pipeline { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px; }
+        .pipeline b { color: var(--primary); }
+    </style>
+</head>
+<body>
+    <nav class="nav-bar">
+        <a href="/" class="nav-brand">🔬 Synthesis Planner</a>
+        <div class="nav-links">
+            <a href="/experiment.html" class="nav-link active">Setup</a>
+            <a href="/dashboard.html" class="nav-link">Planner</a>
+            <a href="/risk.html" class="nav-link">Risk Audit</a>
+        </div>
+    </nav>
+
+    <div class="page-container-wide">
+        <div class="pipeline">Pipeline: <b>Setup</b> → Planner → Risk Audit</div>
+        <h1 style="margin-bottom: 12px;">🧪 Experiment Setup</h1>
+
+        <div class="hint">
+            <b>Paste an experimental procedure</b> (e.g. from your ELN or a paper's SI) and click
+            <b>Parse</b>. AI extracts the reagents, amounts, and conditions into a route draft;
+            anything it can't determine is left blank and flagged to complete in the Planner.
+            <br><span class="muted">Pick the model below (or "No LLM" for offline heuristics). Always review the draft before sending.</span>
+        </div>
+
+        <div class="setup-grid">
+            <!-- Left: input -->
+            <div class="card">
+                <h3 style="margin-bottom: 12px;">Procedure Text</h3>
+                <label class="muted" style="display:block; margin-bottom:6px;">Target molecule (optional)</label>
+                <input type="text" id="targetMolecule" placeholder="e.g. Paracetamol" style="margin-bottom: 12px;">
+                <textarea id="elnText" placeholder="To a stirred solution of aniline (5.0 g, 54 mmol, 1.0 equiv) in 50 mL of THF, add acetic anhydride (6.6 g, 1.2 equiv) at room temperature. Heat to 80 C and stir for 4 h. Isolated in 88% yield."></textarea>
+                <label class="muted" for="modelSelect" style="display:block; margin:12px 0 6px;">AI model</label>
+                <select id="modelSelect" style="width:100%;" onchange="updateStatusIndicator()">
+                    <option value="">Loading models…</option>
+                </select>
+                <div id="authStatus" class="muted" style="margin-top:6px; font-size:0.8rem;">Checking backend…</div>
+                <div style="display:flex; gap:10px; margin-top:14px; flex-wrap: wrap;">
+                    <button class="btn btn-secondary" onclick="parseProcedure()" style="flex:1;">⚙️ Parse to Draft</button>
+                    <button class="btn btn-ghost" onclick="document.getElementById('docFile').click()"
+                            title="Load a .txt or Word (.docx) file into the box instead of pasting">📄 Load .txt / Word doc</button>
+                    <input type="file" id="docFile" accept=".txt,.text,.md,.docx" style="display:none;" onchange="loadDocument(this)">
+                </div>
+                <div id="loadStatus" class="muted" style="margin-top:6px; font-size:0.8rem;"></div>
+            </div>
+
+            <!-- Right: review -->
+            <div class="card">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 12px;">
+                    <h3 style="margin:0;">Draft Review</h3>
+                    <span id="extractorTag" class="muted"></span>
+                </div>
+                <div id="reviewArea">
+                    <p class="muted">Parsed results will appear here. Review what was captured and what's missing, then send it to the Planner.</p>
+                </div>
+                <div id="sendRow" style="display:none; margin-top:16px; flex-direction:column; gap:10px;">
+                    <div class="hint" style="margin:0;">
+                        <b>What does "Stage" do?</b> The Planner can compare two routes side by side —
+                        <b>Route A</b> vs <b>Route B</b>. <b>Staging puts the draft above into one of those two
+                        slots</b> so you can hold it there while you parse a second procedure. Think of it as
+                        a holding bay: stage one route as A, parse another, stage it as B, then send both at once.
+                        <ol style="margin:6px 0 0 18px; padding:0;">
+                            <li><b>➕ Stage</b> — saves the current draft into the slot you pick (A or B).</li>
+                            <li><b>📥 Send to Planner</b> — opens the Planner with whatever you've staged (one route or both).</li>
+                        </ol>
+                        <span class="muted">Only comparing one route? You can skip Stage entirely — Send uses the current draft for the slot selected below.</span>
+                    </div>
+                    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                        <label class="muted">Stage this draft as:</label>
+                        <select id="sendTarget" style="width:auto;">
+                            <option value="vA">Route A</option>
+                            <option value="vB">Route B</option>
+                        </select>
+                        <button class="btn btn-secondary" onclick="stageDraft()"
+                                title="Hold this draft in the selected slot (A or B) so you can parse and add a second route before sending">➕ Stage</button>
+                    </div>
+                    <div id="stagedSummary" class="muted" style="font-size:0.82rem;">Nothing staged yet. Stage one or two routes, then send.</div>
+                    <button class="btn btn-primary" id="sendBtn" onclick="sendToPlanner()">📥 Send to Planner →</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/experiment.js"></script>
+</body>
+</html>

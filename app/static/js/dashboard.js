@@ -1611,15 +1611,19 @@ function loadFromFile(ev, target) {
     const reader = new FileReader();
     reader.onload = (e) => {
         const d = JSON.parse(e.target.result);
+        const loaded = [];
         if (target === 'both') {
             clearRouteUI('vA'); clearRouteUI('vB');
-            if(d.routeA?.steps) d.routeA.steps.forEach(s => addStep('vA', s));
-            if(d.routeB?.steps) d.routeB.steps.forEach(s => addStep('vB', s));
+            if(d.routeA?.steps) { d.routeA.steps.forEach(s => addStep('vA', s)); loaded.push('vA'); }
+            if(d.routeB?.steps) { d.routeB.steps.forEach(s => addStep('vB', s)); loaded.push('vB'); }
         } else {
             clearRouteUI(target);
             const steps = d.routeA?.steps || d.routeB?.steps || [];
             steps.forEach(s => addStep(target, s));
+            loaded.push(target);
         }
+        // A loaded JSON may be partial — flag any missing required fields.
+        loaded.forEach(side => activateDraftHighlight(side));
     };
     reader.readAsText(ev.target.files[0]);
 }
@@ -1886,10 +1890,110 @@ function showDatabaseToast(message, type = "success") {
     setTimeout(() => {
         toast.style.transition = "opacity 0.6s ease";
         toast.style.opacity = "0";
-        setTimeout(() => { 
-            toast.style.display = "none"; 
-            toast.style.transition = ""; 
+        setTimeout(() => {
+            toast.style.display = "none";
+            toast.style.transition = "";
         }, 600);
     }, 5000);
 }
+
+/* =================================================================
+   PARTIAL-DATA HIGHLIGHTING
+   Drafts from Experiment Setup (and any partial JSON load) may be
+   missing fields. We highlight the empty required ones in red and show
+   a banner per route so it's obvious what still needs input.
+   ================================================================= */
+
+let draftActive = { vA: false, vB: false };
+
+// Reagent fields required before analysis is meaningful.
+const REQUIRED_REAGENT_SELECTORS = ['.r-name', '.r-mw', '.r-eq', '.r-mass'];
+
+function isEmptyVal(v) { return v === null || v === undefined || String(v).trim() === ''; }
+
+/** Turn on highlighting for a side after a draft/partial load, then evaluate. */
+function activateDraftHighlight(side) {
+    draftActive[side] = true;
+    // addStep schedules a stoich recalc at ~50ms; flag just after so values settle.
+    setTimeout(() => flagIncompleteRoute(side, true), 150);
+}
+
+/** Mark empty required inputs in a route, render its banner, return the count. */
+function flagIncompleteRoute(side, announce) {
+    const container = document.getElementById(`steps-${side}`);
+    if (!container) return 0;
+    let missing = 0;
+
+    container.querySelectorAll('.reagent-row').forEach(row => {
+        REQUIRED_REAGENT_SELECTORS.forEach(sel => {
+            const el = row.querySelector(sel);
+            if (!el) return;
+            if (isEmptyVal(el.value)) { el.classList.add('field-missing'); missing++; }
+            else el.classList.remove('field-missing');
+        });
+    });
+
+    // Step-level: product MW (defaults to 0, which is not a valid weight).
+    container.querySelectorAll('.step-card').forEach(card => {
+        const pmw = card.querySelector('input[id^="pmw-"]');
+        if (!pmw) return;
+        if (isEmptyVal(pmw.value) || parseFloat(pmw.value) === 0) { pmw.classList.add('field-missing'); missing++; }
+        else pmw.classList.remove('field-missing');
+    });
+
+    renderDraftBanner(side, missing);
+    if (announce && missing > 0) {
+        const b = document.getElementById(`draft-banner-${side}`);
+        if (b) b.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    return missing;
+}
+
+/** Insert/update the per-route banner above the steps list. */
+function renderDraftBanner(side, missing) {
+    const steps = document.getElementById(`steps-${side}`);
+    if (!steps) return;
+    let banner = document.getElementById(`draft-banner-${side}`);
+    if (!banner) {
+        banner = document.createElement('div');
+        banner.id = `draft-banner-${side}`;
+        steps.parentNode.insertBefore(banner, steps);
+    }
+    const label = side === 'vA' ? 'A' : 'B';
+    if (missing > 0) {
+        banner.className = 'draft-banner';
+        banner.innerHTML = `<span class="draft-badge">${missing}</span> field(s) in Route ${label} still need input — highlighted in red below. Fill them in, then Run Analysis.`;
+    } else {
+        banner.className = 'draft-banner complete';
+        banner.innerHTML = `✅ Route ${label}: all required fields filled.`;
+    }
+    banner.style.display = 'flex';
+}
+
+// Re-evaluate highlights as the user fills fields (only for activated routes).
+['vA', 'vB'].forEach(side => {
+    document.addEventListener('DOMContentLoaded', () => {
+        const c = document.getElementById(`steps-${side}`);
+        if (c) c.addEventListener('input', () => { if (draftActive[side]) flagIncompleteRoute(side, false); });
+    });
+});
+
+// On load, pick up draft(s) handed over from the Experiment Setup page.
+document.addEventListener('DOMContentLoaded', () => {
+    const raw = localStorage.getItem('pendingRouteDraft');
+    if (!raw) return;
+    localStorage.removeItem('pendingRouteDraft');
+    let payload;
+    try { payload = JSON.parse(raw); } catch (e) { console.error('Bad route draft:', e); return; }
+
+    // New format hands over one or two routes as { routes: [...] }; the legacy
+    // format was a single draft object ({ target, steps, ... }). Support both.
+    const routes = Array.isArray(payload.routes) ? payload.routes : [payload];
+    routes.forEach(draft => {
+        const side = draft.target === 'vB' ? 'vB' : 'vA';
+        clearRouteUI(side);
+        (draft.steps || []).forEach(s => addStep(side, s));
+        activateDraftHighlight(side);
+    });
+});
 

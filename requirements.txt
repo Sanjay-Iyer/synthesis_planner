@@ -7,3 +7,5 @@ selfies
 requests
 openpyxl
 python-multipart
+google-genai
+python-dotenv

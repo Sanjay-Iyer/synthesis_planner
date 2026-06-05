@@ -1,0 +1,12 @@
+{
+  "models": [
+    {
+      "name": "Gemini 2.5 Flash",
+      "id": "gemini-2.5-flash"
+    },
+    {
+      "name": "Gemini 3 Flash",
+      "id": "gemini-3-flash-preview"
+    }
+  ]
+}

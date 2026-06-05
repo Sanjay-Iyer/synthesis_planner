@@ -1,0 +1,10 @@
+Route B — Bottle-Grade PET via Transesterification (DMT Route)
+
+Step 1: Transesterification to BHET
+To a dry three-neck flask equipped with a magnetic stirrer and a short fractionating column, add dimethyl terephthalate (10.0 g, 51.5 mmol, HPLC grade) and anhydrous ethylene glycol (13.0 g, 209 mmol) in 50 mL of ethylene glycol. Add manganese(II) acetate (0.1 g) as the transesterification catalyst. Heat to 180 C under nitrogen and stir for 3 hours, collecting the methanol that distills off as the reaction proceeds. Conversion to bis(2-hydroxyethyl) terephthalate (BHET) is high and clean (95% yield).
+
+Step 2: Polycondensation
+Charge the molten BHET from Step 1 into a polycondensation reactor and add antimony trioxide (0.15 g) as the polycondensation catalyst. Run the reaction neat (no solvent). Heat to 275 C and gradually reduce the pressure to high vacuum (<1 mbar) over the first 30 minutes, then hold for 4 hours while distilling off the liberated ethylene glycol. Chain growth produces high-molecular-weight PET with excellent optical clarity (95% yield).
+
+Step 3: Solid State Polymerization (SSP)
+Pelletize the PET and load the chips into an SSP column. Heat to 210 C — below the polymer's melting point — under a continuous flow of ultra-high-purity nitrogen (approximately 5 g consumed) for 12 hours. This raises the intrinsic viscosity (IV) to the level required for bottle-grade resin (98% yield).

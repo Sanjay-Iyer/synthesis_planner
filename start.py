@@ -30,6 +30,13 @@ def open_browser():
 
 
 if __name__ == "__main__":
+    import sys
+    if sys.stdout.encoding != 'utf-8':
+        try:
+            sys.stdout.reconfigure(encoding='utf-8')
+        except Exception:
+            pass
+
     # Change to the project root
     project_dir = Path(__file__).resolve().parent
     os.chdir(project_dir)

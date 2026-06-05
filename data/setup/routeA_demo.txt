@@ -1,0 +1,7 @@
+Route A — Bottle-Grade PET via Direct Esterification (TPA Route)
+
+Step 1: Esterification to PET Oligomers
+Charge a stainless-steel reactor fitted with an anchor stirrer and a packed distillation head with terephthalic acid (200 g, 1.20 mol, polymer grade) and ethylene glycol (165 g, 2.66 mol, ~2.6 equiv). Add germanium dioxide (1.0 g) as the esterification catalyst and 200 mL of Dowtherm A as the heat-transfer medium. Heat the slurry to 260 C under a slow nitrogen purge and stir for 6 hours, continuously removing the water of esterification through the distillation head to push the equilibrium forward. This delivers low-DEG PET oligomers as a viscous melt (65% yield).
+
+Step 2: Thermal Upgrading and Quality Finishing
+Transfer the PET oligomer (150 g) to a finishing reactor and apply high vacuum while heating to 285 C. Blend in a high-performance UV stabilizer (2.0 g) together with 50 mL of an antioxidant slurry. Hold these conditions for 4 hours to build molecular weight by melt polycondensation, distilling off the excess ethylene glycol as it is liberated. The finished resin meets bottle-grade transparency and durability standards (65% yield).
