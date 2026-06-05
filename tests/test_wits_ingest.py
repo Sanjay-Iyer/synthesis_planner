@@ -2,11 +2,14 @@ import pytest
 import pandas as pd
 import os
 import json
+import tempfile
+from pathlib import Path
 from app.modules.trade_data.wits_ingest import parse_wits_file, ingest
 from app.modules.trade_data import db
 
-TEST_DB_PATH = "/tmp/test_wits_exports.json"
-TEST_XLSX_PATH = "/tmp/test_wits_data.xlsx"
+_TMP = Path(tempfile.gettempdir())
+TEST_DB_PATH = str(_TMP / "test_wits_exports.json")
+TEST_XLSX_PATH = str(_TMP / "test_wits_data.xlsx")
 
 @pytest.fixture
 def clean_env():
@@ -104,11 +107,11 @@ def test_idempotent_reingest(clean_env):
     }
     create_mock_excel(data)
     ingest(TEST_XLSX_PATH, TEST_DB_PATH)
-    with open(TEST_DB_PATH, 'r') as f:
+    with open(TEST_DB_PATH, 'r', encoding='utf-8') as f:
         db1 = json.load(f)
-    
+
     ingest(TEST_XLSX_PATH, TEST_DB_PATH)
-    with open(TEST_DB_PATH, 'r') as f:
+    with open(TEST_DB_PATH, 'r', encoding='utf-8') as f:
         db2 = json.load(f)
     
     # Ignore last_updated and ingested_at in comparison

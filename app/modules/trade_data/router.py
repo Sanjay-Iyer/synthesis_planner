@@ -1,6 +1,7 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
-import os
 import shutil
+import tempfile
+from pathlib import Path
 from . import wits_ingest
 
 router = APIRouter(prefix="/api/trade", tags=["trade"])
@@ -11,13 +12,15 @@ async def import_wits_data(file: UploadFile = File(...)):
     if not file.filename.endswith(('.xlsx', '.xls')):
         raise HTTPException(status_code=400, detail="Only Excel files (.xlsx, .xls) are supported.")
     
-    # Save to temp file
-    temp_path = f"/tmp/{file.filename}"
-    with open(temp_path, "wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
-        
+    # Save to a temp file in the OS-appropriate temp directory.
+    suffix = Path(file.filename).suffix or ".xlsx"
+    fd, temp_name = tempfile.mkstemp(suffix=suffix)
+    temp_path = Path(temp_name)
     try:
-        summary = wits_ingest.ingest(temp_path)
+        with open(fd, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+        summary = wits_ingest.ingest(str(temp_path))
         return {
             "success": True,
             "filename": file.filename,
@@ -26,8 +29,7 @@ async def import_wits_data(file: UploadFile = File(...)):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
-        if os.path.exists(temp_path):
-            os.remove(temp_path)
+        temp_path.unlink(missing_ok=True)
 
 @router.get("/summary")
 async def get_trade_summary():

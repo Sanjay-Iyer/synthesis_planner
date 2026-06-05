@@ -701,7 +701,7 @@ function displayDashboard(a, b) {
                 let inG = r.mass;
                 if (r.mass_unit === 'mg') inG = r.mass / 1000;
                 if (r.mass_unit === 'kg') inG = r.mass * 1000;
-                const cost = inG * (r.pkg_price / r.pkg_size);
+                const cost = inG * (r.cost_per_g || 0);
                 r.lab_cost = cost;
                 r.lab_mass_in_g = inG;
                 stepTotal += cost;
@@ -772,7 +772,7 @@ function displayDashboard(a, b) {
                 let inG = r.mass;
                 if (r.mass_unit === 'mg') inG = r.mass / 1000;
                 if (r.mass_unit === 'kg') inG = r.mass * 1000;
-                const cost = inG * (r.pkg_price / r.pkg_size);
+                const cost = inG * (r.cost_per_g || 0);
                 r.lab_cost = cost;
                 r.lab_mass_in_g = inG;
                 stepTotal += cost;
@@ -1684,7 +1684,7 @@ function addScaledSection(side) {
             let inG = r.mass * mult;
             if (r.mass_unit === 'mg') inG = (r.mass * mult) / 1000;
             if (r.mass_unit === 'kg') inG = (r.mass * mult) * 1000;
-            const cost = inG * (r.pkg_price / r.pkg_size);
+            const cost = inG * (r.cost_per_g || 0);
             r.lab_cost = cost;
             r.lab_mass_in_g = inG;
             stepTotal += cost;
@@ -1746,14 +1746,14 @@ function matchProducedGrams(fromSide, toSide) {
     
     if (pmw <= 0 || yieldPct <= 0) { alert(`Set Product MW and Yield % for Route ${fromSide === 'vA' ? 'A' : 'B'} first.`); return; }
 
-    const tbody = document.querySelector(`#table-${fromSide}-${fromId} tbody`);
-    if (!tbody) return;
+    const container = document.getElementById(`reagents-container-${fromSide}-${fromId}`);
+    if (!container) return;
 
     let limMw = 0;
     let limEq = 0;
     let limRow = null;
 
-    const rows = tbody.rows;
+    const rows = container.querySelectorAll('.reagent-row');
     for (let i=0; i<rows.length; i++) {
         const limCb = rows[i].querySelector('.r-lim');
         if (limCb && limCb.checked) {
@@ -1775,7 +1775,7 @@ function matchProducedGrams(fromSide, toSide) {
 
     limRow.querySelector('.r-mass').value = massInUnit.toFixed(4);
 
-    calcStoichByTbody(tbody);
+    calcStoichByContainer(container);
 
     setTimeout(() => {
         runAnalysis();

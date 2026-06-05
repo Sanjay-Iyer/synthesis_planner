@@ -1,22 +1,25 @@
 import os
 import sys
 import json
-import sqlite3
+import tempfile
 import hashlib
 from pathlib import Path
 
 # Add project root to sys.path
-project_root = "/home/sanjay/AV/synthesis-architect"
-if project_root not in sys.path:
-    sys.path.insert(0, project_root)
+project_root = Path(__file__).resolve().parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 from app.modules.database.db import (
-    init_db, connect_db, save_route_transaction, 
+    init_db, connect_db, save_route_transaction,
     validate_route_without_saving, DB_PATH
 )
 from app.modules.database.models import SaveRouteRequest
 
-TEST_DB_PATH = "/tmp/test_dedup_synthesis_architect.db"
+# Use a temp file in the OS temp dir rather than a hardcoded /tmp path.
+TEST_DB_PATH = str(Path(tempfile.gettempdir()) / "test_dedup_synthesis_architect.db")
+# Mock route fixtures live under tests/mock_data
+MOCK_DATA_DIR = project_root / "tests" / "mock_data"
 
 def get_file_hash(path):
     with open(path, "rb") as f:
@@ -37,12 +40,12 @@ def run_validation():
     init_db()
 
     # 1. Load Route A and B
-    route_a_path = os.path.join(project_root, "RouteA_PET.json")
-    route_b_path = os.path.join(project_root, "RouteB_PET.json")
-    
-    with open(route_a_path, "r") as f:
+    route_a_path = MOCK_DATA_DIR / "RouteA_PET.json"
+    route_b_path = MOCK_DATA_DIR / "RouteB_PET.json"
+
+    with open(route_a_path, "r", encoding="utf-8") as f:
         route_a_data = json.load(f)
-    with open(route_b_path, "r") as f:
+    with open(route_b_path, "r", encoding="utf-8") as f:
         route_b_data = json.load(f)
 
     hash_a_before = get_file_hash(route_a_path)

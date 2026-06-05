@@ -15,8 +15,10 @@ try:
 except ImportError:
     RDKIT_AVAILABLE = False
 
-DB_DIR = Path("/home/sanjay/AV/synthesis-architect/database")
-DB_PATH = DB_DIR / "synthesis_architect.db"
+from app.config import DATABASE_DIR, SYNTHESIS_DB_PATH
+
+DB_DIR = DATABASE_DIR
+DB_PATH = SYNTHESIS_DB_PATH
 
 logger = logging.getLogger(__name__)
 
@@ -33,8 +35,11 @@ def normalize_name(name: str) -> str:
 
 def connect_db():
     """Establish a connection to the SQLite database."""
-    DB_DIR.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(str(DB_PATH))
+    # Derive the directory from DB_PATH so this stays correct even when tests
+    # monkeypatch DB_PATH. Path(...) tolerates both str and Path inputs.
+    db_path = Path(DB_PATH)
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(str(db_path))
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -477,46 +482,48 @@ def validate_route_without_saving(request: Any) -> dict:
     compound_assignments = []
     
     seen_compounds = set()
-    
-    for step in request.route.steps:
-        for reagent in step.reagents:
-            # We use name+smiles+selfies as key for uniqueness in the dry run
-            key = f"{reagent.name}|{reagent.smiles or ''}|{reagent.selfies or ''}"
-            if key in seen_compounds:
-                continue
-            seen_compounds.add(key)
-            
-            props = canonicalize_smiles(reagent.smiles)
-            can_smiles = props["canonical_smiles"]
-            inchikey = props["inchikey"]
-            
-            compound_data = {
-                "name": reagent.name,
-                "smiles": reagent.smiles,
-                "canonical_smiles": can_smiles,
-                "selfies": reagent.selfies,
-                "inchikey": inchikey
-            }
-            
-            uuid_found, basis, confidence = find_existing_compound(conn, compound_data)
-            ambiguous = is_ambiguous(reagent.name, can_smiles, reagent.selfies, inchikey)
-            
-            status = "updated" if uuid_found else "new"
-            if status == "new": new_count += 1
-            else: updated_count += 1
-            
-            if ambiguous:
-                ambiguous_compounds.append(reagent.name)
-                
-            compound_assignments.append({
-                "name": reagent.name,
-                "compound_uuid": uuid_found or "pending",
-                "status": status,
-                "dedupe_basis": basis or "none",
-                "dedupe_confidence": confidence
-            })
-            
-    conn.close()
+
+    try:
+        for step in request.route.steps:
+            for reagent in step.reagents:
+                # We use name+smiles+selfies as key for uniqueness in the dry run
+                key = f"{reagent.name}|{reagent.smiles or ''}|{reagent.selfies or ''}"
+                if key in seen_compounds:
+                    continue
+                seen_compounds.add(key)
+
+                props = canonicalize_smiles(reagent.smiles)
+                can_smiles = props["canonical_smiles"]
+                inchikey = props["inchikey"]
+
+                compound_data = {
+                    "name": reagent.name,
+                    "smiles": reagent.smiles,
+                    "canonical_smiles": can_smiles,
+                    "selfies": reagent.selfies,
+                    "inchikey": inchikey
+                }
+
+                uuid_found, basis, confidence = find_existing_compound(conn, compound_data)
+                ambiguous = is_ambiguous(reagent.name, can_smiles, reagent.selfies, inchikey)
+
+                status = "updated" if uuid_found else "new"
+                if status == "new": new_count += 1
+                else: updated_count += 1
+
+                if ambiguous:
+                    ambiguous_compounds.append(reagent.name)
+
+                compound_assignments.append({
+                    "name": reagent.name,
+                    "compound_uuid": uuid_found or "pending",
+                    "status": status,
+                    "dedupe_basis": basis or "none",
+                    "dedupe_confidence": confidence
+                })
+    finally:
+        conn.close()
+
     return {
         "new_compounds": new_count,
         "updated_compounds": updated_count,

@@ -35,7 +35,7 @@ def main():
             if args.dry_run:
                 results = wits_ingest.parse_wits_file(f)
                 for item in results:
-                    excluded_names = [e["reporter"] for e in item["excluded_no_quantity"]]
+                    excluded_names = [e["reporter"] for e in item["excluded_rows"]["missing_quantity"]]
                     excluded_str = f", {', '.join(excluded_names[:2])} excluded (no quantity)" if excluded_names else ""
                     print(f"DRY-RUN: ✓ HS {item['hs6_code']} ({item['product_description'][:30]}): {item['top_n_actual']} exporters{excluded_str}, {item['year']}")
             else:

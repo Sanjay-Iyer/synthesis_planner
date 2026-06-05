@@ -1,10 +1,10 @@
 import sys
-import os
-import sqlite3
+from pathlib import Path
 
 # Add project root to path
-sys.path.append(os.getcwd())
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from app.config import DATA_TO_ADD_DIR
 from app.modules.trade_data.wits_ingest import ingest
 from app.modules.database.db import connect_db, normalize_name
 
@@ -12,16 +12,15 @@ def update_db():
     print("Updating database and ingesting trade data...")
     
     # 1. Ingest new Excel files
-    data_dir = "/home/sanjay/AV/synthesis-architect/database/data_to_add"
-    for filename in os.listdir(data_dir):
-        if filename.endswith(".xlsx"):
-            path = os.path.join(data_dir, filename)
-            try:
-                print(f"Ingesting {filename}...")
-                summary = ingest(path)
-                print(f"  Result: New={len(summary['new_entries'])}, Updated={len(summary['updated_entries'])}")
-            except Exception as e:
-                print(f"  Error ingesting {filename}: {e}")
+    data_dir = DATA_TO_ADD_DIR
+    for path in sorted(data_dir.glob("*.xlsx")):
+        filename = path.name
+        try:
+            print(f"Ingesting {filename}...")
+            summary = ingest(str(path))
+            print(f"  Result: New={len(summary['new_entries'])}, Updated={len(summary['updated_entries'])}")
+        except Exception as e:
+            print(f"  Error ingesting {filename}: {e}")
 
     # 2. Update compounds table with HS6 mappings
     mappings = {

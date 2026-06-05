@@ -2,11 +2,13 @@ import sys
 import os
 import json
 import shutil
+from pathlib import Path
 from datetime import datetime, timezone
 
 # Add project root to path
-sys.path.append(os.getcwd())
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from app.config import DATABASE_DIR
 from app.modules.trade_data import db
 
 def run_migration():
@@ -19,7 +21,7 @@ def run_migration():
         return
 
     # Load raw data (without auto-migration)
-    with open(db_path, 'r') as f:
+    with open(db_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
         
     is_legacy = db.is_legacy_trade_db(data)
@@ -30,7 +32,7 @@ def run_migration():
         return
 
     # Create backup
-    backup_path = "/home/sanjay/AV/synthesis-architect/database/trade_exports_db.backup.pre_v1_1.json"
+    backup_path = DATABASE_DIR / "trade_exports_db.backup.pre_v1_1.json"
     shutil.copy2(db_path, backup_path)
     print(f"Backup written: {backup_path}")
 

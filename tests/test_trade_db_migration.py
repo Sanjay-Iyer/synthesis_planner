@@ -76,17 +76,17 @@ def test_load_auto_migration(tmp_path):
             }
         }
     }
-    with open(p, 'w') as f:
+    with open(p, 'w', encoding='utf-8') as f:
         json.dump(legacy, f)
-    
+
     # Loading it should auto-migrate
     loaded = db.load(str(p))
     assert "products" in loaded
     assert "trade_data" not in loaded
     assert loaded["metadata"]["schema_version"] == "1.1.0"
-    
+
     # Should have been saved back to disk
-    with open(p, 'r') as f:
+    with open(p, 'r', encoding='utf-8') as f:
         on_disk = json.load(f)
     assert on_disk["metadata"]["schema_version"] == "1.1.0"
 
@@ -138,7 +138,7 @@ def test_future_import_writes_v1_1(tmp_path):
     try:
         wits_ingest.ingest("fake.xlsx", str(db_p))
         
-        with open(db_p, 'r') as f:
+        with open(db_p, 'r', encoding='utf-8') as f:
             data = json.load(f)
         
         assert "products" in data

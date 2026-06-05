@@ -1,8 +1,15 @@
+import sys
+import json
+from pathlib import Path
+from datetime import datetime, timezone
+
+# Make the `app` package importable when run as a standalone script
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from rdkit import Chem
 from rdkit.Chem import rdMolDescriptors
-import json
-import os
-from datetime import datetime, timezone
+
+from app.config import COMPOUND_HS6_MAP_PATH
 
 def get_inchikey(smiles):
     mol = Chem.MolFromSmiles(smiles)
@@ -19,8 +26,8 @@ seed_compounds = [
     {"name": "Phthalic anhydride", "smiles": "O=C1OC(=O)c2ccccc12", "hs6": "291735"},
 ]
 
-mapping_path = "/home/sanjay/AV/synthesis-architect/database/compound_hs6_map.json"
-os.makedirs(os.path.dirname(mapping_path), exist_ok=True)
+mapping_path = COMPOUND_HS6_MAP_PATH
+mapping_path.parent.mkdir(parents=True, exist_ok=True)
 
 mappings = {}
 for c in seed_compounds:
@@ -39,7 +46,7 @@ data = {
     "mappings": mappings
 }
 
-with open(mapping_path, 'w') as f:
+with open(mapping_path, 'w', encoding='utf-8') as f:
     json.dump(data, f, indent=2)
 
 print(f"Created mapping file at {mapping_path} with {len(mappings)} entries.")

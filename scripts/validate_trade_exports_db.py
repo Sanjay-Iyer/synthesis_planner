@@ -1,9 +1,10 @@
 import sys
 import os
 import json
+from pathlib import Path
 
 # Add project root to path
-sys.path.append(os.getcwd())
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.modules.trade_data import db
 
@@ -16,7 +17,7 @@ def validate_db():
         print(f"Error: Database file {db_path} not found.")
         return
 
-    with open(db_path, 'r') as f:
+    with open(db_path, 'r', encoding='utf-8') as f:
         data = json.load(f)
         
     errors = []

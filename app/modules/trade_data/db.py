@@ -6,42 +6,64 @@ from datetime import datetime, timezone
 import uuid
 import re
 
-DEFAULT_DB_PATH = "/home/sanjay/AV/synthesis-architect/database/wits_exports.json"
+from app.config import WITS_EXPORTS_DB_PATH
+
+# Kept as a str for backward-compatible call signatures; pathlib resolves the
+# OS-correct separators in app.config.
+DEFAULT_DB_PATH = str(WITS_EXPORTS_DB_PATH)
 
 def get_utc_now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
+def parse_version(ver) -> tuple:
+    """Parse a version like '1.10.0' (or int 1) into a comparable tuple (1, 10, 0).
+
+    Avoids lexicographic string bugs where '1.10.0' < '1.9.0'. Non-numeric or
+    missing parts degrade gracefully to 0.
+    """
+    parts = str(ver).split(".")
+    out = []
+    for p in parts:
+        try:
+            out.append(int(p))
+        except ValueError:
+            out.append(0)
+    return tuple(out)
+
+CURRENT_SCHEMA_VERSION = "1.1.0"
+
+def empty_db() -> dict:
+    """Return a fresh, valid v1.1.0 database structure."""
+    now = get_utc_now()
+    return {
+        "metadata": {
+            "schema_version": "1.1.0",
+            "created_at": now,
+            "last_updated": now,
+            "source": "WITS / World Bank",
+            "description": "Top exporters by HS6 product code, year, trade flow, and partner",
+            "default_top_n": 5,
+            "ranking_column": "Quantity",
+            "currency_unit": "1000 USD"
+        },
+        "products": {}
+    }
+
 def load(db_path: str = DEFAULT_DB_PATH) -> dict:
-    """Returns the full DB, or empty schema if file missing."""
+    """Returns the full DB, or an empty (valid) v1.1.0 schema if file missing."""
     if not os.path.exists(db_path):
-        return {
-            "schema_version": 1,
-            "last_updated": get_utc_now(),
-            "trade_data": {}
-        }
+        return empty_db()
     try:
-        with open(db_path, 'r') as f:
+        with open(db_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
     except (json.JSONDecodeError, FileNotFoundError):
-        data = {
-            "metadata": {
-                "schema_version": "1.1.0",
-                "created_at": get_utc_now(),
-                "last_updated": get_utc_now(),
-                "source": "WITS / World Bank",
-                "description": "Top exporters by HS6 product code, year, trade flow, and partner",
-                "default_top_n": 5,
-                "ranking_column": "Quantity",
-                "currency_unit": "1000 USD"
-            },
-            "products": {}
-        }
-    
+        data = empty_db()
+
     # Version check
     metadata = data.get("metadata", {})
     ver = metadata.get("schema_version", "1.0.0")
-    if ver > "1.1.0":
-        raise ValueError(f"Unsupported trade DB schema version: {ver}. Expected <= 1.1.0.")
+    if parse_version(ver) > parse_version(CURRENT_SCHEMA_VERSION):
+        raise ValueError(f"Unsupported trade DB schema version: {ver}. Expected <= {CURRENT_SCHEMA_VERSION}.")
 
     # Auto-normalize/migrate legacy v1
     if is_legacy_trade_db(data):
@@ -56,7 +78,7 @@ def is_legacy_trade_db(db: dict) -> bool:
     if "metadata" not in db or "products" not in db:
         return True
     ver = db.get("metadata", {}).get("schema_version", "1.0.0")
-    return ver < "1.1.0"
+    return parse_version(ver) < parse_version(CURRENT_SCHEMA_VERSION)
 
 def make_record_key(year: int, trade_flow: str, partner: str) -> str:
     """Generate a stable key like 2024_export_world."""
@@ -216,19 +238,20 @@ def save_atomic(data: dict, db_path: str = DEFAULT_DB_PATH):
         raise ValueError("Cannot save malformed trade database (missing metadata or products)")
     
     data["metadata"]["last_updated"] = get_utc_now()
-    tmp_path = f"{db_path}.tmp"
-    
-    os.makedirs(os.path.dirname(db_path), exist_ok=True)
-    
-    with open(tmp_path, 'w') as f:
+    db_path = Path(db_path)
+    tmp_path = db_path.with_name(db_path.name + ".tmp")
+
+    db_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with open(tmp_path, 'w', encoding='utf-8') as f:
         json.dump(data, f, indent=2)
-    
+
     # Verify we can reload it before replacing
     try:
-        with open(tmp_path, 'r') as f:
+        with open(tmp_path, 'r', encoding='utf-8') as f:
             json.load(f)
     except Exception as e:
-        if os.path.exists(tmp_path): os.remove(tmp_path)
+        if tmp_path.exists(): tmp_path.unlink()
         raise ValueError(f"Failed to verify atomic write for trade DB: {e}")
 
     os.replace(tmp_path, db_path)

@@ -60,7 +60,8 @@ def parse_wits_file(xlsx_path: str) -> List[dict]:
         top_5 = valid_rows.head(5)
         
         total_top5_qty = float(top_5['Quantity'].sum())
-        
+
+        top_exporters = []
         for i, (idx, row) in enumerate(top_5.iterrows(), 1):
             share = (float(row['Quantity']) / total_top5_qty * 100) if total_top5_qty > 0 else 0
             reporter = str(row['Reporter'])

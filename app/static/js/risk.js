@@ -456,9 +456,10 @@ function displayRiskResults(data) {
         `;
         tbody.appendChild(row);
     });
-
-    // Bubble chart
-    renderRiskChart(data.reagents);
+    // NOTE: the bubble chart is rendered by initVisualizations() -> renderBubbleChart()
+    // on the #bubbleChart canvas. The old renderRiskChart()/#riskChart path was removed
+    // because that canvas no longer exists and calling it here threw, aborting the
+    // visualization render.
 }
 
 function getBadgeClass(level) {

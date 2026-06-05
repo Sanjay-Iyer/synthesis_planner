@@ -6,12 +6,15 @@ import os
 import math
 import json
 import sqlite3
+from pathlib import Path
 import pandas as pd
 from pydantic import BaseModel
 from typing import List, Optional
 
-# Path to reference data files
-DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+from app.config import COMPOUND_HS6_MAP_PATH
+
+# Path to reference data files (lives alongside this module)
+DATA_DIR = Path(__file__).resolve().parent / "data"
 
 
 # =================================================================
@@ -72,8 +75,8 @@ class ReagentRiskResult(BaseModel):
 
 def load_reagent_mapping() -> pd.DataFrame:
     """Load the CAS → HS Code → Country mapping table."""
-    path = os.path.join(DATA_DIR, "reagent_mapping.csv")
-    if os.path.exists(path):
+    path = DATA_DIR / "reagent_mapping.csv"
+    if path.exists():
         return pd.read_csv(path)
 
     # Generate default if missing
@@ -89,8 +92,8 @@ def load_reagent_mapping() -> pd.DataFrame:
 
 def load_country_stability() -> pd.DataFrame:
     """Load country stability scores (0-100, based on World Bank WGI)."""
-    path = os.path.join(DATA_DIR, "country_stability.csv")
-    if os.path.exists(path):
+    path = DATA_DIR / "country_stability.csv"
+    if path.exists():
         return pd.read_csv(path)
 
     # Generate default if missing
@@ -109,11 +112,11 @@ def load_country_stability() -> pd.DataFrame:
 
 def get_hs6_for_inchikey(inchikey: str) -> Optional[str]:
     """Look up HS6 code for a given InChIKey."""
-    path = "/home/sanjay/AV/synthesis-architect/database/compound_hs6_map.json"
-    if not os.path.exists(path):
+    path = COMPOUND_HS6_MAP_PATH
+    if not path.exists():
         return None
     try:
-        with open(path, 'r') as f:
+        with open(path, 'r', encoding='utf-8') as f:
             data = json.load(f)
             return data.get("mappings", {}).get(inchikey, {}).get("hs6_code")
     except Exception:
@@ -121,11 +124,11 @@ def get_hs6_for_inchikey(inchikey: str) -> Optional[str]:
 
 def get_hs6_by_name_hint(name: str) -> Optional[str]:
     """Try to find an HS6 code by matching the name against name hints."""
-    path = "/home/sanjay/AV/synthesis-architect/database/compound_hs6_map.json"
-    if not os.path.exists(path):
+    path = COMPOUND_HS6_MAP_PATH
+    if not path.exists():
         return None
     try:
-        with open(path, 'r') as f:
+        with open(path, 'r', encoding='utf-8') as f:
             data = json.load(f)
             mappings = data.get("mappings", {})
             name_lower = name.lower()
@@ -305,7 +308,7 @@ def run_risk_assessment(reagents: List[ReagentRiskInput]) -> dict:
             if "hs6_code" in cols:
                 cursor.execute("SELECT inchikey, hs6_code, primary_origin, secondary_origin FROM compounds WHERE normalized_name = ?", (norm_name,))
             else:
-                cursor.execute("SELECT inchikey FROM compounds WHERE normalized_name = ?")
+                cursor.execute("SELECT inchikey FROM compounds WHERE normalized_name = ?", (norm_name,))
             
             row = cursor.fetchone()
             
@@ -446,7 +449,7 @@ def update_reagent_mapping(cas: str, origin: str) -> bool:
     if not cas or not origin:
         return False
     
-    path = os.path.join(DATA_DIR, "reagent_mapping.csv")
+    path = DATA_DIR / "reagent_mapping.csv"
     df = load_reagent_mapping()
     
     # Check if CAS already exists

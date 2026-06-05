@@ -128,6 +128,9 @@ def audit_optimization(project: SynthesisProject):
     if that step had 100% yield, and calculates the cost savings per
     1% yield improvement.
     """
+    if not project.steps:
+        return {"audit": [], "risk_score": 0}
+
     baseline = calculate_engine(project)
     audit_results = []
     total_sens = 0

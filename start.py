@@ -6,43 +6,32 @@ Usage:
 
 Starts the server and opens http://localhost:8000 in your browser.
 """
+import os
 import subprocess
 import sys
-import os
 import time
 import threading
+import webbrowser
+from pathlib import Path
 
 PORT = 8000
 URL = f"http://localhost:{PORT}"
 
 
 def open_browser():
-    """Open the app in the default browser (WSL-aware)."""
+    """Open the app in the default browser (cross-platform)."""
     time.sleep(1.5)  # Wait for server to start
 
-    # Detect WSL
-    is_wsl = False
-    try:
-        with open('/proc/version', 'r') as f:
-            is_wsl = 'microsoft' in f.read().lower()
-    except:
-        pass
-
-    if is_wsl:
-        os.system(f'cmd.exe /c start {URL}')
-    elif sys.platform == 'darwin':
-        os.system(f'open {URL}')
-    elif sys.platform == 'linux':
-        os.system(f'xdg-open {URL}')
-    else:
-        os.system(f'start {URL}')
+    # webbrowser picks the right launcher per OS (Windows, macOS, Linux),
+    # avoiding shell-specific commands like `open`/`xdg-open`/`start`.
+    webbrowser.open(URL)
 
     print(f"\n🌐 Opened {URL} in your browser")
 
 
 if __name__ == "__main__":
     # Change to the project root
-    project_dir = os.path.dirname(os.path.abspath(__file__))
+    project_dir = Path(__file__).resolve().parent
     os.chdir(project_dir)
 
     print("=" * 50)

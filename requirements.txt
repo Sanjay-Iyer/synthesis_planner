@@ -5,3 +5,5 @@ numpy
 rdkit
 selfies
 requests
+openpyxl
+python-multipart
