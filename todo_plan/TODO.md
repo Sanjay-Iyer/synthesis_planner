@@ -180,7 +180,95 @@ Reviewed 2026-06-05. Findings below.
 
 ---
 
+## 4) LLM roadmap — extend the Setup pattern to Planner & Risk
+
+The Setup tab already has a clean LLM integration to copy: a `RouteExtractor`
+**Protocol** + a deterministic `MockRouteExtractor` fallback + a credential-aware
+`get_extractor()` + a rate limiter + a strict-JSON system prompt + a status
+indicator. The goal here is to reuse that plumbing for the other two tabs.
+
+> **Guiding principle (non-negotiable):** LLMs for *language, mapping, and
+> judgment*; deterministic code for *every number* (MW, stoichiometry, cost,
+> concentration, risk index). Feed the model computed numbers and have it
+> explain / critique / classify — never compute or silently overwrite a number.
+
+### 4a. Shared foundation (build first)
+- [ ] **P2** Extract `app/modules/llm/` from `gemini_extractor.py`: a client factory
+      (API-key / Vertex auth), the `RateLimiter`, and a base "structured extractor"
+      (JSON-schema or function-calling, markdown-fence stripping, error→fallback,
+      result cache keyed by a stable id). Setup's extractor then becomes one consumer.
+- [ ] **P2** Standard "AI — verify" badge component (reuse `extractorTag` idea) shown
+      wherever an LLM touches output, including the model name.
+- [ ] **P2** Every LLM feature must degrade to a no-LLM path when credentials are
+      absent (exactly as Setup falls back to the heuristic parser).
+
+### 4b. Planner LLM features
+- [ ] **P2** **Molecule resolver** (`MoleculeResolver` protocol, twin of
+      `RouteExtractor`): messy name/CAS/SMILES → `{canonical name, SMILES, hazards}`.
+      LLM proposes the SMILES; **RDKit/PubChem computes MW and validates** the
+      structure deterministically. Cache by input. Replaces "Unknown Molecule".
+- [ ] **P2** **Route critique card** (advisory): feed the structured route + computed
+      cost/E-factor/yield → structured warnings (missing base/catalyst, implausible
+      stoichiometry, wrong limiting reagent, hazardous combos) + a plain-English
+      "Route A vs B" recommendation. Lowest-risk, highest-value LLM use here.
+- [ ] **P3** **Green-chemistry / solvent-substitution advisor**: per-step greener
+      suggestions; if accepted, the **deterministic engine recomputes** cost/E-factor.
+- [ ] **P3** **NL → engine params via function-calling**: "scale to 10 kg, drop step 2
+      to 70% yield" → a validated tool call filling `SynthesisProject`, then the normal
+      engine runs. LLM parses intent only.
+
+### 4c. Risk Assessment LLM features
+- [ ] **P1 (highest value)** **Reagent → HS6 classifier.** Today `compound_hs6_map.json`
+      has 5 entries, so most reagents resolve to no trade data. LLM maps name/CAS →
+      candidate Chapter-29 HS6 + confidence; a deterministic step **validates the code
+      exists in the supply-chain index** before use; accepted mappings are written back
+      so coverage compounds. This is what unlocks the USITC data already integrated.
+- [ ] **P2** **Procurement risk briefing** (advisory): feed the computed risk table +
+      concentration/origin data → an executive summary ("top exposure: X, 95%
+      single-source from Y; qualify a second supplier; regulatory watch on Z").
+- [ ] **P3** **Regulatory/hazard enrichment (RAG)**: replace the hardcoded
+      `CRITICAL_CAS`/`REGULATORY_CAS` with an LLM grounded on TSCA/REACH/export-control
+      lists, surfaced as "verify" advisories (never authoritative).
+- [ ] **P3** **Stability-score bootstrap** for [stability_score_expansion.md](stability_score_expansion.md):
+      LLM drafts 0–100 scores + rationale + sources, one-time and human-reviewed —
+      explicitly *not* live scoring.
+
+### 4d. Guardrails (apply to every feature above)
+- [ ] Structured outputs (response schema / function calling) whenever LLM output
+      feeds logic — never parse free text into numbers.
+- [ ] Validate LLM output against ground truth (RDKit, the trade index, the model
+      catalog) before it is used or persisted.
+- [ ] Cache by stable key (CAS / SMILES / HS6) to control cost and rate limits;
+      reuse the shared rate limiter (4a).
+
+---
+
 ## Cross-cutting / infrastructure
+
+### Code health (reduce bug surface)
+- [ ] **P2** **De-duplicate the reagent-row template.** Its full HTML is hand-copied
+      4× in `dashboard.js` (data-row, empty-row, `addReagentRow`,
+      `addReagentFromSmiles`) — one field change needs 4 edits. Extract one
+      `reagentRowHTML(data)`; this also becomes the single place to escape values.
+- [ ] **P2** **Centralize unit conversion.** `mg/g/kg` and `mL/L` math is reimplemented
+      inline ~a dozen times across `dashboard.js`. One `toGrams()/toLiters()` module
+      removes copy-paste drift.
+- [ ] **P2** **One `api.js` fetch helper** with `res.ok` + JSON-error handling. Pages
+      hand-roll `fetch` inconsistently (`getEstimate` skips the `res.ok` check → silent
+      `$0`/NaN on a 422).
+- [ ] **P2** **Shared `toast()` + `escapeHtml()` utils.** `dashboard.js` has a toast,
+      `experiment.js` has `escapeHtml` — the others re-invent or use `alert()`. Promote
+      both and use everywhere (also closes the XSS items in 3d/2).
+- [ ] **P2** **Move hardcoded reference data to files + cached loaders.**
+      `CRITICAL_CAS`/`REGULATORY_CAS` (risk), `PERIODIC_TABLE` (synthesis), and the
+      auto-writing CSV loaders → a `reference/` dir + memoized reads.
+- [ ] **P2** **Tests for the pure functions** — `calculate_engine`/`audit_optimization`,
+      risk math, unit converters, USITC parser, `extract_route_draft`. (See also 3e.)
+- [ ] **P3** Consistency nits: cache-bust query (`?v=35`) only on `dashboard.js`; adopt
+      one asset-versioning approach. `jspdf` is loaded in `dashboard.html` but appears
+      unused (dead dependency).
+
+### Infrastructure
 - [ ] **P2** `__pycache__` / `.pyc` files are **tracked in git** (visible in
       `git status`). The new untracked `.gitignore` should exclude them; untrack the
       committed ones.
