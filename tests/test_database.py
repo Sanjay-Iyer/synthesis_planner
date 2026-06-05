@@ -54,8 +54,8 @@ def test_save_route_and_deduplication():
                     "step_id": 1,
                     "name": "Esterification",
                     "reagents": [
-                        {"name": "Ethylene glycol", "smiles": "OCCO", "mw": 62.07, "moles": 1.0, "mass": 62.07},
-                        {"name": "Terephthalic acid", "smiles": "O=C(O)c1ccc(C(=O)O)cc1", "mw": 166.13, "moles": 1.0, "mass": 166.13}
+                        {"name": "Ethylene glycol", "smiles": "OCCO", "mw": 62.07, "equivalents": 1.0, "mass": 62.07},
+                        {"name": "Terephthalic acid", "smiles": "O=C(O)c1ccc(C(=O)O)cc1", "mw": 166.13, "equivalents": 1.0, "mass": 166.13}
                     ]
                 }
             ]
@@ -89,8 +89,8 @@ def test_save_route_and_deduplication():
                     "step_id": 1,
                     "name": "Transesterification",
                     "reagents": [
-                        {"name": "Ethylene glycol", "smiles": "OCCO", "mw": 62.07, "moles": 1.0, "mass": 62.07},
-                        {"name": "Dimethyl terephthalate", "smiles": "COC(=O)c1ccc(C(=O)OC)cc1", "mw": 194.18, "moles": 1.0, "mass": 194.18}
+                        {"name": "Ethylene glycol", "smiles": "OCCO", "mw": 62.07, "equivalents": 1.0, "mass": 62.07},
+                        {"name": "Dimethyl terephthalate", "smiles": "COC(=O)c1ccc(C(=O)OC)cc1", "mw": 194.18, "equivalents": 1.0, "mass": 194.18}
                     ]
                 }
             ]
@@ -125,7 +125,7 @@ def test_duplicate_route_hash():
         "route_label": "Route A",
         "target_molecule": "PET",
         "route": {
-            "steps": [{"step_id": 1, "name": "Step 1", "reagents": [{"name": "R1", "mw": 10.0, "moles": 1.0, "mass": 10.0}]}]
+            "steps": [{"step_id": 1, "name": "Step 1", "reagents": [{"name": "R1", "mw": 10.0, "equivalents": 1.0, "mass": 10.0}]}]
         },
         "analysis_results": {"total_cost": 10, "cost_per_kg": 1, "e_factor": 0.5}
     }
@@ -159,7 +159,7 @@ def test_validate_route_dry_run():
         "route_label": "Route A",
         "target_molecule": "PET",
         "route": {
-            "steps": [{"step_id": 1, "name": "Step 1", "reagents": [{"name": "New Molecule", "mw": 10.0, "moles": 1.0, "mass": 10.0}]}]
+            "steps": [{"step_id": 1, "name": "Step 1", "reagents": [{"name": "New Molecule", "mw": 10.0, "equivalents": 1.0, "mass": 10.0}]}]
         },
         "analysis_results": {"total_cost": 10, "cost_per_kg": 1, "e_factor": 0.5}
     }
@@ -181,7 +181,7 @@ def test_ambiguous_compound():
         "route_label": "Route A",
         "target_molecule": "PET",
         "route": {
-            "steps": [{"step_id": 1, "name": "Step 1", "reagents": [{"name": "PET Intermediate (Oligomer)", "mw": 100.0, "moles": 1.0, "mass": 100.0}]}]
+            "steps": [{"step_id": 1, "name": "Step 1", "reagents": [{"name": "PET Intermediate (Oligomer)", "mw": 100.0, "equivalents": 1.0, "mass": 100.0}]}]
         },
         "analysis_results": {"total_cost": 10, "cost_per_kg": 1, "e_factor": 0.5}
     }

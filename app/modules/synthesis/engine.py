@@ -14,7 +14,10 @@ class ReagentInput(BaseModel):
     name: str
     mw: float
     cost_per_g: float = 0.0
-    moles: float
+    # Molar EQUIVALENTS (a stoichiometric ratio), not an absolute mole count.
+    # The limiting reagent is conventionally 1.0. See calculate_engine() for how
+    # this ratio is converted to absolute moles at production scale.
+    equivalents: float
     is_limiting: bool = False
 
 
@@ -49,6 +52,26 @@ def calculate_engine(project: SynthesisProject):
     Core stoichiometry engine. Given a list of synthesis steps and a
     target production mass (kg), calculates the scaled-up reagent
     masses, costs, solvent volumes, and E-factor.
+
+    Units convention — IMPORTANT:
+        Every reagent's `equivalents` field is a molar ratio, not an absolute
+        mole count. The limiting reagent is conventionally 1.0 equiv.
+
+    Two passes:
+        Pass 1 establishes a per-"unit" mole flow. A unit is one batch anchored
+        on 1 mole of the first step's limiting reagent. For a step with no
+        upstream dependency the anchor is its own limiting reagent's equivalents
+        (≈1.0); for a dependent step the anchor is the moles flowing in from the
+        steps it depends on (i.e. their yielded product).
+
+        Pass 2 multiplies the unit flow by `scale` (batches needed to hit the
+        target mass) and converts each reagent's equivalents into absolute moles:
+          - independent step: act_moles = equivalents * scale
+                (here `scale` already equals the limiting reagent's real moles)
+          - dependent step:   act_moles = equivalents * scaled_anchor
+                (where `scaled_anchor` is the real moles arriving from upstream)
+        Both branches treat `equivalents` consistently — they only differ in
+        what "1 equivalent" is measured against, so the result is consistent.
     """
     results = []
     prod_unit, start_unit = {}, {}
@@ -64,7 +87,7 @@ def calculate_engine(project: SynthesisProject):
     for step in sorted_steps:
         in_mols = sum(prod_unit.get(sid, 0) for sid in step.depends_on)
         anchor = in_mols if in_mols > 0 else next(
-            (r.moles for r in step.reagents if r.is_limiting), 1.0
+            (r.equivalents for r in step.reagents if r.is_limiting), 1.0
         )
         start_unit[step.step_id] = anchor
         prod_unit[step.step_id] = anchor * (step.yield_percent / 100)
@@ -82,7 +105,11 @@ def calculate_engine(project: SynthesisProject):
         scaled_anchor = start_unit[step.step_id] * scale
 
         for r in step.reagents:
-            act_moles = r.moles * (scaled_anchor if step.depends_on else scale)
+            # Dependent steps measure equivalents against the moles arriving from
+            # upstream (scaled_anchor); independent steps measure against `scale`
+            # (which already equals the limiting reagent's real moles). See the
+            # docstring for the full rationale.
+            act_moles = r.equivalents * (scaled_anchor if step.depends_on else scale)
             mass = act_moles * r.mw
             cost = mass * r.cost_per_g
             mat_cost += cost

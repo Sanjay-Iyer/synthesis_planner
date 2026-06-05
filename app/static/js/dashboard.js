@@ -54,7 +54,7 @@ function addStep(side, data = null) {
                             </div>
                             <div style="flex: 1; min-width: 80px; display: flex; flex-direction: column; gap: 4px;">
                                 <label style="font-size:0.75em; font-weight:bold; color:var(--text);">Equiv</label>
-                                <input type="number" step="any" class="r-eq" value="${r.moles || ''}" oninput="calcStoich(this)" style="width:100%;" placeholder="Eq">
+                                <input type="number" step="any" class="r-eq" value="${r.equivalents || ''}" oninput="calcStoich(this)" style="width:100%;" placeholder="Eq">
                             </div>
                             <div style="flex: 1.5; min-width: 120px; display: flex; flex-direction: column; gap: 4px;">
                                 <label style="font-size:0.75em; font-weight:bold; color:var(--text);">Mass</label>
@@ -530,7 +530,7 @@ function collectStepData(side) {
             if (pkgu === 'mg') pkgSizeInG = pkgsz / 1000;
             if (pkgu === 'kg') pkgSizeInG = pkgsz * 1000;
             const cost_per_g = pkgSizeInG > 0 ? pkgpr / pkgSizeInG : 0;
-            const moles = parseFloat(row.querySelector('.r-eq')?.value) || 0;
+            const equivalents = parseFloat(row.querySelector('.r-eq')?.value) || 0;
             const massVal = parseFloat(row.querySelector('.r-mass')?.value) || 0;
             const unit = row.querySelector('.r-mass-unit')?.value || 'g';
             const is_limiting = row.querySelector('.r-lim')?.checked || false;
@@ -541,7 +541,7 @@ function collectStepData(side) {
                 pkg_price: pkgpr,
                 pkg_unit: pkgu,
                 cost_per_g: cost_per_g,
-                moles: moles,
+                equivalents: equivalents,
                 mass: massVal,
                 mass_unit: unit,
                 is_limiting: is_limiting
@@ -708,7 +708,7 @@ function displayDashboard(a, b) {
 
                 if (r.is_limiting && r.mw > 0) {
                     limMw = r.mw;
-                    limEq = r.moles || 1;
+                    limEq = r.equivalents || 1;
                     limMassInG = inG;
                 }
             });
@@ -779,7 +779,7 @@ function displayDashboard(a, b) {
 
                 if (r.is_limiting && r.mw > 0) {
                     limMw = r.mw;
-                    limEq = r.moles || 1;
+                    limEq = r.equivalents || 1;
                     limMassInG = inG;
                 }
             });
@@ -1344,13 +1344,13 @@ function exportToCSV() {
     csv += `E-Factor,${lastAnalysis.vA?.e_factor || 0},${lastAnalysis.vB?.e_factor || 0}\n`;
 
     csv += "\n--- SECTION 4: RAW INPUT DATA FOR HYDRATION ---\n";
-    csv += "Route,Step,Name,Product_MW,Temperature,Time,Molarity,Solvent_Name,Solvent_Volume,Solvent_Volume_Unit,Solvent_Bottle_L,Solvent_Bottle_Price,Yield_Percent,Procedure,Depends_On,Reagent_Name,MW,Pkg_Size,Pkg_Price,Eq,Mass,Mass_Unit,Is_Limiting,Solvent_Bottle_Amount,Solvent_Bottle_Unit\n";
+    csv += "Route,Step,Name,Product_MW,Temperature,Time,Molarity,Solvent_Name,Solvent_Volume,Solvent_Volume_Unit,Solvent_Bottle_L,Solvent_Bottle_Price,Yield_Percent,Procedure,Depends_On,Reagent_Name,MW,Pkg_Size,Pkg_Price,Equivalents,Mass,Mass_Unit,Is_Limiting,Solvent_Bottle_Amount,Solvent_Bottle_Unit\n";
     ['vA', 'vB'].forEach(side => {
         const steps = collectStepData(side);
         steps.forEach(s => {
             const depsStr = (s.depends_on || []).join(';');
             s.reagents.forEach(r => {
-                csv += `${side},${s.step_id},"${s.name}",${s.product_mw},"${s.temperature}","${s.time}",${s.molarity},"${s.solvent_name}",${s.solvent_volume},"${s.solvent_volume_unit}",${s.solvent_bottle_l},${s.solvent_bottle_price},${s.yield_percent},"${(s.procedure || '').replace(/"/g, '""')}",${depsStr},"${r.name}",${r.mw},${r.pkg_size},${r.pkg_price},${r.moles},${r.mass},"${r.mass_unit}",${r.is_limiting},${s.solvent_bottle_amount},"${s.solvent_bottle_unit}"\n`;
+                csv += `${side},${s.step_id},"${s.name}",${s.product_mw},"${s.temperature}","${s.time}",${s.molarity},"${s.solvent_name}",${s.solvent_volume},"${s.solvent_volume_unit}",${s.solvent_bottle_l},${s.solvent_bottle_price},${s.yield_percent},"${(s.procedure || '').replace(/"/g, '""')}",${depsStr},"${r.name}",${r.mw},${r.pkg_size},${r.pkg_price},${r.equivalents},${r.mass},"${r.mass_unit}",${r.is_limiting},${s.solvent_bottle_amount},"${s.solvent_bottle_unit}"\n`;
             });
         });
     });
@@ -1535,7 +1535,7 @@ function loadFromCSV(event) {
                             mw: mw,
                             pkg_size: pkgsz,
                             pkg_price: pkgpr,
-                            moles: eq,
+                            equivalents: eq,
                             mass: mass,
                             mass_unit: unit,
                             is_limiting: isLim
@@ -1691,7 +1691,7 @@ function addScaledSection(side) {
 
             if (r.is_limiting && r.mw > 0) {
                 limMw = r.mw;
-                limEq = r.moles || 1;
+                limEq = r.equivalents || 1;
                 limMassInG = inG;
             }
         });

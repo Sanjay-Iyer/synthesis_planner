@@ -175,7 +175,7 @@ def init_db():
         pkg_size REAL,
         pkg_price REAL,
         cost_per_g REAL,
-        moles REAL,
+        equivalents REAL,
         mass REAL,
         mass_unit TEXT,
         is_limiting INTEGER,
@@ -185,6 +185,15 @@ def init_db():
         FOREIGN KEY(compound_uuid) REFERENCES compounds(uuid)
     )
     """)
+
+    # --- Migration: rename legacy step_reagents.moles -> equivalents ---
+    cursor.execute("PRAGMA table_info(step_reagents)")
+    sr_columns = [col[1] for col in cursor.fetchall()]
+    if "moles" in sr_columns and "equivalents" not in sr_columns:
+        try:
+            cursor.execute("ALTER TABLE step_reagents RENAME COLUMN moles TO equivalents")
+        except sqlite3.OperationalError:
+            pass
 
     # Analysis Runs Table
     cursor.execute("""
@@ -379,7 +388,7 @@ def compute_route_hash(route_data: dict, target_molecule: str) -> str:
         for reagent in step.get("reagents", []):
             parts.append(reagent.get("name", ""))
             parts.append(str(reagent.get("mw", "")))
-            parts.append(str(reagent.get("moles", "")))
+            parts.append(str(reagent.get("equivalents", "")))
             parts.append(str(reagent.get("mass", "")))
             parts.append(reagent.get("smiles", "") or "")
             parts.append(reagent.get("selfies", "") or "")
@@ -442,12 +451,12 @@ def save_route_transaction(conn, request: Any) -> dict:
                 cursor.execute("""
                 INSERT INTO step_reagents (
                     uuid, step_uuid, route_uuid, compound_uuid, name, role, smiles, selfies, mw, 
-                    pkg_size, pkg_price, cost_per_g, moles, mass, mass_unit, is_limiting, raw_reagent_json
+                    pkg_size, pkg_price, cost_per_g, equivalents, mass, mass_unit, is_limiting, raw_reagent_json
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """, (
-                    reagent_uuid, step_uuid, route_uuid, c_info["uuid"], reagent.name, reagent.role, 
-                    reagent.smiles, reagent.selfies, reagent.mw, reagent.pkg_size, reagent.pkg_price, 
-                    reagent.cost_per_g, reagent.moles, reagent.mass, reagent.mass_unit, 
+                    reagent_uuid, step_uuid, route_uuid, c_info["uuid"], reagent.name, reagent.role,
+                    reagent.smiles, reagent.selfies, reagent.mw, reagent.pkg_size, reagent.pkg_price,
+                    reagent.cost_per_g, reagent.equivalents, reagent.mass, reagent.mass_unit,
                     1 if reagent.is_limiting else 0, json.dumps(reagent_data)
                 ))
 

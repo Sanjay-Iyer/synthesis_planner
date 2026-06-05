@@ -3,7 +3,6 @@
  */
 
 const API_BASE = '';
-let riskChartInst = null;
 let lastRiskResults = null;
 let knownMappings = []; // Cache for CAS -> Origin lookups
 
@@ -457,99 +456,7 @@ function displayRiskResults(data) {
         tbody.appendChild(row);
     });
     // NOTE: the bubble chart is rendered by initVisualizations() -> renderBubbleChart()
-    // on the #bubbleChart canvas. The old renderRiskChart()/#riskChart path was removed
-    // because that canvas no longer exists and calling it here threw, aborting the
-    // visualization render.
-}
-
-function getBadgeClass(level) {
-    if (level.includes('MEDIUM-HIGH')) return 'badge-medium-high';
-    if (level.includes('HIGH')) return 'badge-high';
-    if (level.includes('MEDIUM')) return 'badge-medium';
-    return 'badge-low';
-}
-
-function getRiskColor(level) {
-    if (level.includes('MEDIUM-HIGH')) return '#FFA15A';
-    if (level.includes('HIGH')) return '#EF553B';
-    if (level.includes('MEDIUM')) return '#FFD700';
-    return '#00CC96';
-}
-
-function renderRiskChart(reagents) {
-    if (riskChartInst) riskChartInst.destroy();
-
-    const chartData = reagents.map(r => ({
-        x: Math.max(r.cost, 0.01),  // Avoid log(0)
-        y: r.risk_index,
-        r: Math.sqrt(r.mass_g) + 5,
-        label: r.name,
-        color: getRiskColor(r.risk_level)
-    }));
-
-    riskChartInst = new Chart(document.getElementById('riskChart'), {
-        type: 'bubble',
-        data: {
-            datasets: [{
-                data: chartData.map(d => ({ x: d.x, y: d.y, r: Math.min(d.r, 40) })),
-                backgroundColor: chartData.map(d => d.color + '99'),
-                borderColor: chartData.map(d => d.color),
-                borderWidth: 2,
-                hoverBorderWidth: 3
-            }]
-        },
-        options: {
-            maintainAspectRatio: false,
-            scales: {
-                x: {
-                    type: 'logarithmic',
-                    title: { display: true, text: 'Cost ($)', color: '#bdc3c7' },
-                    ticks: { color: '#bdc3c7', callback: v => '$' + v.toLocaleString() },
-                    grid: { color: 'rgba(255,255,255,0.08)' }
-                },
-                y: {
-                    title: { display: true, text: 'Risk Index', color: '#bdc3c7' },
-                    ticks: { color: '#bdc3c7' },
-                    grid: { color: 'rgba(255,255,255,0.08)' }
-                }
-            },
-            plugins: {
-                legend: { display: false },
-                tooltip: {
-                    callbacks: {
-                        label: (ctx) => {
-                            const r = reagents[ctx.dataIndex];
-                            return [
-                                r.name,
-                                `Primary: ${r.primary_origin} (${r.stability_score}/100)`,
-                                `Secondary: ${r.secondary_origin} (${r.secondary_stability_score}/100)`,
-                                `Mass: ${r.mass_g.toLocaleString()}g`,
-                                `Cost: $${r.cost.toLocaleString()}`,
-                                `Risk: ${r.risk_index.toLocaleString()}`
-                            ];
-                        }
-                    }
-                },
-                annotation: {
-                    annotations: {
-                        threshold: {
-                            type: 'line',
-                            yMin: 300, yMax: 300,
-                            borderColor: 'rgba(255,255,255,0.3)',
-                            borderDash: [6, 6],
-                            borderWidth: 1,
-                            label: {
-                                display: true,
-                                content: 'Critical Bulk Threshold',
-                                color: 'rgba(255,255,255,0.5)',
-                                position: 'end'
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    });
+    // on the #bubbleChart canvas (see initVisualizations -> renderBubbleChart).
 }
 
 function exportRiskCSV() {

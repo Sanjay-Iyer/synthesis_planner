@@ -54,7 +54,7 @@ This is the most important section — it contains the **complete raw input data
 Route, Step, Name, Product_MW, Temperature, Time, Molarity, Solvent_Name,
 Solvent_Volume, Solvent_Volume_Unit, Solvent_Bottle_L, Solvent_Bottle_Price,
 Yield_Percent, Procedure, Depends_On, Reagent_Name, MW, Pkg_Size, Pkg_Price,
-Eq, Mass, Mass_Unit, Is_Limiting, Solvent_Bottle_Amount, Solvent_Bottle_Unit
+Equivalents, Mass, Mass_Unit, Is_Limiting, Solvent_Bottle_Amount, Solvent_Bottle_Unit
 ```
 This section allows the CSV to be **re-imported** to fully reconstruct the dashboard (see Load Report below). Procedure text with commas or quotes is properly escaped.
 

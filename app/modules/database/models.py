@@ -36,7 +36,9 @@ class RouteReagentInput(BaseModel):
     pkg_size: float = 1.0
     pkg_price: float = 0.0
     cost_per_g: float = 0.0
-    moles: float
+    # Molar EQUIVALENTS (a ratio), not absolute moles. The UI labels it "Equiv".
+    # See synthesis.engine.calculate_engine for how it scales to absolute moles.
+    equivalents: float
     mass: float
     mass_unit: str = "g"
     is_limiting: bool = False
