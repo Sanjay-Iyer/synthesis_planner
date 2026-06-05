@@ -13,6 +13,7 @@ from app.modules.synthesis.router import router as synthesis_router
 from app.modules.risk.router import router as risk_router
 from app.modules.database.router import router as database_router
 from app.modules.trade_data.router import router as trade_data_router
+from app.modules.supply_chain.router import router as supply_chain_router
 from app.modules.extraction.router import router as extraction_router
 from app.modules.database.db import init_db
 
@@ -42,6 +43,7 @@ app.include_router(synthesis_router)
 app.include_router(risk_router)
 app.include_router(database_router)
 app.include_router(trade_data_router)
+app.include_router(supply_chain_router)
 app.include_router(extraction_router)
 
 # =================================================================

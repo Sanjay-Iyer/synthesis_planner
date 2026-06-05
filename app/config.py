@@ -24,3 +24,8 @@ WITS_EXPORTS_DB_PATH = DATABASE_DIR / "wits_exports.json"
 COMPOUND_HS6_MAP_PATH = DATABASE_DIR / "compound_hs6_map.json"
 DATA_TO_ADD_DIR = DATABASE_DIR / "data_to_add"
 GEMINI_MODELS_PATH = PROJECT_ROOT / "data" / "gemini_models.json"
+
+# Supply-chain data drop folder. Any USITC DataWeb (or compatible) export
+# dropped here is live-scanned and indexed by the supply_chain module so the
+# Risk Audit page can use it for origin lookups and concentration risk.
+SUPPLY_CHAIN_DIR = PROJECT_ROOT / "data" / "supply_chain"

@@ -193,16 +193,32 @@ def lookup_suggested_origins(reagent_inputs: List[dict]) -> List[dict]:
 def get_supply_chain_concentration(hs6_code: str, year: Optional[int] = None) -> dict:
     """
     Returns concentration metrics and risk flags for an HS6 code.
-    Using the v1.1.0 schema structure.
+
+    Sources are consulted in priority order:
+      1. The supply-chain drop folder (USITC DataWeb imports), live-scanned so
+         any file added to ``data/supply_chain`` is used automatically.
+      2. The legacy WITS JSON database (v1.1.0 schema) as a fallback.
     """
     from app.modules.trade_data import db as trade_db
-    
+
     # Normalize HS6: digits only, padded to 6
-    clean_hs6 = "".join(filter(str.isdigit, hs6_code)).zfill(6)
-    
+    clean_hs6 = "".join(filter(str.isdigit, str(hs6_code))).zfill(6)
+
+    # 1. Supply-chain folder (USITC) — primary, authoritative U.S. import origins
+    try:
+        from app.modules.supply_chain import provider as sc_provider
+        usitc = sc_provider.get_origin_concentration(clean_hs6, year)
+        if usitc.get("status") == "success":
+            return usitc
+    except Exception:
+        # Never let a supply-chain parsing issue break the risk assessment;
+        # fall through to the WITS database below.
+        pass
+
+    # 2. WITS JSON database — fallback
     db = trade_db.load()
     record = trade_db.get_trade_record(db, clean_hs6, year)
-    
+
     if not record:
         return {"status": "no_trade_data"}
         
@@ -231,6 +247,9 @@ def get_supply_chain_concentration(hs6_code: str, year: Optional[int] = None) ->
         "status": "success",
         "hs6_code": clean_hs6,
         "year": record.get("year"),
+        "source": f"WITS {record.get('year')}",
+        "trade_flow": "export",
+        "share_basis": "top5_quantity",
         "top_exporters": top_exporters,
         "concentration_top1_pct": top1_share,
         "concentration_risk_flag": risk_flag,
@@ -377,7 +396,24 @@ def run_risk_assessment(reagents: List[ReagentRiskInput]) -> dict:
         
         sec_geo_base = 100 - sec_stability
         sec_geo_risk = min(100, sec_geo_base * 1.5) if secondary_origin == "Unknown" else sec_geo_base
-        
+
+        # Supply-chain concentration sharpens geographic risk: heavy reliance on
+        # a single source country is a geographic risk even when that country is
+        # otherwise stable. We take the worse of stability-based geo risk and the
+        # top-source import share. (Stability scoring for the long tail of origin
+        # countries is tracked in todo_plan/stability_score_expansion.md; until
+        # that lands this keeps the new USITC data moving the risk needle.)
+        if supply_chain_data and supply_chain_data.get("status") == "success":
+            conc = supply_chain_data.get("concentration_top1_pct") or 0
+            geo_risk = min(100, max(geo_risk, conc))
+            if conc >= 50 and supply_chain_data.get("top_exporters"):
+                top_src = supply_chain_data["top_exporters"][0]["reporter"]
+                src_label = supply_chain_data.get("source", "trade data")
+                warnings.append(
+                    f"High single-source concentration: {top_src} = {conc:.0f}% "
+                    f"of supply ({src_label})."
+                )
+
         # 2. Operational Risk (Lead time + Supplier scarcity)
         lt_risk = min(100, (r.lead_time_days / 30) * 100)
         scarcity_risk = max(0, 100 - (r.supplier_count * 20))

@@ -17,6 +17,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         knownMappings = await res.json();
     } catch (e) { console.error("Failed to load mappings", e); }
 
+    // Show what supply-chain data is indexed in data/supply_chain
+    loadSupplyChainStatus();
+
     const pendingData = localStorage.getItem('pendingRiskData');
     if (pendingData) {
         try {
@@ -33,6 +36,48 @@ document.addEventListener('DOMContentLoaded', async () => {
         for (let i = 0; i < 3; i++) addReagentInputRow();
     }
 });
+
+/**
+ * Loads and renders a summary of the supply-chain data files indexed in
+ * data/supply_chain. These are searched automatically on every Run Risk
+ * Assessment / Auto-Lookup Origins, so dropping a new file in makes it usable.
+ */
+async function loadSupplyChainStatus() {
+    const el = document.getElementById('scStatus');
+    if (!el) return;
+    try {
+        const res = await fetch(`${API_BASE}/api/supply-chain/status`);
+        if (!res.ok) throw new Error(await res.text());
+        const s = await res.json();
+
+        if (!s.file_count) {
+            el.style.display = 'block';
+            el.innerHTML = `<b>Supply-chain data:</b> none indexed. Drop USITC DataWeb Excel files into <code>${s.folder}</code> — they are searched automatically.`;
+            return;
+        }
+
+        const fileBits = s.files.map(f => {
+            if (f.status !== 'ok') {
+                return `<span style="color:var(--danger);">⚠ ${f.filename} (parse error)</span>`;
+            }
+            const yrs = (f.full_years || []).length ? `${f.full_years[0]}–${f.full_years[f.full_years.length - 1]}` : '—';
+            return `${f.filename} <span style="color:var(--text-muted);">(${f.trade_flow}, ${f.hts6_count} HTS6, ${yrs})</span>`;
+        }).join(' · ');
+
+        el.style.display = 'block';
+        el.innerHTML = `<b>Supply-chain data indexed:</b> ${s.hs6_with_imports} HTS6 with import origins, ${s.hs6_with_exports} with exports. ${fileBits} <a href="#" onclick="refreshSupplyChain(event)" style="color:var(--primary);">↻ rescan</a>`;
+    } catch (e) {
+        console.error('Failed to load supply-chain status', e);
+    }
+}
+
+async function refreshSupplyChain(event) {
+    if (event) event.preventDefault();
+    try {
+        await fetch(`${API_BASE}/api/supply-chain/refresh`, { method: 'POST' });
+    } catch (e) { console.error('Supply-chain refresh failed', e); }
+    loadSupplyChainStatus();
+}
 
 function addReagentInputRow(data = null) {
     const container = document.getElementById('reagentRows');
@@ -412,6 +457,10 @@ function displayRiskResults(data) {
         
         if (sc && sc.status === 'success') {
             const flagClass = sc.concentration_risk_flag.toLowerCase();
+            // Imports tell us where supply comes from ("top source"); the WITS
+            // fallback is export-side ("top exporter").
+            const topLabel = sc.trade_flow === 'export' ? 'Top Exporter' : 'Top Source';
+            const source = sc.source || 'Trade data';
             scHtml = `
                 <div style="margin-top:8px; padding:8px; background:#f8f9fa; border-radius:4px; border-left:3px solid var(--${flagClass === 'high' ? 'danger' : (flagClass === 'medium' ? 'orange' : 'secondary')});">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
@@ -419,13 +468,14 @@ function displayRiskResults(data) {
                         <span class="status-pill status-${flagClass}" style="font-size:0.6rem; padding:2px 6px;">${sc.concentration_risk_flag}</span>
                     </div>
                     <div style="font-size:0.75rem; margin-bottom:4px;">
-                        <b>Top Exporter:</b> ${sc.top_exporters[0].reporter} (${sc.concentration_top1_pct.toFixed(1)}% share)
+                        <b>${topLabel}:</b> ${sc.top_exporters[0].reporter} (${sc.concentration_top1_pct.toFixed(1)}% of ${sc.country_count || '—'} countries)
                     </div>
+                    <div style="font-size:0.65rem; color:var(--text-muted); margin-bottom:2px;">📦 ${source}</div>
                     ${sc.data_quality_note ? `<div style="font-size:0.65rem; color:var(--orange); font-style:italic;">⚠ ${sc.data_quality_note}</div>` : ''}
                 </div>
             `;
         } else if (sc && sc.status === 'no_trade_data') {
-            scHtml = `<div style="font-size:0.65rem; color:var(--text-muted); margin-top:5px;">ℹ No WITS trade data found for this compound.</div>`;
+            scHtml = `<div style="font-size:0.65rem; color:var(--text-muted); margin-top:5px;">ℹ No supply-chain trade data indexed for this HTS6.</div>`;
         }
 
         row.innerHTML = `
@@ -461,9 +511,13 @@ function displayRiskResults(data) {
 
 function exportRiskCSV() {
     if (!lastRiskResults) { alert('Run assessment first!'); return; }
-    let csv = 'Reagent,CAS,Origin,Stability_Score,Mass_g,Cost,HS_Code,Risk_Index,Risk_Level\n';
+    let csv = 'Reagent,CAS,Origin,Stability_Score,Mass_g,Cost,HS_Code,Risk_Index,Risk_Level,Concentration_Pct,Concentration_Flag,Data_Source\n';
     lastRiskResults.reagents.forEach(r => {
-        csv += `"${r.name}","${r.cas}","${r.primary_origin}",${r.stability_score},${r.mass_g},${r.cost},"${r.hs_code || ''}",${r.risk_index},"${r.risk_level}"\n`;
+        const sc = r.supply_chain_data || {};
+        const conc = sc.status === 'success' ? sc.concentration_top1_pct : '';
+        const flag = sc.status === 'success' ? sc.concentration_risk_flag : '';
+        const src = sc.status === 'success' ? (sc.source || '') : '';
+        csv += `"${r.name}","${r.cas}","${r.primary_origin}",${r.stability_score},${r.mass_g},${r.cost},"${r.hs_code || ''}",${r.risk_index},"${r.risk_level}",${conc},"${flag}","${src}"\n`;
     });
     const blob = new Blob([csv], { type: 'text/csv' });
     const a = document.createElement('a');
