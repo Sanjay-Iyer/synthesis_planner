@@ -252,32 +252,55 @@ class GeminiRouteExtractor:
 # ---------------------------------------------------------------------------
 
 def _normalise(data: dict, target_molecule: Optional[str], required_fields: list, model_name: str) -> dict:
-    """Ensure the Gemini output conforms to our ParseResponse shape."""
-    steps = data.get("steps", [])
-    warnings = data.get("warnings", [])
+    """Ensure the Gemini output conforms to our ParseResponse shape.
+
+    Defensive against a model that emits ``null`` for list fields or omits the
+    required ``step_id`` — either would otherwise raise (iterating ``None``) or
+    fail response validation and surface as a 500 to the user.
+    """
+    # `or []` (not a default) so an explicit null collapses to an empty list.
+    raw_steps = data.get("steps") or []
+    if not isinstance(raw_steps, list):
+        raw_steps = []
+    warnings = data.get("warnings") or []
+    if not isinstance(warnings, list):
+        warnings = []
 
     missing_total = 0
-    for step in steps:
+    steps = []
+    for idx, step in enumerate(raw_steps, start=1):
+        if not isinstance(step, dict):
+            continue
+        # step_id is required downstream; backfill from position if missing/bad.
+        if not isinstance(step.get("step_id"), int):
+            step["step_id"] = idx
+
         # Ensure needs_review exists at step level
         step.setdefault("needs_review", [])
         for field in ("name", "product_mw", "yield_percent"):
             if step.get(field) is None and field not in step["needs_review"]:
                 step["needs_review"].append(field)
 
-        # Ensure each reagent has needs_review
-        for reagent in step.get("reagents", []):
+        # Ensure each reagent has needs_review (guard against a null list).
+        reagents = step.get("reagents") or []
+        if not isinstance(reagents, list):
+            reagents = []
+        reagents = [r for r in reagents if isinstance(r, dict)]
+        for reagent in reagents:
             reagent["is_limiting"] = bool(reagent.get("is_limiting"))
             reagent.setdefault("needs_review", [])
             for field in required_fields:
                 if reagent.get(field) is None and field not in reagent["needs_review"]:
                     reagent["needs_review"].append(field)
             missing_total += len(reagent["needs_review"])
+        step["reagents"] = reagents
 
         missing_total += len(step["needs_review"])
 
         # Ensure defaults
         step.setdefault("depends_on", [])
         step.setdefault("procedure", "")
+        steps.append(step)
 
     return {
         "steps": steps,

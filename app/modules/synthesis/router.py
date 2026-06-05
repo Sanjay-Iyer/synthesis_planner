@@ -3,6 +3,7 @@ Synthesis Router — API endpoints for stoichiometry and cost analysis.
 """
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
+from urllib.parse import quote
 import requests
 import re
 try:
@@ -75,7 +76,9 @@ def get_molecule_name(data: MoleculeInput):
             url = "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/inchi/synonyms/JSON"
             resp = requests.post(url, data={"inchi": query_str}, timeout=5)
         else:
-            url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/{namespace}/{query_str}/synonyms/JSON"
+            # Encode the identifier — SMILES can contain '/', '#', '+', etc.,
+            # which otherwise break the URL path (e.g. '#' starts a fragment).
+            url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/{namespace}/{quote(query_str, safe='')}/synonyms/JSON"
             resp = requests.get(url, timeout=5)
             
         if resp.status_code == 200:
@@ -89,7 +92,7 @@ def get_molecule_name(data: MoleculeInput):
             cid_url = "https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/inchi/cids/JSON"
             cid_resp = requests.post(cid_url, data={"inchi": query_str}, timeout=5)
         else:
-            cid_url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/{namespace}/{query_str}/cids/JSON"
+            cid_url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/{namespace}/{quote(query_str, safe='')}/cids/JSON"
             cid_resp = requests.get(cid_url, timeout=5)
             
         if cid_resp.status_code == 200:

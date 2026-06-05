@@ -7,6 +7,7 @@ const API_BASE = '';  // Same origin — no need for http://127.0.0.1:8000
 
 let counters = { vA: 0, vB: 0 };
 let lastAnalysis = { vA: null, vB: null };
+let lastAudit = { vA: [], vB: [] };   // yield-sensitivity audit rows per route (for CSV export)
 let barInst = null, pieAInst = null, pieBInst = null, efficiencyChartInst = null, stepCostChartInst = null, bottleneckChartInst = null, rComp1Inst = null, rComp2Inst = null, rComp3Inst = null, waterfallChartInst = null, costDriversChartInst = null;
 
 function addStep(side, data = null) {
@@ -619,21 +620,25 @@ async function runOptimizationAuditUI() {
     const stepsB = collectStepData('vB');
     let html = `<h2 style="color:white; margin-top:30px; border-bottom:2px solid #555; padding-bottom:5px;">🔬 Section 2: Yield Sensitivity Audit</h2>`;
     html += `<div style="display:flex; gap:15px; flex-wrap:wrap; margin-top:15px;">`;
-    
+
+    lastAudit = { vA: [], vB: [] };   // reset; repopulated below and used by exportToCSV
+
     if (stepsA.length > 0) {
         const targetA = parseFloat(document.getElementById(`target-vA`).value) || 1.0;
         const resA = await fetch(`${API_BASE}/api/synthesis/audit`, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ steps: stepsA, target_mass_kg: targetA }) });
         if (resA.ok) {
             const dataA = await resA.json();
+            lastAudit.vA = dataA.audit || [];
             html += renderAuditCard('Route A', dataA.audit, 'var(--primary)');
         }
     }
-    
+
     if (stepsB.length > 0) {
         const targetB = parseFloat(document.getElementById(`target-vB`).value) || 1.0;
         const resB = await fetch(`${API_BASE}/api/synthesis/audit`, { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({ steps: stepsB, target_mass_kg: targetB }) });
         if (resB.ok) {
             const dataB = await resB.json();
+            lastAudit.vB = dataB.audit || [];
             html += renderAuditCard('Route B', dataB.audit, 'var(--secondary)');
         }
     }
@@ -1327,11 +1332,10 @@ function exportToCSV() {
     csv += "\n--- SECTION 2: YIELD SENSITIVITY AUDIT ---\n";
     csv += "Route,Step,Name,Savings per 1% Yield Increase ($)\n";
     ['vA', 'vB'].forEach(side => {
-        const res = lastAnalysis[side];
-        if(res?.steps) res.steps.forEach(s => {
+        (lastAudit[side] || []).forEach(s => {
             const sensitivity = s.sensitivity || 0;
             if (sensitivity > 0) {
-                csv += `${side},${s.step_id},"${s.name}",${sensitivity.toFixed(2)}\n`;
+                csv += `${side},${s.step_id},"${(s.name || '').replace(/"/g, '""')}",${sensitivity.toFixed(2)}\n`;
             }
         });
     });

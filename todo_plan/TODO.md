@@ -9,29 +9,74 @@ Organized by app section. Priority: **P1** = correctness / do-first, **P2** = qu
 
 ## 1) Setup  (experiment.html · `app/modules/extraction`)
 
-_Dedicated review pending — this section is scaffolding. The Setup tab parses
-free-text procedures into route drafts via the Gemini extractor._
+Reviewed 2026-06-05. The Setup tab parses a free-text procedure into a *partial*
+route draft (heuristic mock extractor, or Gemini when credentials exist), lets
+the user review captured-vs-missing fields, then hands one/two routes to the
+Planner via `localStorage`.
 
-- [ ] **P2** Review the extraction pipeline (`gemini_extractor.py`, `service.py`) for
-      prompt-injection handling, timeout/retry, and graceful degradation when the
-      Gemini key is absent (the `/status` indicator exists — confirm the UI path).
-- [ ] **P3** Surface `needs_review` fields prominently in the UI so users see exactly
-      what the parser left blank before it flows into the Planner.
-- [ ] **P3** Validate the `localStorage` handoff (`pendingRiskData` and any route
-      draft) with a schema + version tag so a stale/older payload can't crash the
-      receiving page.
+- [x] **P1 — FIXED (2026-06-05)** Gemini `_normalise` could 500 on malformed model
+      output: iterating a `null` `steps`/`reagents`, a `null` `warnings` failing
+      response validation, or a missing/!int `step_id` (required by `ParseResponse`).
+      Now coerces nulls to lists, skips non-dict junk, and backfills `step_id` from
+      position. (`extraction/gemini_extractor.py` `_normalise`)
+- [ ] **P2** Cap the procedure text length in `/api/experiment/parse`
+      (`ParseRequest.text`). `extract-file` has a 5 MB limit, but pasted text is
+      unbounded and is forwarded straight to Gemini — add a sane max + 413/422.
+- [ ] **P2** The Gemini `RateLimiter` is process-local and in-memory; with multiple
+      uvicorn workers the effective rate is `workers × 10 RPM` and can blow the free
+      tier. Document the single-worker assumption or move the limiter out of process.
+- [ ] **P2** Treat the procedure as untrusted input to the LLM: the system prompt is
+      strong, but add a brief note/guard re: prompt-injection in the pasted text
+      (e.g. ignore instructions embedded in the procedure).
+- [ ] **P3** The heuristic extractor (`extract_route_draft`) is a deliberate
+      placeholder — its reagent/name regexes are brittle. Track quality once the LLM
+      path is the default, and add unit tests for the pure `extract_route_draft`.
+- [ ] **P3** Escape `e.message` in `parseProcedure`'s error path (`experiment.js`)
+      before injecting into `innerHTML` (low severity — server-controlled text).
+- [ ] **P3** Validate the `localStorage` handoff (`pendingRouteDraft`) with a schema
+      + version tag so a stale/older payload can't mis-render in the Planner.
 
 ---
 
 ## 2) Planner  (dashboard.html · `app/modules/synthesis`)
 
-_Dedicated review pending — this section is scaffolding._
+Reviewed 2026-06-05. Two-route side-by-side stoichiometry/cost engine with
+scale-up, a yield-sensitivity audit, charts, CSV round-trip, and DB save.
 
-- [ ] **P2** Review `synthesis/engine.py` route math/validation and the dashboard
-      JS for the same XSS/`alert()`/loading-state issues called out under Risk
-      Assessment (they likely share patterns).
-- [ ] **P3** Define a typed, versioned contract for the Planner → Risk Audit handoff
-      instead of passing raw reagent JSON through `localStorage`.
+- [x] **P1 — FIXED (2026-06-05)** Chemical identifiers weren't URL-encoded before
+      going into the PubChem URL path, so SMILES containing `#` (triple bonds),
+      `/` (stereo), `+` (charges) silently failed "Add Molecule" / "Lookup Solvent".
+      Now `quote(..., safe='')`-encoded. (`synthesis/router.py` `get_molecule_name`)
+- [x] **P1 — FIXED (2026-06-05)** CSV export's "Section 2: Yield Sensitivity Audit"
+      was always empty — it read `sensitivity` off the *estimate* results, which
+      never carry it (the audit endpoint is separate and was never persisted). Audit
+      rows are now stored in `lastAudit` and used by `exportToCSV`. (`dashboard.js`)
+- [ ] **P2** Escape user content in the generated dashboard HTML. Reagent/step/
+      solvent names and procedure notes are injected via template literals into both
+      `innerHTML` *and* `value="..."` attributes (`addStep`, `displayDashboard`,
+      `addScaledSection`). A name with `"`/`<` breaks the form or injects markup.
+      (Same class as the Risk Assessment XSS item — fix together.)
+- [ ] **P2** `calculate_engine` silently treats a forward/circular `depends_on` as
+      zero inflow (`prod_unit.get(sid, 0)`), producing wrong numbers with no error.
+      Validate the dependency graph (topological order / reject cycles).
+      (`synthesis/engine.py`)
+- [ ] **P2** Per-step delete (the `×` button) removes the card but doesn't decrement
+      `counters[side]`, leaving non-contiguous step ids; dependency checkboxes can
+      then reference a deleted step, and `matchProducedGrams` (which assumes the last
+      step == `counters[side]`) can throw if the last step was deleted. Track step
+      ids explicitly instead of a monotonic counter.
+- [ ] **P2** `getEstimate` / the audit fetches don't check `res.ok`; a 422/500
+      returns the error JSON which then renders as `$0`/NaN with no signal. Surface
+      failures. (`dashboard.js`)
+- [ ] **P3** The `/api/synthesis/audit` endpoint is POSTed twice per analysis
+      (`runOptimizationAuditUI` and again in `updateCharts`) — compute once and reuse.
+- [ ] **P3** `solvent_density` is hard-coded to 0.85 in `collectStepData` regardless
+      of solvent, which skews the E-factor mass balance. Make it per-solvent.
+- [ ] **P3** The MW formula-fallback parser (`get_molecular_weight`) has a tiny
+      element table and ignores lowercase (aromatic) SMILES — fine as a fallback, but
+      document its limits or prefer RDKit/PubChem.
+- [ ] **P3** Define a typed, versioned contract for the Setup → Planner and Planner →
+      Risk Audit `localStorage` handoffs instead of passing raw JSON.
 
 ---
 
