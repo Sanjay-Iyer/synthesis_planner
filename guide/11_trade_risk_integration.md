@@ -37,7 +37,7 @@ The system emits warnings if major exporters (by trade value) are excluded becau
 
 ## 4. Compound to HS6 Mapping
 To analyze a compound, the system must map its InChIKey to a 6-digit HS code. This mapping is stored in:
-`/home/sanjay/AV/synthesis-architect/database/compound_hs6_map.json`
+`<repo-root>/database/compound_hs6_map.json`
 
 Currently supported CONFIRMED mappings:
 - **Terephthalic acid** (291736)

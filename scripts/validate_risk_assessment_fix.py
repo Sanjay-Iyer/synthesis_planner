@@ -1,9 +1,11 @@
 import sys
-import os
 import sqlite3
+from pathlib import Path
 
-# Add project root to path
-sys.path.append(os.getcwd())
+# Allow execution from any working directory after cloning the repository.
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
 from app.modules.database.db import init_db, connect_db
 from app.modules.risk.engine import ReagentRiskInput, run_risk_assessment

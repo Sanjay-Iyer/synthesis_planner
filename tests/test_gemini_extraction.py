@@ -10,7 +10,7 @@ def _clear_auth_env(monkeypatch):
     """Force the API-key branch with no creds present."""
     monkeypatch.setenv("GEMINI_API_KEY", "")
     monkeypatch.setenv("GOOGLE_API_KEY", "")
-    monkeypatch.delenv("GOOGLE_GENAI_USE_VERTEXAI", raising=False)
+    monkeypatch.setenv("LLM_PROVIDER", "api-key")
 
 
 def _mock_genai_client(response_text):
@@ -26,14 +26,14 @@ def test_gemini_extractor_lazy_init(monkeypatch):
     """Test that extractor fails appropriately if no credentials are configured."""
     _clear_auth_env(monkeypatch)
     extractor = GeminiRouteExtractor()
-    with pytest.raises(RuntimeError, match="No Gemini credentials found"):
+    with pytest.raises(RuntimeError, match="LLM_PROVIDER=api-key requires"):
         extractor.parse("test")
 
 
 def test_gemini_extractor_parse_success(monkeypatch):
     """Test that extractor parses successful JSON responses with the configured model."""
     monkeypatch.setenv("GEMINI_API_KEY", "dummy-key-for-test")
-    monkeypatch.delenv("GOOGLE_GENAI_USE_VERTEXAI", raising=False)
+    monkeypatch.setenv("LLM_PROVIDER", "api-key")
     monkeypatch.setenv("GEMINI_MODEL", "gemini-3-flash-preview")
 
     extractor = GeminiRouteExtractor()
@@ -58,7 +58,7 @@ def test_gemini_extractor_vertex_mode(monkeypatch):
     """Test that Vertex mode builds the client from gcloud env, with no API key."""
     monkeypatch.delenv("GEMINI_API_KEY", raising=False)
     monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
-    monkeypatch.setenv("GOOGLE_GENAI_USE_VERTEXAI", "true")
+    monkeypatch.setenv("LLM_PROVIDER", "vertexai")
     monkeypatch.setenv("GOOGLE_CLOUD_PROJECT", "my-proj")
     monkeypatch.setenv("GOOGLE_CLOUD_LOCATION", "europe-west4")
 
@@ -80,7 +80,7 @@ def test_gemini_extractor_vertex_mode(monkeypatch):
 def test_gemini_extractor_fallback_on_failure(monkeypatch):
     """Test that if the Gemini API fails, it falls back to the mock/heuristic extractor."""
     monkeypatch.setenv("GEMINI_API_KEY", "dummy-key-for-test")
-    monkeypatch.delenv("GOOGLE_GENAI_USE_VERTEXAI", raising=False)
+    monkeypatch.setenv("LLM_PROVIDER", "api-key")
     extractor = GeminiRouteExtractor()
 
     mock_client = _mock_genai_client("")
@@ -116,7 +116,7 @@ def test_rate_limiter():
 def test_gemini_extractor_coerces_null_is_limiting(monkeypatch):
     """Test that if the model returns null for is_limiting, it is coerced to False."""
     monkeypatch.setenv("GEMINI_API_KEY", "dummy-key-for-test")
-    monkeypatch.delenv("GOOGLE_GENAI_USE_VERTEXAI", raising=False)
+    monkeypatch.setenv("LLM_PROVIDER", "api-key")
     extractor = GeminiRouteExtractor()
 
     mock_client = _mock_genai_client(

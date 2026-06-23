@@ -2,6 +2,7 @@ import pytest
 import os
 import json
 import uuid
+import asyncio
 from app.modules.trade_data import db
 
 def test_detects_legacy_schema():
@@ -147,7 +148,7 @@ def test_future_import_writes_v1_1(tmp_path):
     finally:
         wi.parse_wits_file = original_parse
 
-async def test_api_summary_v1_1():
+def test_api_summary_v1_1():
     from app.modules.trade_data.router import get_trade_summary
     # This requires mocking db.load
     import app.modules.trade_data.db as trade_db
@@ -170,7 +171,7 @@ async def test_api_summary_v1_1():
     trade_db.load = lambda: mock_db
     
     try:
-        summary = await get_trade_summary()
+        summary = asyncio.run(get_trade_summary())
         assert summary["product_count"] == 1
         assert summary["high_concentration_count"] == 1
         assert summary["schema_version"] == "1.1.0"

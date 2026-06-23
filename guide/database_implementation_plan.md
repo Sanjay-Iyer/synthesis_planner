@@ -9,7 +9,7 @@ A robust, professional SQLite-backed database system has been integrated into Sy
 The system transitions the application from temporary in-memory analysis to a persistent molecular registry and route history.
 
 ### 1. Database Architecture
-**Location:** `/home/sanjay/AV/synthesis-architect/database/synthesis_architect.db`
+**Location:** `<repo-root>/database/synthesis_architect.db`
 
 The database uses **SQLite 3** with the following professional features:
 - **Transactional Integrity:** All route saves use atomic transactions (BEGIN/COMMIT). If a reagent save fails, the entire route save is rolled back.
@@ -69,12 +69,12 @@ The **"💾 Add to Database"** button in the toolbar is the primary entry point:
 ### Running Tests
 A full backend test suite is available:
 ```bash
-cd /home/sanjay/AV/synthesis-architect
-python3 -m pytest tests/test_database.py
+cd <repo-root>
+conda run -n ai python -m pytest tests/test_database.py
 ```
 
 ### Manual Inspection
 You can inspect the database content directly:
 ```bash
-sqlite3 /home/sanjay/AV/synthesis-architect/database/synthesis_architect.db "SELECT name, reuse_count FROM compounds_summary_view" # (example)
+sqlite3 database/synthesis_architect.db "SELECT name, reuse_count FROM compounds_summary_view" # (example)
 ```

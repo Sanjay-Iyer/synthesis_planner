@@ -1,7 +1,3 @@
-import sys
-import os
-sys.path.append(os.getcwd())
-import pytest
 from app.modules.risk.engine import lookup_suggested_origins
 
 def test_pet_reagents_origins():

@@ -14,6 +14,28 @@ from pathlib import Path
 
 # app/config.py -> app/ -> project root
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
+ENV_FILE_PATH = PROJECT_ROOT / ".env"
+
+
+def load_project_env() -> Path | None:
+    """Load this checkout's optional ``.env`` without relying on the CWD.
+
+    Existing process variables win, allowing CI and tests to override local
+    settings safely. The returned path is useful for doctor diagnostics and is
+    never read from another checkout or the caller's working directory.
+    """
+    if not ENV_FILE_PATH.is_file():
+        return None
+
+    from dotenv import load_dotenv
+
+    load_dotenv(ENV_FILE_PATH, override=False)
+    return ENV_FILE_PATH
+
+
+# Configuration used by non-LLM modules (for example SYNTHESIS_DB_DIR) should
+# see the same checkout-local .env as the LLM provider configuration.
+load_project_env()
 
 # Database directory: env override, otherwise <project_root>/database
 DATABASE_DIR = Path(os.environ.get("SYNTHESIS_DB_DIR", PROJECT_ROOT / "database"))

@@ -78,8 +78,9 @@ def test_missing_quantity_goes_to_excluded(clean_env):
     results = parse_wits_file(TEST_XLSX_PATH)
     assert len(results[0]['top_exporters']) == 1
     assert results[0]['top_exporters'][0]['reporter'] == 'SA'
-    assert len(results[0]['excluded_no_quantity']) == 1
-    assert results[0]['excluded_no_quantity'][0]['reporter'] == 'CN'
+    excluded = results[0]['excluded_rows']['missing_quantity']
+    assert len(excluded) == 1
+    assert excluded[0]['reporter'] == 'CN'
 
 def test_top5_by_quantity_not_value(clean_env):
     # Saudi has lower value but higher quantity
@@ -114,13 +115,14 @@ def test_idempotent_reingest(clean_env):
     with open(TEST_DB_PATH, 'r', encoding='utf-8') as f:
         db2 = json.load(f)
     
-    # Ignore last_updated and ingested_at in comparison
-    db1.pop('last_updated')
-    db2.pop('last_updated')
-    for hs6 in db1['trade_data']:
-        for year in db1['trade_data'][hs6]['years']:
-            db1['trade_data'][hs6]['years'][year].pop('ingested_at')
-            db2['trade_data'][hs6]['years'][year].pop('ingested_at')
+    # Ignore timestamps that intentionally change on each ingest. Record UUIDs
+    # must remain stable for an update to the same HS6/year/flow/partner key.
+    db1['metadata'].pop('last_updated')
+    db2['metadata'].pop('last_updated')
+    for hs6 in db1['products']:
+        for record_key in db1['products'][hs6]['records']:
+            db1['products'][hs6]['records'][record_key]['source'].pop('ingested_at')
+            db2['products'][hs6]['records'][record_key]['source'].pop('ingested_at')
     assert db1 == db2
 
 def test_two_years_coexist(clean_env):
@@ -141,9 +143,9 @@ def test_two_years_coexist(clean_env):
     ingest(TEST_XLSX_PATH, TEST_DB_PATH)
     
     final_db = db.load(TEST_DB_PATH)
-    years = final_db['trade_data']['291611']['years']
-    assert '2024' in years
-    assert '2025' in years
+    records = final_db['products']['291611']['records']
+    assert '2024_export_world' in records
+    assert '2025_export_world' in records
 
 def test_unknown_quantity_unit_preserved(clean_env):
     data = {
@@ -170,5 +172,7 @@ def test_warning_when_excluded_outranks_top5_smallest(clean_env):
         'Quantity Unit': ['Kg', 'Kg']
     }
     create_mock_excel(data)
-    summary = ingest(TEST_XLSX_PATH, TEST_DB_PATH)
-    assert any("CN excluded but has higher trade value" in w for w in summary['warnings'])
+    ingest(TEST_XLSX_PATH, TEST_DB_PATH)
+    record = db.load(TEST_DB_PATH)['products']['291611']['records']['2024_export_world']
+    assert record['excluded_rows']['missing_quantity'][0]['reporter'] == 'CN'
+    assert record['warnings'][0]['code'] == 'excluded_rows_missing_quantity'

@@ -5,9 +5,9 @@ Parses free-text experimental procedures into structured route drafts via the
 unified ``google-genai`` SDK. The same code runs on any machine — it picks the
 auth backend from the environment:
 
-* **API key** (e.g. a personal laptop): ``GEMINI_API_KEY`` / ``GOOGLE_API_KEY``.
-* **Vertex AI via gcloud** (e.g. a locked-down work laptop): set
-  ``GOOGLE_GENAI_USE_VERTEXAI=true`` + ``GOOGLE_CLOUD_PROJECT`` and authenticate
+* **API key** (personal laptop only): set ``LLM_PROVIDER=api-key`` and a key.
+* **Vertex AI via gcloud** (work laptop): set
+  ``LLM_PROVIDER=vertexai`` + project/location and authenticate
   with Application Default Credentials (``gcloud auth application-default
   login``) — no API key in the environment.
 
@@ -149,42 +149,16 @@ class GeminiRouteExtractor:
         if self._client is not None:
             return
 
-        import os
-        from dotenv import load_dotenv
+        from app.cloud_auth import create_genai_client, resolve_auth_settings
 
-        load_dotenv()  # reads .env in the project root
-
-        from .service import _env_truthy
-        from google import genai
-
-        if _env_truthy(os.getenv("GOOGLE_GENAI_USE_VERTEXAI")):
+        settings = resolve_auth_settings()
             # Vertex AI — credentials come from gcloud Application Default
             # Credentials; no API key is read from the environment.
-            project = os.getenv("GOOGLE_CLOUD_PROJECT")
-            if not project:
-                raise RuntimeError(
-                    "Vertex AI mode is on (GOOGLE_GENAI_USE_VERTEXAI=true) but "
-                    "GOOGLE_CLOUD_PROJECT is not set. Set it and run "
-                    "`gcloud auth application-default login`."
-                )
-            location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
-            self._client = genai.Client(
-                vertexai=True, project=project, location=location
-            )
-            self.auth_mode = "vertex"
-        else:
-            api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or ""
-            if not api_key or api_key == "your-api-key-here":
-                raise RuntimeError(
-                    "No Gemini credentials found. Set GEMINI_API_KEY in .env, or "
-                    "enable Vertex AI with GOOGLE_GENAI_USE_VERTEXAI=true + "
-                    "GOOGLE_CLOUD_PROJECT."
-                )
-            self._client = genai.Client(api_key=api_key)
-            self.auth_mode = "api_key"
+        self._client = create_genai_client(settings)
+        self.auth_mode = settings.auth_mode
 
         if not self.model_name:
-            self.model_name = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+            self.model_name = settings.model
 
         logger.info(
             "Gemini client initialized (model=%s, auth=%s)",
@@ -223,6 +197,11 @@ class GeminiRouteExtractor:
             raw = (response.text or "").strip()
         except Exception as exc:
             logger.error("Gemini API call failed: %s", exc)
+            if self.auth_mode == "vertex":
+                raise RuntimeError(
+                    "Vertex AI request failed. Verify gcloud ADC, Vertex AI API access, "
+                    "project IAM, network access, and the configured model."
+                ) from exc
             return _error_response(str(exc), text, target_molecule)
 
         # ---------- parse the JSON response ----------

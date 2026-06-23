@@ -6,8 +6,11 @@ Synthesis Architect utilizes a persistent **SQLite** database to manage chemical
 
 ## 1. The SQLite Backend
 
-The database file is located at:
-`/home/sanjay/AV/synthesis-architect/database/synthesis_architect.db`
+The database file defaults to:
+`<repo-root>/database/synthesis_architect.db`
+
+Set `SYNTHESIS_DB_DIR` in that laptop's `.env` only when persistent data must
+live outside the checkout.
 
 ### Key Design Principles:
 - **Atomicity:** All data related to a route (steps, reagents, results) is saved in a single database transaction. This prevents partial or corrupted records.

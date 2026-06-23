@@ -19,6 +19,7 @@ import logging
 import re
 from typing import Optional, Protocol
 
+from app.cloud_auth import resolve_auth_settings
 from app.config import GEMINI_MODELS_PATH
 
 logger = logging.getLogger(__name__)
@@ -420,38 +421,29 @@ def resolve_model(model_id: Optional[str]) -> str:
     return models[0]["id"]
 
 
-def _env_truthy(val: Optional[str]) -> bool:
-    """Loose boolean parse for env-var flags (``true``/``1``/``yes``/``on``)."""
-    return str(val or "").strip().lower() in {"1", "true", "yes", "on"}
-
-
 def _gemini_auth_available() -> bool:
     """Whether usable Gemini credentials exist in the environment.
 
     Supports both backends so the same code runs on any machine:
-      * Vertex AI / gcloud ADC: ``GOOGLE_GENAI_USE_VERTEXAI`` + a project.
-      * API key: ``GEMINI_API_KEY`` / ``GOOGLE_API_KEY``.
+      * Vertex AI / gcloud ADC: ``LLM_PROVIDER=vertexai``.
+      * API key: ``LLM_PROVIDER=api-key``.
     """
-    import os
-    if _env_truthy(os.getenv("GOOGLE_GENAI_USE_VERTEXAI")):
-        return bool(os.getenv("GOOGLE_CLOUD_PROJECT"))
-    key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or ""
-    return bool(key) and key != "your-api-key-here"
+    settings = resolve_auth_settings()
+    return settings.uses_external_llm and settings.is_ready
 
 
 def extractor_status() -> dict:
     """Report which extraction backend is currently live, for the UI indicator.
 
-    ``auth_mode`` is ``"vertex"`` (gcloud ADC), ``"api_key"``, or ``"none"``.
+    ``auth_mode`` is ``"vertex"`` (gcloud ADC), ``"api_key"``, or ``"mock"``.
     """
-    import os
-    from dotenv import load_dotenv
-
-    load_dotenv()
-    if not _gemini_auth_available():
-        return {"llm_available": False, "auth_mode": "none"}
-    mode = "vertex" if _env_truthy(os.getenv("GOOGLE_GENAI_USE_VERTEXAI")) else "api_key"
-    return {"llm_available": True, "auth_mode": mode}
+    settings = resolve_auth_settings()
+    return {
+        "llm_available": settings.uses_external_llm and settings.is_ready,
+        "auth_mode": settings.auth_mode,
+        "provider": settings.provider,
+        "configuration_error": settings.error,
+    }
 
 
 def get_extractor(model_id: Optional[str] = None) -> RouteExtractor:
@@ -467,10 +459,10 @@ def get_extractor(model_id: Optional[str] = None) -> RouteExtractor:
     if model_id == NO_LLM_SENTINEL:
         return MockRouteExtractor()
 
-    from dotenv import load_dotenv
-
-    load_dotenv()
-    if _gemini_auth_available():
+    settings = resolve_auth_settings()
+    if settings.error:
+        raise RuntimeError(settings.error)
+    if settings.uses_external_llm and settings.is_ready:
         from .gemini_extractor import GeminiRouteExtractor
         return GeminiRouteExtractor(model_name=resolve_model(model_id))
 

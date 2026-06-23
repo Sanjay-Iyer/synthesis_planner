@@ -81,6 +81,8 @@ function updateStatusIndicator() {
 
     if (value === NO_LLM_VALUE) {
         el.innerHTML = '🟡 Heuristic parser — no AI/LLM used.';
+    } else if (authInfo && authInfo.auth_mode === 'mock') {
+        el.textContent = 'Mock/simulation mode — no credentials or network used.';
     } else if (!authInfo) {
         el.textContent = 'Checking backend…';
     } else if (authInfo.llm_available) {
@@ -88,7 +90,7 @@ function updateStatusIndicator() {
         el.innerHTML = `🟢 LLM active · <b>${escapeHtml(label)}</b> <span class="muted">via ${mode}</span>`;
     } else {
         el.innerHTML = '🔴 No Gemini credentials found — will fall back to the heuristic '
-            + 'parser. Set GEMINI_API_KEY or enable Vertex AI in .env.';
+            + 'parser. Configure LLM_PROVIDER=vertexai + gcloud ADC, or set GEMINI_API_KEY.';
     }
 }
 

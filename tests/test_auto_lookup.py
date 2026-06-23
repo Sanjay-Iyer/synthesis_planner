@@ -8,7 +8,9 @@ def test_lookup_suggested_origins_by_name():
     
     assert len(results) == 1
     assert results[0]["hs6"] == "291736"
-    assert results[0]["primary"] == "China"
+    # The live-scanned USITC import dataset takes priority over the older WITS
+    # export fallback. Its seeded 2026 U.S. origin record is Mexico.
+    assert results[0]["primary"] == "Mexico"
 
 def test_lookup_suggested_origins_by_cas():
     """Verify that CAS lookup works for suggestions."""
