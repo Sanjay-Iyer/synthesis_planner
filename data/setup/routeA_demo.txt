@@ -1,7 +1,59 @@
-Route A — Bottle-Grade PET via Direct Esterification (TPA Route)
+Route A - Bottle-Grade PET via Direct Esterification (TPA Route)
 
-Step 1: Esterification to PET Oligomers
-Charge a stainless-steel reactor fitted with an anchor stirrer and a packed distillation head with terephthalic acid (200 g, 1.20 mol, polymer grade) and ethylene glycol (165 g, 2.66 mol, ~2.6 equiv). Add germanium dioxide (1.0 g) as the esterification catalyst and 200 mL of Dowtherm A as the heat-transfer medium. Heat the slurry to 260 C under a slow nitrogen purge and stir for 6 hours, continuously removing the water of esterification through the distillation head to push the equilibrium forward. This delivers low-DEG PET oligomers as a viscous melt (65% yield).
+Extraction target:
+Create a complete synthesis route JSON for Route A. The route key should be routeA, the target should be "1", and the route should contain exactly the two steps below. Preserve all numeric values, units, reagent names, dependency links, and limiting-reagent flags.
 
-Step 2: Thermal Upgrading and Quality Finishing
-Transfer the PET oligomer (150 g) to a finishing reactor and apply high vacuum while heating to 285 C. Blend in a high-performance UV stabilizer (2.0 g) together with 50 mL of an antioxidant slurry. Hold these conditions for 4 hours to build molecular weight by melt polycondensation, distilling off the excess ethylene glycol as it is liberated. The finished resin meets bottle-grade transparency and durability standards (65% yield).
+Step 1
+Step ID: 1
+Name: Esterification to PET Oligomers
+Product molecular weight: 192.16 g/mol
+Depends on: none
+Yield: 65%
+Temperature: 260C
+Time: 6h
+Molarity: 1.5 M
+Procedure: Direct esterification using high-grade TPA and EG with a premium Germanium catalyst. This step produces PET oligomers with low diethylene glycol (DEG) content, though yield is limited by the equilibrium moisture removal rate.
+
+Operational procedure:
+Charge a stainless-steel reactor fitted with an anchor stirrer and a packed distillation head with terephthalic acid (200.0 g, 1.20 equivalents, polymer grade) and ethylene glycol (165.0 g, 2.60 equivalents, purified). Add germanium dioxide catalyst (1.0 g, 0.01 equivalents). Add 200.0 mL of Dowtherm A as the heat-transfer medium. Heat the slurry to 260C under a slow nitrogen purge and stir for 6h, continuously removing the water of esterification through the distillation head to push the equilibrium forward. This delivers low-DEG PET oligomers as a viscous melt in 65% yield.
+
+Reagents for Step 1:
+- Terephthalic acid (Polymer Grade): SMILES O=C(O)c1ccc(C(=O)O)cc1; SELFIES [O][=C][Branch1][C][O][C][=C][C][=C][Branch1][=Branch1][C][=Branch1][C][=O][O][C][=C][Ring1][=Branch2]; molecular weight 166.13 g/mol; package size 1000 g; package price 300.0 USD; cost per gram 0.30 USD/g; equivalents 1.2; mass 200.0 g; limiting reagent true.
+- Ethylene glycol (Purified): SMILES OCCO; SELFIES [O][C][C][O]; molecular weight 62.07 g/mol; package size 1000 g; package price 150.0 USD; cost per gram 0.15 USD/g; equivalents 2.6; mass 165.0 g; limiting reagent false.
+- Germanium dioxide catalyst: molecular weight 104.64 g/mol; package size 10 g; package price 50.0 USD; cost per gram 5.0 USD/g; equivalents 0.01; mass 1.0 g; limiting reagent false.
+
+Solvent and medium for Step 1:
+- Solvent name: Dowtherm A
+- Solvent volume: 200.0 mL
+- Solvent volume in liters: 0.2 L
+- Solvent density: 1.06 g/mL
+- Solvent bottle size: 1.0 L
+- Solvent bottle price: 100.0 USD
+- Solvent price per liter: 100.0 USD/L
+
+Step 2
+Step ID: 2
+Name: Thermal Upgrading and Quality Finishing
+Product molecular weight: 192.16 g/mol
+Depends on: Step 1
+Yield: 65%
+Temperature: 285C
+Time: 4h
+Molarity: 2.0 M
+Procedure: The oligomer is subjected to high-temperature finishing under high vacuum to increase chain length. Specialized UV stabilizers and antioxidants are added to ensure the final product meets bottle-grade transparency and durability standards.
+
+Operational procedure:
+Transfer PET Intermediate (Oligomer) from Step 1 (150.0 g, 1.0 equivalents) to a finishing reactor and apply high vacuum while heating to 285C. Blend in High-Performance UV Stabilizer (2.0 g, 0.005 equivalents) together with 50.0 mL of Antioxidant Slurry. Hold these conditions for 4h to build molecular weight by melt polycondensation, distilling off excess ethylene glycol as it is liberated. The finished resin meets bottle-grade transparency and durability standards in 65% yield.
+
+Reagents for Step 2:
+- PET Intermediate (Oligomer): molecular weight 192.16 g/mol; package size 1000 g; package price 800.0 USD; cost per gram 0.80 USD/g; equivalents 1; mass 150.0 g; limiting reagent true.
+- High-Performance UV Stabilizer: molecular weight 350.0 g/mol; package size 10 g; package price 100.0 USD; cost per gram 10.0 USD/g; equivalents 0.005; mass 2.0 g; limiting reagent false.
+
+Solvent and medium for Step 2:
+- Solvent name: Antioxidant Slurry
+- Solvent volume: 50.0 mL
+- Solvent volume in liters: 0.05 L
+- Solvent density: 0.9 g/mL
+- Solvent bottle size: 1.0 L
+- Solvent bottle price: 250.0 USD
+- Solvent price per liter: 250.0 USD/L

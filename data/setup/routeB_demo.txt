@@ -1,10 +1,84 @@
-Route B — Bottle-Grade PET via Transesterification (DMT Route)
+Route B - Bottle-Grade PET via Transesterification (DMT Route)
 
-Step 1: Transesterification to BHET
-To a dry three-neck flask equipped with a magnetic stirrer and a short fractionating column, add dimethyl terephthalate (10.0 g, 51.5 mmol, HPLC grade) and anhydrous ethylene glycol (13.0 g, 209 mmol) in 50 mL of ethylene glycol. Add manganese(II) acetate (0.1 g) as the transesterification catalyst. Heat to 180 C under nitrogen and stir for 3 hours, collecting the methanol that distills off as the reaction proceeds. Conversion to bis(2-hydroxyethyl) terephthalate (BHET) is high and clean (95% yield).
+Extraction target:
+Create a complete synthesis route JSON for Route B. The route key should be routeB, the target should be "1", and the route should contain exactly the three steps below. Preserve all numeric values, units, reagent names, dependency links, and limiting-reagent flags.
 
-Step 2: Polycondensation
-Charge the molten BHET from Step 1 into a polycondensation reactor and add antimony trioxide (0.15 g) as the polycondensation catalyst. Run the reaction neat (no solvent). Heat to 275 C and gradually reduce the pressure to high vacuum (<1 mbar) over the first 30 minutes, then hold for 4 hours while distilling off the liberated ethylene glycol. Chain growth produces high-molecular-weight PET with excellent optical clarity (95% yield).
+Step 1
+Step ID: 1
+Name: Transesterification (High Purity Step)
+Product molecular weight: 254.23 g/mol
+Depends on: none
+Yield: 95%
+Temperature: 180C
+Time: 3h
+Molarity: 1.0 M
+Procedure: Controlled transesterification using high-purity DMT and anhydrous EG with a Manganese catalyst. This route minimizes side products and ensures high conversion to BHET.
 
-Step 3: Solid State Polymerization (SSP)
-Pelletize the PET and load the chips into an SSP column. Heat to 210 C — below the polymer's melting point — under a continuous flow of ultra-high-purity nitrogen (approximately 5 g consumed) for 12 hours. This raises the intrinsic viscosity (IV) to the level required for bottle-grade resin (98% yield).
+Operational procedure:
+To a dry three-neck flask equipped with a magnetic stirrer and a short fractionating column, add dimethyl terephthalate (10.0 g, 0.05 equivalents, HPLC grade) and anhydrous ethylene glycol (13.0 g, 0.2 equivalents) in 50.0 mL of ethylene glycol. Add manganese(II) acetate (0.1 g, 0.001 equivalents) as the transesterification catalyst. Heat to 180C under nitrogen and stir for 3h, collecting the methanol that distills off as the reaction proceeds. Conversion to bis(2-hydroxyethyl) terephthalate (BHET) is high and clean in 95% yield.
+
+Reagents for Step 1:
+- Dimethyl terephthalate (HPLC Grade): SMILES COC(=O)c1ccc(C(=O)OC)cc1; SELFIES [C][O][C][=Branch1][C][=O][C][=C][C][=C][Branch1][#Branch1][C][=Branch1][C][=O][O][C][C][=C][Ring1][#Branch2]; molecular weight 194.18 g/mol; package size 500 g; package price 200.0 USD; cost per gram 0.40 USD/g; equivalents 0.05; mass 10.0 g; limiting reagent true.
+- Ethylene glycol (Anhydrous): SMILES OCCO; SELFIES [O][C][C][O]; molecular weight 62.07 g/mol; package size 1000 g; package price 50.0 USD; cost per gram 0.05 USD/g; equivalents 0.2; mass 13.0 g; limiting reagent false.
+- Manganese(II) acetate: molecular weight 173.02 g/mol; package size 10 g; package price 50.0 USD; cost per gram 5.0 USD/g; equivalents 0.001; mass 0.1 g; limiting reagent false.
+
+Solvent and medium for Step 1:
+- Solvent name: Ethylene glycol
+- Solvent volume: 50.0 mL
+- Solvent volume in liters: 0.05 L
+- Solvent density: 1.11 g/mL
+- Solvent bottle size: 1.0 L
+- Solvent bottle price: 50.0 USD
+- Solvent price per liter: 50.0 USD/L
+
+Step 2
+Step ID: 2
+Name: Polycondensation (Precision Vacuum)
+Product molecular weight: 192.16 g/mol
+Depends on: Step 1
+Yield: 95%
+Temperature: 275C
+Time: 4h
+Molarity: 2.0 M
+Procedure: High-vacuum polycondensation of purified BHET. The use of specialized catalysts and precise vacuum control results in higher molecular weight and superior optical properties.
+
+Operational procedure:
+Charge the molten BHET from Step 1 into a polycondensation reactor and add antimony trioxide catalyst (0.15 g, 0.0005 equivalents). Run the reaction neat with no solvent. Heat to 275C and gradually reduce the pressure to high vacuum below 1 mbar over the first 30 minutes, then hold for 4h while distilling off the liberated ethylene glycol. Chain growth produces high-molecular-weight PET with excellent optical clarity in 95% yield.
+
+Reagents for Step 2:
+- Antimony trioxide catalyst: molecular weight 291.52 g/mol; package size 100 g; package price 80.0 USD; cost per gram 0.8 USD/g; equivalents 0.0005; mass 0.15 g; limiting reagent false.
+
+Solvent and medium for Step 2:
+- Solvent name: Neat
+- Solvent volume: 0.0 mL
+- Solvent volume in liters: 0.0 L
+- Solvent density: 1.0 g/mL
+- Solvent bottle size: 1.0 L
+- Solvent bottle price: 0.0 USD
+- Solvent price per liter: 0.0 USD/L
+
+Step 3
+Step ID: 3
+Name: Solid State Polymerization (SSP)
+Product molecular weight: 192.16 g/mol
+Depends on: Step 2
+Yield: 98%
+Temperature: 210C
+Time: 12h
+Molarity: 0.1 M
+Procedure: Additional step to increase Intrinsic Viscosity (IV) for high-grade applications like bottle-grade PET. This involves heating polymer chips below their melting point under a flow of ultra-high purity nitrogen.
+
+Operational procedure:
+Pelletize the PET from Step 2 and load the chips into an SSP column. Heat to 210C, below the polymer melting point, under a continuous flow of ultra-high-purity nitrogen. Use Nitrogen Gas (UHP Grade) at approximately 5.0 g, 5 equivalents. Hold for 12h. This raises the intrinsic viscosity (IV) to the level required for bottle-grade resin in 98% yield.
+
+Reagents for Step 3:
+- Nitrogen Gas (UHP Grade): molecular weight 28.01 g/mol; package size 1000 g; package price 100.0 USD; cost per gram 0.1 USD/g; equivalents 5; mass 5.0 g; limiting reagent false.
+
+Solvent and medium for Step 3:
+- Solvent name: N2 Atmosphere
+- Solvent volume: 0.0 mL
+- Solvent volume in liters: 0.0 L
+- Solvent density: 0.001 g/mL
+- Solvent bottle size: 1.0 L
+- Solvent bottle price: 100.0 USD
+- Solvent price per liter: 100.0 USD/L
