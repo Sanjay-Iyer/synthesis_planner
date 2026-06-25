@@ -1,4 +1,5 @@
 """Minimal provider-conformance agent smoke path with no lab hardware."""
+
 from __future__ import annotations
 
 import json
@@ -63,9 +64,13 @@ def run_agent_smoke(
     try:
         payload = json.loads((response.text or "").strip())
     except json.JSONDecodeError as exc:
-        raise RuntimeError("The selected LLM returned invalid agent-smoke JSON.") from exc
+        raise RuntimeError(
+            "The selected LLM returned invalid agent-smoke JSON."
+        ) from exc
     if not isinstance(payload, dict) or payload.get("status") != "ok":
-        raise RuntimeError("The selected LLM did not return a successful agent-smoke response.")
+        raise RuntimeError(
+            "The selected LLM did not return a successful agent-smoke response."
+        )
 
     return {
         "status": "ok",

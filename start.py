@@ -6,6 +6,7 @@ Usage:
 
 Starts the server and opens http://localhost:8000 in your browser.
 """
+
 import os
 import subprocess
 import sys
@@ -31,9 +32,10 @@ def open_browser():
 
 if __name__ == "__main__":
     import sys
-    if sys.stdout.encoding != 'utf-8':
+
+    if sys.stdout.encoding != "utf-8":
         try:
-            sys.stdout.reconfigure(encoding='utf-8')
+            sys.stdout.reconfigure(encoding="utf-8")
         except Exception:
             pass
 
@@ -52,12 +54,18 @@ if __name__ == "__main__":
 
     # Start uvicorn
     try:
-        subprocess.run([
-            sys.executable, "-m", "uvicorn",
-            "app.main:app",
-            "--host", "0.0.0.0",
-            "--port", str(PORT),
-            "--reload"
-        ])
+        subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "uvicorn",
+                "app.main:app",
+                "--host",
+                "0.0.0.0",
+                "--port",
+                str(PORT),
+                "--reload",
+            ]
+        )
     except KeyboardInterrupt:
         print("\n\n👋 Synthesis Architect stopped.")

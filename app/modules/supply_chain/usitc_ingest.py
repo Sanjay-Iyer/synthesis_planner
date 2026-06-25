@@ -17,6 +17,7 @@ This module is intentionally tolerant: it locates the header row by scanning
 for the "Data Type" cell and detects year columns by pattern, so small layout
 shifts (extra blank rows, a moved partial-year column) do not break parsing.
 """
+
 from __future__ import annotations
 
 import re
@@ -139,7 +140,9 @@ def parse_usitc_file(path: str) -> dict:
 
     header_idx, title = _detect_header_row(path, sheet)
     if header_idx is None:
-        raise ValueError("Could not locate the 'Data Type' header row in 'Query Results'")
+        raise ValueError(
+            "Could not locate the 'Data Type' header row in 'Query Results'"
+        )
 
     # Read everything as strings so HTS codes and large values are not coerced
     # into floats with precision loss; convert value columns explicitly below.
@@ -180,12 +183,14 @@ def parse_usitc_file(path: str) -> dict:
         if not values:
             continue
 
-        records.append({
-            "country": country,
-            "hts6": hts6,
-            "description": description,
-            "values": values,
-        })
+        records.append(
+            {
+                "country": country,
+                "hts6": hts6,
+                "description": description,
+                "values": values,
+            }
+        )
 
     return {
         "trade_flow": trade_flow,

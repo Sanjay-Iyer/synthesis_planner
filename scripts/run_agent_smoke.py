@@ -1,4 +1,5 @@
 """Run the hardware-free provider-conformance agent smoke test."""
+
 from __future__ import annotations
 
 import argparse

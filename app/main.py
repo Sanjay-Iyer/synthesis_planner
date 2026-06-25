@@ -3,6 +3,7 @@ Synthesis Architect — Main Application Entry Point.
 
 Mounts all module routers and serves the frontend static files.
 """
+
 from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
@@ -23,10 +24,12 @@ from app.modules.database.db import init_db
 
 app = FastAPI(title="Synthesis Architect", version="2.0")
 
+
 @app.on_event("startup")
 def on_startup():
     """Initialise the SQLite database schema on first launch."""
     init_db()
+
 
 app.add_middleware(
     CORSMiddleware,

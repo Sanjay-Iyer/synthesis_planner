@@ -1,4 +1,5 @@
 """CI-safe conformance tests for portable gcloud/Vertex deployment."""
+
 from __future__ import annotations
 
 import subprocess
@@ -8,7 +9,6 @@ from unittest.mock import MagicMock
 from app.cloud_auth import create_genai_client, resolve_auth_settings
 from app.gcloud_preflight import validate_vertexai_setup
 from app.modules.extraction.service import MockRouteExtractor, get_extractor
-
 
 VERTEX_ENV = {
     "LLM_PROVIDER": "vertexai",
@@ -38,7 +38,9 @@ def _gcloud_runner(command, **_kwargs):
 
 
 def test_vertex_mode_never_reads_or_passes_api_keys():
-    env = _ApiKeyPoison({key: value for key, value in VERTEX_ENV.items() if "API_KEY" not in key})
+    env = _ApiKeyPoison(
+        {key: value for key, value in VERTEX_ENV.items() if "API_KEY" not in key}
+    )
     settings = resolve_auth_settings(env)
     client_factory = MagicMock(return_value=MagicMock())
 
@@ -55,22 +57,26 @@ def test_vertex_mode_never_reads_or_passes_api_keys():
 
 def test_vertex_mode_requires_project_and_location():
     missing_project = resolve_auth_settings({"LLM_PROVIDER": "vertexai"})
-    missing_location = resolve_auth_settings({
-        "LLM_PROVIDER": "vertexai",
-        "GOOGLE_CLOUD_PROJECT": "test-project",
-    })
+    missing_location = resolve_auth_settings(
+        {
+            "LLM_PROVIDER": "vertexai",
+            "GOOGLE_CLOUD_PROJECT": "test-project",
+        }
+    )
 
     assert "GOOGLE_CLOUD_PROJECT" in (missing_project.error or "")
     assert "GOOGLE_CLOUD_LOCATION" in (missing_location.error or "")
 
 
 def test_vertex_mode_requires_rest_transport():
-    settings = resolve_auth_settings({
-        "LLM_PROVIDER": "vertexai",
-        "GOOGLE_CLOUD_PROJECT": "test-project",
-        "GOOGLE_CLOUD_LOCATION": "us-central1",
-        "GOOGLE_VERTEX_API_TRANSPORT": "grpc",
-    })
+    settings = resolve_auth_settings(
+        {
+            "LLM_PROVIDER": "vertexai",
+            "GOOGLE_CLOUD_PROJECT": "test-project",
+            "GOOGLE_CLOUD_LOCATION": "us-central1",
+            "GOOGLE_VERTEX_API_TRANSPORT": "grpc",
+        }
+    )
 
     assert settings.is_ready is False
     assert "GOOGLE_VERTEX_API_TRANSPORT=rest" in (settings.error or "")

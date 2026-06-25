@@ -15,6 +15,7 @@ Designed for the free tier (10 RPM) with a simple rate limiter. The extractor
 conforms to the ``RouteExtractor`` protocol defined in ``service.py`` — swap it
 in via ``get_extractor()``.
 """
+
 import json
 import time
 import logging
@@ -26,6 +27,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Rate limiter — 10 requests / 60 seconds for the Gemini free tier
 # ---------------------------------------------------------------------------
+
 
 class RateLimiter:
     """Thread-safe sliding-window rate limiter."""
@@ -124,6 +126,7 @@ Rules:
 # Extractor
 # ---------------------------------------------------------------------------
 
+
 class GeminiRouteExtractor:
     """
     Gemini extractor behind the ``RouteExtractor`` protocol.
@@ -152,8 +155,8 @@ class GeminiRouteExtractor:
         from app.cloud_auth import create_genai_client, resolve_auth_settings
 
         settings = resolve_auth_settings()
-            # Vertex AI — credentials come from gcloud Application Default
-            # Credentials; no API key is read from the environment.
+        # Vertex AI — credentials come from gcloud Application Default
+        # Credentials; no API key is read from the environment.
         self._client = create_genai_client(settings)
         self.auth_mode = settings.auth_mode
 
@@ -162,7 +165,8 @@ class GeminiRouteExtractor:
 
         logger.info(
             "Gemini client initialized (model=%s, auth=%s)",
-            self.model_name, self.auth_mode,
+            self.model_name,
+            self.auth_mode,
         )
 
     # -- public interface (matches RouteExtractor protocol) -----------------
@@ -185,13 +189,14 @@ class GeminiRouteExtractor:
 
         try:
             from google.genai import types
+
             response = self._client.models.generate_content(
                 model=self.model_name,
                 contents=user_prompt,
                 config=types.GenerateContentConfig(
                     system_instruction=SYSTEM_PROMPT,
                     response_mime_type="application/json",
-                    temperature=0.1,   # low temp for deterministic extraction
+                    temperature=0.1,  # low temp for deterministic extraction
                 ),
             )
             raw = (response.text or "").strip()
@@ -223,14 +228,19 @@ class GeminiRouteExtractor:
                 )
 
         # ---------- normalise into our schema ----------
-        return _normalise(data, target_molecule, REQUIRED_REAGENT_FIELDS, self.model_name)
+        return _normalise(
+            data, target_molecule, REQUIRED_REAGENT_FIELDS, self.model_name
+        )
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
-def _normalise(data: dict, target_molecule: Optional[str], required_fields: list, model_name: str) -> dict:
+
+def _normalise(
+    data: dict, target_molecule: Optional[str], required_fields: list, model_name: str
+) -> dict:
     """Ensure the Gemini output conforms to our ParseResponse shape.
 
     Defensive against a model that emits ``null`` for list fields or omits the
@@ -292,19 +302,38 @@ def _normalise(data: dict, target_molecule: Optional[str], required_fields: list
 
 def _empty_response(target_molecule: Optional[str], model_name: str) -> dict:
     return {
-        "steps": [{
-            "step_id": 1, "name": None, "product_mw": None,
-            "reagents": [{"name": "", "mw": None, "equivalents": None,
-                          "mass": None, "mass_unit": "g", "is_limiting": False,
-                          "smiles": None, "selfies": None, "cost_per_g": None,
-                          "pkg_size": None, "pkg_price": None,
-                          "needs_review": ["name", "mw", "equivalents", "mass"]}],
-            "yield_percent": None, "temperature": None, "time": None,
-            "procedure": "", "depends_on": [],
-            "solvent_name": None, "solvent_volume": None,
-            "solvent_volume_unit": None,
-            "needs_review": ["name", "product_mw", "yield_percent"],
-        }],
+        "steps": [
+            {
+                "step_id": 1,
+                "name": None,
+                "product_mw": None,
+                "reagents": [
+                    {
+                        "name": "",
+                        "mw": None,
+                        "equivalents": None,
+                        "mass": None,
+                        "mass_unit": "g",
+                        "is_limiting": False,
+                        "smiles": None,
+                        "selfies": None,
+                        "cost_per_g": None,
+                        "pkg_size": None,
+                        "pkg_price": None,
+                        "needs_review": ["name", "mw", "equivalents", "mass"],
+                    }
+                ],
+                "yield_percent": None,
+                "temperature": None,
+                "time": None,
+                "procedure": "",
+                "depends_on": [],
+                "solvent_name": None,
+                "solvent_volume": None,
+                "solvent_volume_unit": None,
+                "needs_review": ["name", "product_mw", "yield_percent"],
+            }
+        ],
         "target_molecule": target_molecule,
         "warnings": ["No text provided — created one empty step to fill in manually."],
         "extractor": model_name,
@@ -315,6 +344,7 @@ def _empty_response(target_molecule: Optional[str], model_name: str) -> dict:
 def _error_response(error: str, text: str, target_molecule: Optional[str]) -> dict:
     """Fall back to the mock extractor on Gemini failure."""
     from .service import extract_route_draft
+
     result = extract_route_draft(text, target_molecule)
     result["warnings"].insert(0, f"Gemini failed ({error}) — used heuristic fallback.")
     result["extractor"] = "heuristic-fallback (gemini error)"

@@ -1,17 +1,44 @@
 """Tests for the ELN procedure -> partial route draft extractor."""
+
 from app.modules.extraction.service import extract_route_draft, REQUIRED_REAGENT_FIELDS
 
 # Field sets must stay in sync with extraction/schemas.py
 REAGENT_FIELDS = {
-    "name", "mw", "equivalents", "mass", "mass_unit", "is_limiting",
-    "smiles", "selfies", "cost_per_g", "pkg_size", "pkg_price", "needs_review",
+    "name",
+    "mw",
+    "equivalents",
+    "mass",
+    "mass_unit",
+    "is_limiting",
+    "smiles",
+    "selfies",
+    "cost_per_g",
+    "pkg_size",
+    "pkg_price",
+    "needs_review",
 }
 STEP_FIELDS = {
-    "step_id", "name", "product_mw", "reagents", "yield_percent", "temperature",
-    "time", "procedure", "depends_on", "solvent_name", "solvent_volume",
-    "solvent_volume_unit", "needs_review",
+    "step_id",
+    "name",
+    "product_mw",
+    "reagents",
+    "yield_percent",
+    "temperature",
+    "time",
+    "procedure",
+    "depends_on",
+    "solvent_name",
+    "solvent_volume",
+    "solvent_volume_unit",
+    "needs_review",
 }
-RESPONSE_FIELDS = {"steps", "target_molecule", "warnings", "extractor", "missing_required_count"}
+RESPONSE_FIELDS = {
+    "steps",
+    "target_molecule",
+    "warnings",
+    "extractor",
+    "missing_required_count",
+}
 
 
 def _assert_schema(draft):

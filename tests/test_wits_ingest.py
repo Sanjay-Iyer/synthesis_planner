@@ -11,6 +11,7 @@ _TMP = Path(tempfile.gettempdir())
 TEST_DB_PATH = str(_TMP / "test_wits_exports.json")
 TEST_XLSX_PATH = str(_TMP / "test_wits_data.xlsx")
 
+
 @pytest.fixture
 def clean_env():
     if os.path.exists(TEST_DB_PATH):
@@ -23,156 +24,189 @@ def clean_env():
     if os.path.exists(TEST_XLSX_PATH):
         os.remove(TEST_XLSX_PATH)
 
+
 def create_mock_excel(data, path=TEST_XLSX_PATH):
     df = pd.DataFrame(data)
     with pd.ExcelWriter(path) as writer:
-        df.to_excel(writer, sheet_name='By-HS6Product', index=False)
-        pd.DataFrame().to_excel(writer, sheet_name='Sheet1', index=False)
+        df.to_excel(writer, sheet_name="By-HS6Product", index=False)
+        pd.DataFrame().to_excel(writer, sheet_name="Sheet1", index=False)
+
 
 def test_strings_preserve_leading_zero_hs6(clean_env):
     data = {
-        'Reporter': ['Saudi Arabia'],
-        'TradeFlow': ['Export'],
-        'ProductCode': ['070951'],
-        'Product Description': ['Test Product'],
-        'Year': [2024],
-        'Partner': [' World'],
-        'Trade Value 1000USD': [100.0],
-        'Quantity': [1000.0],
-        'Quantity Unit': ['Kg']
+        "Reporter": ["Saudi Arabia"],
+        "TradeFlow": ["Export"],
+        "ProductCode": ["070951"],
+        "Product Description": ["Test Product"],
+        "Year": [2024],
+        "Partner": [" World"],
+        "Trade Value 1000USD": [100.0],
+        "Quantity": [1000.0],
+        "Quantity Unit": ["Kg"],
     }
     create_mock_excel(data)
     results = parse_wits_file(TEST_XLSX_PATH)
-    assert results[0]['hs6_code'] == "070951"
+    assert results[0]["hs6_code"] == "070951"
+
 
 def test_filter_drops_imports_and_bilateral(clean_env):
     data = {
-        'Reporter': ['SA', 'US', 'CN'],
-        'TradeFlow': ['Export', 'Import', 'Export'],
-        'ProductCode': ['291611', '291611', '291611'],
-        'Product Description': ['P', 'P', 'P'],
-        'Year': [2024, 2024, 2024],
-        'Partner': [' World', ' World', 'US'],
-        'Trade Value 1000USD': [100, 200, 300],
-        'Quantity': [1000, 2000, 3000],
-        'Quantity Unit': ['Kg', 'Kg', 'Kg']
+        "Reporter": ["SA", "US", "CN"],
+        "TradeFlow": ["Export", "Import", "Export"],
+        "ProductCode": ["291611", "291611", "291611"],
+        "Product Description": ["P", "P", "P"],
+        "Year": [2024, 2024, 2024],
+        "Partner": [" World", " World", "US"],
+        "Trade Value 1000USD": [100, 200, 300],
+        "Quantity": [1000, 2000, 3000],
+        "Quantity Unit": ["Kg", "Kg", "Kg"],
     }
     create_mock_excel(data)
     results = parse_wits_file(TEST_XLSX_PATH)
     assert len(results) == 1
-    assert results[0]['top_exporters'][0]['reporter'] == 'SA'
+    assert results[0]["top_exporters"][0]["reporter"] == "SA"
+
 
 def test_missing_quantity_goes_to_excluded(clean_env):
     data = {
-        'Reporter': ['SA', 'CN'],
-        'TradeFlow': ['Export', 'Export'],
-        'ProductCode': ['291611', '291611'],
-        'Product Description': ['P', 'P'],
-        'Year': [2024, 2024],
-        'Partner': [' World', ' World'],
-        'Trade Value 1000USD': [100, 500],
-        'Quantity': [1000, None],
-        'Quantity Unit': ['Kg', 'Kg']
+        "Reporter": ["SA", "CN"],
+        "TradeFlow": ["Export", "Export"],
+        "ProductCode": ["291611", "291611"],
+        "Product Description": ["P", "P"],
+        "Year": [2024, 2024],
+        "Partner": [" World", " World"],
+        "Trade Value 1000USD": [100, 500],
+        "Quantity": [1000, None],
+        "Quantity Unit": ["Kg", "Kg"],
     }
     create_mock_excel(data)
     results = parse_wits_file(TEST_XLSX_PATH)
-    assert len(results[0]['top_exporters']) == 1
-    assert results[0]['top_exporters'][0]['reporter'] == 'SA'
-    excluded = results[0]['excluded_rows']['missing_quantity']
+    assert len(results[0]["top_exporters"]) == 1
+    assert results[0]["top_exporters"][0]["reporter"] == "SA"
+    excluded = results[0]["excluded_rows"]["missing_quantity"]
     assert len(excluded) == 1
-    assert excluded[0]['reporter'] == 'CN'
+    assert excluded[0]["reporter"] == "CN"
+
 
 def test_top5_by_quantity_not_value(clean_env):
     # Saudi has lower value but higher quantity
     data = {
-        'Reporter': ['SA', 'CN', 'US', 'DE', 'JP', 'UK'],
-        'TradeFlow': ['Export'] * 6,
-        'ProductCode': ['291611'] * 6,
-        'Product Description': ['P'] * 6,
-        'Year': [2024] * 6,
-        'Partner': [' World'] * 6,
-        'Trade Value 1000USD': [100, 1000, 800, 700, 600, 500],
-        'Quantity': [10000, 5000, 4000, 3000, 2000, 1000],
-        'Quantity Unit': ['Kg'] * 6
+        "Reporter": ["SA", "CN", "US", "DE", "JP", "UK"],
+        "TradeFlow": ["Export"] * 6,
+        "ProductCode": ["291611"] * 6,
+        "Product Description": ["P"] * 6,
+        "Year": [2024] * 6,
+        "Partner": [" World"] * 6,
+        "Trade Value 1000USD": [100, 1000, 800, 700, 600, 500],
+        "Quantity": [10000, 5000, 4000, 3000, 2000, 1000],
+        "Quantity Unit": ["Kg"] * 6,
     }
     create_mock_excel(data)
     results = parse_wits_file(TEST_XLSX_PATH)
-    top_reporters = [e['reporter'] for e in results[0]['top_exporters']]
-    assert top_reporters == ['SA', 'CN', 'US', 'DE', 'JP']
+    top_reporters = [e["reporter"] for e in results[0]["top_exporters"]]
+    assert top_reporters == ["SA", "CN", "US", "DE", "JP"]
+
 
 def test_idempotent_reingest(clean_env):
     data = {
-        'Reporter': ['SA'], 'TradeFlow': ['Export'], 'ProductCode': ['291611'],
-        'Product Description': ['P'], 'Year': [2024], 'Partner': [' World'],
-        'Trade Value 1000USD': [100], 'Quantity': [1000], 'Quantity Unit': ['Kg']
+        "Reporter": ["SA"],
+        "TradeFlow": ["Export"],
+        "ProductCode": ["291611"],
+        "Product Description": ["P"],
+        "Year": [2024],
+        "Partner": [" World"],
+        "Trade Value 1000USD": [100],
+        "Quantity": [1000],
+        "Quantity Unit": ["Kg"],
     }
     create_mock_excel(data)
     ingest(TEST_XLSX_PATH, TEST_DB_PATH)
-    with open(TEST_DB_PATH, 'r', encoding='utf-8') as f:
+    with open(TEST_DB_PATH, "r", encoding="utf-8") as f:
         db1 = json.load(f)
 
     ingest(TEST_XLSX_PATH, TEST_DB_PATH)
-    with open(TEST_DB_PATH, 'r', encoding='utf-8') as f:
+    with open(TEST_DB_PATH, "r", encoding="utf-8") as f:
         db2 = json.load(f)
-    
+
     # Ignore timestamps that intentionally change on each ingest. Record UUIDs
     # must remain stable for an update to the same HS6/year/flow/partner key.
-    db1['metadata'].pop('last_updated')
-    db2['metadata'].pop('last_updated')
-    for hs6 in db1['products']:
-        for record_key in db1['products'][hs6]['records']:
-            db1['products'][hs6]['records'][record_key]['source'].pop('ingested_at')
-            db2['products'][hs6]['records'][record_key]['source'].pop('ingested_at')
+    db1["metadata"].pop("last_updated")
+    db2["metadata"].pop("last_updated")
+    for hs6 in db1["products"]:
+        for record_key in db1["products"][hs6]["records"]:
+            db1["products"][hs6]["records"][record_key]["source"].pop("ingested_at")
+            db2["products"][hs6]["records"][record_key]["source"].pop("ingested_at")
     assert db1 == db2
+
 
 def test_two_years_coexist(clean_env):
     data24 = {
-        'Reporter': ['SA'], 'TradeFlow': ['Export'], 'ProductCode': ['291611'],
-        'Product Description': ['P'], 'Year': [2024], 'Partner': [' World'],
-        'Trade Value 1000USD': [100], 'Quantity': [1000], 'Quantity Unit': ['Kg']
+        "Reporter": ["SA"],
+        "TradeFlow": ["Export"],
+        "ProductCode": ["291611"],
+        "Product Description": ["P"],
+        "Year": [2024],
+        "Partner": [" World"],
+        "Trade Value 1000USD": [100],
+        "Quantity": [1000],
+        "Quantity Unit": ["Kg"],
     }
     create_mock_excel(data24)
     ingest(TEST_XLSX_PATH, TEST_DB_PATH)
-    
+
     data25 = {
-        'Reporter': ['SA'], 'TradeFlow': ['Export'], 'ProductCode': ['291611'],
-        'Product Description': ['P'], 'Year': [2025], 'Partner': [' World'],
-        'Trade Value 1000USD': [110], 'Quantity': [1100], 'Quantity Unit': ['Kg']
+        "Reporter": ["SA"],
+        "TradeFlow": ["Export"],
+        "ProductCode": ["291611"],
+        "Product Description": ["P"],
+        "Year": [2025],
+        "Partner": [" World"],
+        "Trade Value 1000USD": [110],
+        "Quantity": [1100],
+        "Quantity Unit": ["Kg"],
     }
     create_mock_excel(data25)
     ingest(TEST_XLSX_PATH, TEST_DB_PATH)
-    
+
     final_db = db.load(TEST_DB_PATH)
-    records = final_db['products']['291611']['records']
-    assert '2024_export_world' in records
-    assert '2025_export_world' in records
+    records = final_db["products"]["291611"]["records"]
+    assert "2024_export_world" in records
+    assert "2025_export_world" in records
+
 
 def test_unknown_quantity_unit_preserved(clean_env):
     data = {
-        'Reporter': ['SA'], 'TradeFlow': ['Export'], 'ProductCode': ['291611'],
-        'Product Description': ['P'], 'Year': [2024], 'Partner': [' World'],
-        'Trade Value 1000USD': [100], 'Quantity': [1000], 'Quantity Unit': ['m3']
+        "Reporter": ["SA"],
+        "TradeFlow": ["Export"],
+        "ProductCode": ["291611"],
+        "Product Description": ["P"],
+        "Year": [2024],
+        "Partner": [" World"],
+        "Trade Value 1000USD": [100],
+        "Quantity": [1000],
+        "Quantity Unit": ["m3"],
     }
     create_mock_excel(data)
     results = parse_wits_file(TEST_XLSX_PATH)
-    assert results[0]['quantity_unit'] == 'm3'
+    assert results[0]["quantity_unit"] == "m3"
+
 
 def test_warning_when_excluded_outranks_top5_smallest(clean_env):
     # CN has 500 value but no qty. UK has 100 value and 1000 qty.
     # CN (excluded) outranks UK (top-5) by value.
     data = {
-        'Reporter': ['UK', 'CN'],
-        'TradeFlow': ['Export', 'Export'],
-        'ProductCode': ['291611', '291611'],
-        'Product Description': ['P', 'P'],
-        'Year': [2024, 2024],
-        'Partner': [' World', ' World'],
-        'Trade Value 1000USD': [100, 500],
-        'Quantity': [1000, None],
-        'Quantity Unit': ['Kg', 'Kg']
+        "Reporter": ["UK", "CN"],
+        "TradeFlow": ["Export", "Export"],
+        "ProductCode": ["291611", "291611"],
+        "Product Description": ["P", "P"],
+        "Year": [2024, 2024],
+        "Partner": [" World", " World"],
+        "Trade Value 1000USD": [100, 500],
+        "Quantity": [1000, None],
+        "Quantity Unit": ["Kg", "Kg"],
     }
     create_mock_excel(data)
     ingest(TEST_XLSX_PATH, TEST_DB_PATH)
-    record = db.load(TEST_DB_PATH)['products']['291611']['records']['2024_export_world']
-    assert record['excluded_rows']['missing_quantity'][0]['reporter'] == 'CN'
-    assert record['warnings'][0]['code'] == 'excluded_rows_missing_quantity'
+    record = db.load(TEST_DB_PATH)["products"]["291611"]["records"]["2024_export_world"]
+    assert record["excluded_rows"]["missing_quantity"][0]["reporter"] == "CN"
+    assert record["warnings"][0]["code"] == "excluded_rows_missing_quantity"

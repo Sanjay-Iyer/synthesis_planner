@@ -2,6 +2,7 @@
 Supply-chain data router — exposes what trade data is indexed in the
 supply-chain drop folder and lets the Risk Audit page look up an HS6.
 """
+
 from fastapi import APIRouter
 
 from . import provider

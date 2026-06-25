@@ -1,6 +1,7 @@
 """
 Risk Router — API endpoint for supply chain risk assessment.
 """
+
 from fastapi import APIRouter
 from pydantic import BaseModel
 from .engine import RiskRequest, run_risk_assessment, update_reagent_mapping
@@ -32,6 +33,7 @@ def update_mapping(data: MappingUpdate):
 def lookup_origins(request: RiskRequest):
     """Auto-fill suggested origins based on trade data and name matching."""
     from .engine import lookup_suggested_origins
+
     reagent_dicts = [r.dict() for r in request.reagents]
     return lookup_suggested_origins(reagent_dicts)
 
@@ -40,5 +42,6 @@ def lookup_origins(request: RiskRequest):
 def get_mappings():
     """Fetch the current CAS-to-Origin mapping database."""
     from .engine import load_reagent_mapping
+
     df = load_reagent_mapping()
-    return df.to_dict(orient='records')
+    return df.to_dict(orient="records")

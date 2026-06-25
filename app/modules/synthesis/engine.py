@@ -2,13 +2,14 @@
 Synthesis Engine — Stoichiometry, Cost, and Scale-up Calculations.
 Migrated from python-polymer/backend/main.py
 """
+
 from pydantic import BaseModel
 from typing import List, Optional
-
 
 # =================================================================
 # DATA MODELS
 # =================================================================
+
 
 class ReagentInput(BaseModel):
     name: str
@@ -46,6 +47,7 @@ class SynthesisProject(BaseModel):
 # =================================================================
 # CALCULATION ENGINE
 # =================================================================
+
 
 def calculate_engine(project: SynthesisProject):
     """
@@ -86,8 +88,10 @@ def calculate_engine(project: SynthesisProject):
     # Pass 1: Determine mole flow through each step
     for step in sorted_steps:
         in_mols = sum(prod_unit.get(sid, 0) for sid in step.depends_on)
-        anchor = in_mols if in_mols > 0 else next(
-            (r.equivalents for r in step.reagents if r.is_limiting), 1.0
+        anchor = (
+            in_mols
+            if in_mols > 0
+            else next((r.equivalents for r in step.reagents if r.is_limiting), 1.0)
         )
         start_unit[step.step_id] = anchor
         prod_unit[step.step_id] = anchor * (step.yield_percent / 100)
@@ -114,38 +118,42 @@ def calculate_engine(project: SynthesisProject):
             cost = mass * r.cost_per_g
             mat_cost += cost
             total_input_mass_g += mass
-            reagents_to_buy.append({
-                "name": r.name,
-                "mass_g": round(mass, 2),
-                "item_cost": round(cost, 2)
-            })
+            reagents_to_buy.append(
+                {"name": r.name, "mass_g": round(mass, 2), "item_cost": round(cost, 2)}
+            )
 
         vol = (scaled_anchor / step.molarity) if step.molarity > 0 else 0
-        total_input_mass_g += (vol * (step.solvent_density * 1000))
+        total_input_mass_g += vol * (step.solvent_density * 1000)
         solv_cost = vol * step.solvent_price_per_l
         total_cost += mat_cost + solv_cost + (step.purification_cost * scale)
 
-        results.append({
-            "step_id": step.step_id,
-            "name": step.name,
-            "reagents": reagents_to_buy,
-            "solvent_name": step.solvent_name,
-            "solvent_l": round(vol, 3),
-            "molarity": step.molarity,
-            "solvent_cost": round(solv_cost, 2),
-            "step_total": round(mat_cost + solv_cost, 2),
-            "temperature": step.temperature,
-            "time": step.time,
-            "procedure": step.procedure
-        })
+        results.append(
+            {
+                "step_id": step.step_id,
+                "name": step.name,
+                "reagents": reagents_to_buy,
+                "solvent_name": step.solvent_name,
+                "solvent_l": round(vol, 3),
+                "molarity": step.molarity,
+                "solvent_cost": round(solv_cost, 2),
+                "step_total": round(mat_cost + solv_cost, 2),
+                "temperature": step.temperature,
+                "time": step.time,
+                "procedure": step.procedure,
+            }
+        )
 
-    e_factor = (total_input_mass_g - (target_kg * 1000)) / (target_kg * 1000) if target_kg > 0 else 0
+    e_factor = (
+        (total_input_mass_g - (target_kg * 1000)) / (target_kg * 1000)
+        if target_kg > 0
+        else 0
+    )
 
     return {
         "steps": results,
         "total_cost": round(total_cost, 2),
         "cost_per_kg": round(total_cost / target_kg, 2),
-        "e_factor": round(e_factor, 2)
+        "e_factor": round(e_factor, 2),
     }
 
 
@@ -167,18 +175,16 @@ def audit_optimization(project: SynthesisProject):
         sim.steps[i].yield_percent = 100.0
         res = calculate_engine(sim)
         sens = (
-            (baseline["cost_per_kg"] - res["cost_per_kg"]) /
-            (100 - step.yield_percent)
-            if step.yield_percent < 100 else 0
+            (baseline["cost_per_kg"] - res["cost_per_kg"]) / (100 - step.yield_percent)
+            if step.yield_percent < 100
+            else 0
         )
         total_sens += sens
-        audit_results.append({
-            "step_id": step.step_id,
-            "name": step.name,
-            "sensitivity": round(sens, 2)
-        })
+        audit_results.append(
+            {"step_id": step.step_id, "name": step.name, "sensitivity": round(sens, 2)}
+        )
 
     return {
         "audit": audit_results,
-        "risk_score": round(total_sens / len(project.steps), 2)
+        "risk_score": round(total_sens / len(project.steps), 2),
     }

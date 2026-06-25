@@ -1,6 +1,7 @@
 """
 Experiment Setup router — parse free-text procedures into a partial route draft.
 """
+
 from fastapi import APIRouter, File, HTTPException, UploadFile
 
 from .schemas import ParseRequest, ParseResponse, ModelsResponse
@@ -54,5 +55,7 @@ async def extract_file(file: UploadFile = File(...)):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     if not text:
-        raise HTTPException(status_code=422, detail="No readable text found in the file.")
+        raise HTTPException(
+            status_code=422, detail="No readable text found in the file."
+        )
     return {"text": text, "filename": file.filename}

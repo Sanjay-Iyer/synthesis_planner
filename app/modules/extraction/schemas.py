@@ -6,6 +6,7 @@ field is optional, plus per-item `needs_review` lists. This is deliberately
 separate from the strict analysis schema (synthesis.engine / database.models),
 which requires mw/equivalents/mass — a draft is allowed to be incomplete.
 """
+
 from pydantic import BaseModel
 from typing import List, Optional
 

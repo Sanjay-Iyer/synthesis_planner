@@ -12,6 +12,7 @@ countries by U.S. import value and the top-source share of total imports are
 the headline "where does this come from / how concentrated is it" signal.
 Exports are indexed too and surfaced as destination context.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -52,8 +53,8 @@ def _folder_signature() -> tuple:
 
 def _new_node() -> dict:
     return {
-        "import": {},   # year(int) -> {country: value}
-        "export": {},   # year(int) -> {country: value}
+        "import": {},  # year(int) -> {country: value}
+        "export": {},  # year(int) -> {country: value}
         "description": None,
         "full_years": set(),
         "partial_years": set(),
@@ -69,17 +70,21 @@ def _build_index() -> dict:
 
     paths = []
     if folder.exists():
-        paths = [p for p in sorted(folder.glob("*.xlsx")) if not p.name.startswith("~$")]
+        paths = [
+            p for p in sorted(folder.glob("*.xlsx")) if not p.name.startswith("~$")
+        ]
 
     for path in paths:
         try:
             parsed = usitc_ingest.parse_usitc_file(str(path))
         except Exception as e:  # noqa: BLE001 - report, do not crash the page
-            files_meta.append({
-                "filename": path.name,
-                "status": "error",
-                "error": str(e),
-            })
+            files_meta.append(
+                {
+                    "filename": path.name,
+                    "status": "error",
+                    "error": str(e),
+                }
+            )
             continue
 
         flow = parsed["trade_flow"]
@@ -100,16 +105,18 @@ def _build_index() -> dict:
                 year_map = flow_map.setdefault(year, {})
                 year_map[country] = year_map.get(country, 0.0) + val
 
-        files_meta.append({
-            "filename": path.name,
-            "status": "ok",
-            "trade_flow": flow,
-            "value_measure": parsed["value_measure"],
-            "record_count": len(parsed["records"]),
-            "hts6_count": len({r["hts6"] for r in parsed["records"]}),
-            "full_years": parsed["full_years"],
-            "partial_years": parsed["partial_years"],
-        })
+        files_meta.append(
+            {
+                "filename": path.name,
+                "status": "ok",
+                "trade_flow": flow,
+                "value_measure": parsed["value_measure"],
+                "record_count": len(parsed["records"]),
+                "hts6_count": len({r["hts6"] for r in parsed["records"]}),
+                "full_years": parsed["full_years"],
+                "partial_years": parsed["partial_years"],
+            }
+        )
 
     return {
         "index": index,
@@ -190,23 +197,30 @@ def get_origin_concentration(hs6_code: str, year: Optional[int] = None) -> dict:
 
     total = sum(v for _, v in ranked)
     top = ranked[:_TOP_N]
-    top_exporters = [{
-        "rank": i + 1,
-        "reporter": country,
-        "reporter_type": "country",
-        "trade_value_usd": round(value, 2),
-        "trade_value_1000_usd": round(value / 1000.0, 2),
-        "share_of_total_pct": round(value / total * 100, 2) if total else 0,
-    } for i, (country, value) in enumerate(top)]
+    top_exporters = [
+        {
+            "rank": i + 1,
+            "reporter": country,
+            "reporter_type": "country",
+            "trade_value_usd": round(value, 2),
+            "trade_value_1000_usd": round(value / 1000.0, 2),
+            "share_of_total_pct": round(value / total * 100, 2) if total else 0,
+        }
+        for i, (country, value) in enumerate(top)
+    ]
 
     top1_share = top_exporters[0]["share_of_total_pct"]
     is_partial = chosen in node["partial_years"]
 
     notes = []
     if is_partial:
-        notes.append(f"{chosen} is partial-year data (single month); use shares, not totals.")
+        notes.append(
+            f"{chosen} is partial-year data (single month); use shares, not totals."
+        )
     elif chosen == 2025:
-        notes.append("2025 import totals run well above prior years; verify magnitudes before relying on them.")
+        notes.append(
+            "2025 import totals run well above prior years; verify magnitudes before relying on them."
+        )
 
     source = f"USITC Imports {chosen}" + (" (partial)" if is_partial else "")
 
@@ -252,18 +266,24 @@ def get_trade_profile(hs6_code: str) -> dict:
     chosen = _pick_year(export_map, None)
     if chosen is not None:
         dests = export_map[chosen]
-        ranked = sorted(((c, v) for c, v in dests.items() if v > 0),
-                        key=lambda kv: kv[1], reverse=True)[:_TOP_N]
+        ranked = sorted(
+            ((c, v) for c, v in dests.items() if v > 0),
+            key=lambda kv: kv[1],
+            reverse=True,
+        )[:_TOP_N]
         total = sum(v for _, v in ranked)
         profile["exports"] = {
             "year": chosen,
             "value_measure": "FAS Value",
-            "top_destinations": [{
-                "rank": i + 1,
-                "country": c,
-                "trade_value_usd": round(v, 2),
-                "share_of_total_pct": round(v / total * 100, 2) if total else 0,
-            } for i, (c, v) in enumerate(ranked)],
+            "top_destinations": [
+                {
+                    "rank": i + 1,
+                    "country": c,
+                    "trade_value_usd": round(v, 2),
+                    "share_of_total_pct": round(v / total * 100, 2) if total else 0,
+                }
+                for i, (c, v) in enumerate(ranked)
+            ],
             "is_partial_year": chosen in node["partial_years"],
         }
 

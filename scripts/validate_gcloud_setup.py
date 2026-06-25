@@ -1,4 +1,5 @@
 """Validate the repo's gcloud/Vertex AI setup without exposing credentials."""
+
 from __future__ import annotations
 
 import argparse

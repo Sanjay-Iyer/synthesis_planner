@@ -9,6 +9,7 @@ The database directory can be overridden per-machine with the
 ``SYNTHESIS_DB_DIR`` environment variable (useful when the data lives outside
 the repo, e.g. on a shared drive).
 """
+
 import os
 from pathlib import Path
 

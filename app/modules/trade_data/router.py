@@ -6,12 +6,15 @@ from . import wits_ingest
 
 router = APIRouter(prefix="/api/trade", tags=["trade"])
 
+
 @router.post("/import")
 async def import_wits_data(file: UploadFile = File(...)):
     """Upload one Excel file, parse it, and save to the trade database."""
-    if not file.filename.endswith(('.xlsx', '.xls')):
-        raise HTTPException(status_code=400, detail="Only Excel files (.xlsx, .xls) are supported.")
-    
+    if not file.filename.endswith((".xlsx", ".xls")):
+        raise HTTPException(
+            status_code=400, detail="Only Excel files (.xlsx, .xls) are supported."
+        )
+
     # Save to a temp file in the OS-appropriate temp directory.
     suffix = Path(file.filename).suffix or ".xlsx"
     fd, temp_name = tempfile.mkstemp(suffix=suffix)
@@ -21,23 +24,21 @@ async def import_wits_data(file: UploadFile = File(...)):
             shutil.copyfileobj(file.file, buffer)
 
         summary = wits_ingest.ingest(str(temp_path))
-        return {
-            "success": True,
-            "filename": file.filename,
-            "summary": summary
-        }
+        return {"success": True, "filename": file.filename, "summary": summary}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         temp_path.unlink(missing_ok=True)
 
+
 @router.get("/summary")
 async def get_trade_summary():
     """Return high-level trade database metrics (v1.1.0)."""
     from . import db
+
     database = db.load()
     products = database.get("products", {})
-    
+
     product_count = len(products)
     record_count = 0
     all_years = set()
@@ -52,15 +53,18 @@ async def get_trade_summary():
         for r_key, r_data in records.items():
             all_years.add(r_data.get("year"))
             score = r_data.get("risk_summary", {}).get("concentration_score")
-            if score == "High": high_risk += 1
-            elif score == "Medium": med_risk += 1
-            elif score == "Low": low_risk += 1
-            
+            if score == "High":
+                high_risk += 1
+            elif score == "Medium":
+                med_risk += 1
+            elif score == "Low":
+                low_risk += 1
+
             ingest_at = r_data.get("source", {}).get("ingested_at")
             if ingest_at:
                 if not latest_ingest or ingest_at > latest_ingest:
                     latest_ingest = ingest_at
-                    
+
     return {
         "product_count": product_count,
         "record_count": record_count,
@@ -69,41 +73,49 @@ async def get_trade_summary():
         "high_concentration_count": high_risk,
         "medium_concentration_count": med_risk,
         "low_concentration_count": low_risk,
-        "schema_version": database.get("metadata", {}).get("schema_version")
+        "schema_version": database.get("metadata", {}).get("schema_version"),
     }
+
 
 @router.get("/exports")
 async def list_trade_exports():
     """Return a flattened list of all trade export record summaries."""
     from . import db
+
     database = db.load()
     products = database.get("products", {})
-    
+
     summaries = []
     for hs6, p_data in products.items():
         desc = p_data.get("product_description")
         for r_key, r_data in p_data.get("records", {}).items():
             risk = r_data.get("risk_summary", {})
-            summaries.append({
-                "hs6_code": hs6,
-                "product_description": desc,
-                "record_key": r_key,
-                "record_uuid": r_data.get("record_uuid"),
-                "year": r_data.get("year"),
-                "trade_flow": r_data.get("trade_flow"),
-                "partner": r_data.get("partner"),
-                "top_country": risk.get("top_country"),
-                "concentration_score": risk.get("concentration_score"),
-                "concentration_top1_pct": risk.get("concentration_top1_pct"),
-                "total_top5_quantity": r_data.get("totals", {}).get("total_top5_quantity"),
-                "quantity_unit": r_data.get("quantity_unit")
-            })
+            summaries.append(
+                {
+                    "hs6_code": hs6,
+                    "product_description": desc,
+                    "record_key": r_key,
+                    "record_uuid": r_data.get("record_uuid"),
+                    "year": r_data.get("year"),
+                    "trade_flow": r_data.get("trade_flow"),
+                    "partner": r_data.get("partner"),
+                    "top_country": risk.get("top_country"),
+                    "concentration_score": risk.get("concentration_score"),
+                    "concentration_top1_pct": risk.get("concentration_top1_pct"),
+                    "total_top5_quantity": r_data.get("totals", {}).get(
+                        "total_top5_quantity"
+                    ),
+                    "quantity_unit": r_data.get("quantity_unit"),
+                }
+            )
     return summaries
+
 
 @router.get("/exports/{record_uuid}")
 async def get_trade_export_by_uuid(record_uuid: str):
     """Fetch a full trade record by its unique UUID."""
     from . import db
+
     database = db.load()
     for hs6, p_data in database.get("products", {}).items():
         for r_key, r_data in p_data.get("records", {}).items():
@@ -112,6 +124,8 @@ async def get_trade_export_by_uuid(record_uuid: str):
                 return {
                     "hs6_code": hs6,
                     "product_description": p_data.get("product_description"),
-                    "record": r_data
+                    "record": r_data,
                 }
-    raise HTTPException(status_code=404, detail=f"Record with UUID {record_uuid} not found")
+    raise HTTPException(
+        status_code=404, detail=f"Record with UUID {record_uuid} not found"
+    )

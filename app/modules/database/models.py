@@ -2,12 +2,14 @@ from pydantic import BaseModel, Field
 from typing import List, Optional, Any
 from datetime import datetime
 
+
 class CompoundInput(BaseModel):
     name: str
     smiles: Optional[str] = None
     selfies: Optional[str] = None
     mw: Optional[float] = None
     notes: Optional[str] = None
+
 
 class CompoundRecord(BaseModel):
     uuid: str
@@ -30,6 +32,7 @@ class CompoundRecord(BaseModel):
     notes: Optional[str] = None
     seen_in_routes: Optional[List[str]] = []
 
+
 class RouteReagentInput(BaseModel):
     name: str
     mw: float
@@ -45,6 +48,7 @@ class RouteReagentInput(BaseModel):
     smiles: Optional[str] = None
     selfies: Optional[str] = None
     role: Optional[str] = None
+
 
 class RouteStepInput(BaseModel):
     step_id: int
@@ -66,14 +70,17 @@ class RouteStepInput(BaseModel):
     time: Optional[str] = "N/A"
     depends_on: List[int] = []
 
+
 class RouteInput(BaseModel):
     steps: List[RouteStepInput]
+
 
 class AnalysisResultsInput(BaseModel):
     total_cost: float
     cost_per_kg: float
     e_factor: float
     overall_yield_percent: Optional[float] = None
+
 
 class SaveRouteRequest(BaseModel):
     route_label: str
@@ -83,12 +90,16 @@ class SaveRouteRequest(BaseModel):
     route: RouteInput
     analysis_results: AnalysisResultsInput
 
+
 class CompoundAssignment(BaseModel):
     name: str
     compound_uuid: str
     status: str  # "new", "updated", "ambiguous"
-    dedupe_basis: str # "canonical_smiles", "inchikey", "selfies", "normalized_name", "none"
-    dedupe_confidence: str # "high", "medium", "low"
+    dedupe_basis: (
+        str  # "canonical_smiles", "inchikey", "selfies", "normalized_name", "none"
+    )
+    dedupe_confidence: str  # "high", "medium", "low"
+
 
 class SaveRouteResponse(BaseModel):
     success: bool
@@ -100,11 +111,13 @@ class SaveRouteResponse(BaseModel):
     ambiguous_compounds: List[str]
     compound_assignments: List[CompoundAssignment]
 
+
 class ValidateRouteResponse(BaseModel):
     new_compounds: int
     updated_compounds: int
     ambiguous_compounds: List[str]
     compound_assignments: List[CompoundAssignment]
+
 
 class DatabaseSummaryResponse(BaseModel):
     compound_count: int

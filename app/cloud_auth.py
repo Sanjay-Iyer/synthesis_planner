@@ -9,6 +9,7 @@ Provider selection is deliberately explicit:
 The Vertex branch never reads an API-key variable. This is intentional: a
 copied personal ``.env`` cannot influence work-laptop authentication.
 """
+
 from __future__ import annotations
 
 import os
@@ -16,7 +17,6 @@ from dataclasses import dataclass
 from typing import Any, Callable, Mapping
 
 from app.config import load_project_env
-
 
 _API_KEY_PLACEHOLDERS = {"", "your-api-key-here"}
 _VERTEX_ALIASES = {"vertexai", "vertex", "gcloud"}

@@ -1,4 +1,5 @@
 """Secret-free doctor and opt-in Vertex AI readiness checks."""
+
 from __future__ import annotations
 
 import os
@@ -99,7 +100,9 @@ def _next_command(
     if settings.provider == "api-key":
         return "python scripts\\run_agent_smoke.py --smoke-test"
     if not gcloud_installed:
-        return "Install Google Cloud CLI, then run: gcloud auth application-default login"
+        return (
+            "Install Google Cloud CLI, then run: gcloud auth application-default login"
+        )
     if adc_status != "available":
         return "gcloud auth application-default login"
     if not smoke_test:
@@ -163,7 +166,13 @@ def validate_vertexai_setup(
     gcloud_account: str | None = None
     if gcloud_installed:
         account_ok, account_text = _run_text_command(
-            [gcloud_path, "auth", "list", "--filter=status:ACTIVE", "--format=value(account)"],
+            [
+                gcloud_path,
+                "auth",
+                "list",
+                "--filter=status:ACTIVE",
+                "--format=value(account)",
+            ],
             command_runner,
         )
         gcloud_account = (account_text or None) if account_ok else None
@@ -250,10 +259,16 @@ def validate_vertexai_setup(
 
     vertex_api_access = "not-applicable"
     if settings.provider == "vertexai":
-        vertex_api_access = "appears-configured" if client and adc_status == "available" else "not-verified"
+        vertex_api_access = (
+            "appears-configured"
+            if client and adc_status == "available"
+            else "not-verified"
+        )
 
     if smoke_test:
-        if not (settings.provider == "vertexai" and client and adc_status == "available"):
+        if not (
+            settings.provider == "vertexai" and client and adc_status == "available"
+        ):
             checks.append(
                 PreflightCheck(
                     name="vertex-api-smoke-test",

@@ -14,6 +14,7 @@ without the model. Swap implementations in `get_extractor()`.
 `extract_route_draft()` is a pure function returning plain dicts, so it can be
 unit-tested without FastAPI/pydantic.
 """
+
 import json
 import logging
 import re
@@ -41,10 +42,31 @@ REQUIRED_REAGENT_FIELDS = ["name", "mw", "equivalents", "mass"]
 # Crude solvent lexicon — detected solvents go to the step's solvent fields
 # rather than the reagent list.
 COMMON_SOLVENTS = {
-    "water", "thf", "dcm", "dichloromethane", "methanol", "meoh", "ethanol",
-    "etoh", "acetone", "dmf", "dmso", "toluene", "hexane", "hexanes",
-    "ethyl acetate", "etoac", "acetonitrile", "mecn", "chloroform",
-    "diethyl ether", "ether", "dioxane", "acetic acid", "pyridine", "nmp",
+    "water",
+    "thf",
+    "dcm",
+    "dichloromethane",
+    "methanol",
+    "meoh",
+    "ethanol",
+    "etoh",
+    "acetone",
+    "dmf",
+    "dmso",
+    "toluene",
+    "hexane",
+    "hexanes",
+    "ethyl acetate",
+    "etoac",
+    "acetonitrile",
+    "mecn",
+    "chloroform",
+    "diethyl ether",
+    "ether",
+    "dioxane",
+    "acetic acid",
+    "pyridine",
+    "nmp",
 }
 
 _MASS_UNITS = {"mg", "g", "kg"}
@@ -54,13 +76,62 @@ _AMOUNT_RE = r"(\d+(?:\.\d+)?)\s*(mg|g|kg|mmol|mol|mL|L|µL|uL)\b"
 # prose wraps chemical names in lead-ins ("to a stirred solution of X") and
 # trailing verbs ("X was added"); we trim those to recover the bare name.
 _NAME_STOPWORDS = {
-    "to", "a", "an", "the", "of", "was", "were", "is", "are", "be", "been",
-    "added", "add", "adding", "stirred", "stirring", "solution", "suspension",
-    "mixture", "with", "in", "into", "and", "then", "by", "dropwise", "slowly",
-    "at", "from", "after", "this", "it", "which", "gave", "give", "obtained",
-    "treated", "treatment", "dissolved", "charged", "placed", "under", "over",
-    "using", "use", "via", "portionwise", "resulting", "reaction", "cooled",
-    "heated", "warmed", "subsequently", "sequentially", "containing", "for",
+    "to",
+    "a",
+    "an",
+    "the",
+    "of",
+    "was",
+    "were",
+    "is",
+    "are",
+    "be",
+    "been",
+    "added",
+    "add",
+    "adding",
+    "stirred",
+    "stirring",
+    "solution",
+    "suspension",
+    "mixture",
+    "with",
+    "in",
+    "into",
+    "and",
+    "then",
+    "by",
+    "dropwise",
+    "slowly",
+    "at",
+    "from",
+    "after",
+    "this",
+    "it",
+    "which",
+    "gave",
+    "give",
+    "obtained",
+    "treated",
+    "treatment",
+    "dissolved",
+    "charged",
+    "placed",
+    "under",
+    "over",
+    "using",
+    "use",
+    "via",
+    "portionwise",
+    "resulting",
+    "reaction",
+    "cooled",
+    "heated",
+    "warmed",
+    "subsequently",
+    "sequentially",
+    "containing",
+    "for",
 }
 
 
@@ -161,6 +232,7 @@ def _clean_name(raw: str, anchor: str = "end") -> str:
 # Field-level heuristics
 # ----------------------------------------------------------------------------
 
+
 def _find_temperature(text: str) -> Optional[str]:
     m = re.search(r"(-?\d+(?:\.\d+)?)\s*°?\s*C\b", text)
     if m:
@@ -173,11 +245,19 @@ def _find_temperature(text: str) -> Optional[str]:
 
 
 def _find_time(text: str) -> Optional[str]:
-    m = re.search(r"\bfor\s+(\d+(?:\.\d+)?)\s*(hours?|h|minutes?|min|days?|d)\b", text, re.I)
+    m = re.search(
+        r"\bfor\s+(\d+(?:\.\d+)?)\s*(hours?|h|minutes?|min|days?|d)\b", text, re.I
+    )
     if m:
         unit = m.group(2).lower()
-        unit = {"hour": "h", "hours": "h", "minute": "min", "minutes": "min",
-                "day": "d", "days": "d"}.get(unit, unit)
+        unit = {
+            "hour": "h",
+            "hours": "h",
+            "minute": "min",
+            "minutes": "min",
+            "day": "d",
+            "days": "d",
+        }.get(unit, unit)
         return f"{m.group(1)} {unit}"
     if re.search(r"\bovernight\b", text, re.I):
         return "overnight"
@@ -222,9 +302,7 @@ def _build_reagent(name: str, mass, mass_unit, equivalents, is_limiting=False) -
         "pkg_size": None,
         "pkg_price": None,
     }
-    reagent["needs_review"] = [
-        f for f in REQUIRED_REAGENT_FIELDS if not reagent.get(f)
-    ]
+    reagent["needs_review"] = [f for f in REQUIRED_REAGENT_FIELDS if not reagent.get(f)]
     return reagent
 
 
@@ -232,10 +310,15 @@ def _build_reagent(name: str, mass, mass_unit, equivalents, is_limiting=False) -
 # Reagent / solvent extraction
 # ----------------------------------------------------------------------------
 
+
 def _extract_reagents_and_solvent(chunk: str):
     """Pull reagents (with masses where stated) and a single solvent from a chunk."""
     reagents = []
-    solvent = {"solvent_name": None, "solvent_volume": None, "solvent_volume_unit": None}
+    solvent = {
+        "solvent_name": None,
+        "solvent_volume": None,
+        "solvent_volume_unit": None,
+    }
     seen = set()
 
     def consider(name: str, content: str, anchor: str = "end"):
@@ -267,7 +350,8 @@ def _extract_reagents_and_solvent(chunk: str):
     # Pattern B:  amount unit of NAME        e.g. "10 mL of THF", "2.0 g of NaH"
     for m in re.finditer(
         rf"(\d+(?:\.\d+)?\s*(?:mg|g|kg|mmol|mol|mL|L|µL|uL))\s+of\s+({name_frag})",
-        chunk, re.I,
+        chunk,
+        re.I,
     ):
         consider(m.group(2), m.group(1), anchor="start")
 
@@ -284,6 +368,7 @@ def _split_steps(text: str):
 # ----------------------------------------------------------------------------
 # Public extraction (pure)
 # ----------------------------------------------------------------------------
+
 
 def extract_route_draft(text: str, target_molecule: Optional[str] = None) -> dict:
     """
@@ -305,7 +390,9 @@ def extract_route_draft(text: str, target_molecule: Optional[str] = None) -> dic
         return {
             "steps": [_empty_step(1)],
             "target_molecule": target_molecule,
-            "warnings": ["No text provided — created one empty step to fill in manually."],
+            "warnings": [
+                "No text provided — created one empty step to fill in manually."
+            ],
             "extractor": EXTRACTOR_VERSION,
             "missing_required_count": len(REQUIRED_REAGENT_FIELDS),
         }
@@ -323,10 +410,14 @@ def extract_route_draft(text: str, target_molecule: Optional[str] = None) -> dic
             lim["is_limiting"] = True
             if lim["equivalents"] is None:
                 lim["equivalents"] = 1.0
-                lim["needs_review"] = [f for f in lim["needs_review"] if f != "equivalents"]
+                lim["needs_review"] = [
+                    f for f in lim["needs_review"] if f != "equivalents"
+                ]
             step_review.append("is_limiting")
         if not reagents:
-            warnings.append(f"Step {i}: no reagents detected — add them in the Planner.")
+            warnings.append(
+                f"Step {i}: no reagents detected — add them in the Planner."
+            )
             reagents = [_build_reagent("", None, None, None)]
 
         step = {
@@ -342,7 +433,8 @@ def extract_route_draft(text: str, target_molecule: Optional[str] = None) -> dic
             **solvent,
         }
         step["needs_review"] = step_review + [
-            f for f in ("name", "product_mw", "yield_percent")
+            f
+            for f in ("name", "product_mw", "yield_percent")
             if step.get(f) in (None, "")
         ]
         steps.append(step)
@@ -361,11 +453,18 @@ def extract_route_draft(text: str, target_molecule: Optional[str] = None) -> dic
 
 def _empty_step(step_id: int) -> dict:
     return {
-        "step_id": step_id, "name": None, "product_mw": None,
+        "step_id": step_id,
+        "name": None,
+        "product_mw": None,
         "reagents": [_build_reagent("", None, None, None)],
-        "yield_percent": None, "temperature": None, "time": None,
-        "procedure": "", "depends_on": [],
-        "solvent_name": None, "solvent_volume": None, "solvent_volume_unit": None,
+        "yield_percent": None,
+        "temperature": None,
+        "time": None,
+        "procedure": "",
+        "depends_on": [],
+        "solvent_name": None,
+        "solvent_volume": None,
+        "solvent_volume_unit": None,
         "needs_review": ["name", "product_mw", "yield_percent"],
     }
 
@@ -373,6 +472,7 @@ def _empty_step(step_id: int) -> dict:
 # ----------------------------------------------------------------------------
 # Extractor interface (LLM swaps in here later)
 # ----------------------------------------------------------------------------
+
 
 class RouteExtractor(Protocol):
     def parse(self, text: str, target_molecule: Optional[str] = None) -> dict: ...
@@ -388,6 +488,7 @@ class MockRouteExtractor:
 # ----------------------------------------------------------------------------
 # Gemini model catalog
 # ----------------------------------------------------------------------------
+
 
 def load_gemini_models() -> list[dict]:
     """Return the editable list of selectable Gemini models.
@@ -464,6 +565,7 @@ def get_extractor(model_id: Optional[str] = None) -> RouteExtractor:
         raise RuntimeError(settings.error)
     if settings.uses_external_llm and settings.is_ready:
         from .gemini_extractor import GeminiRouteExtractor
+
         return GeminiRouteExtractor(model_name=resolve_model(model_id))
 
     return MockRouteExtractor()
