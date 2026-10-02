@@ -366,7 +366,65 @@ def compute_scenario(items: Iterable[dict], scenario: dict) -> dict:
     route_rows.sort(key=lambda r: r["route"])
     return {
         "scenario": {**s, **_describe(s)},
+        "summary_text": scenario_summary_text(s, route_rows),
+        "limitations": LIMITATIONS_TEXT,
         "routes": route_rows,
         "reagents": reagent_rows,
         "method": "deterministic",
     }
+
+
+LIMITATIONS_TEXT = (
+    "This scenario assumes procurement exposure follows the observed trade mix. It "
+    "does not model domestic production, supplier inventories, qualified vendor "
+    "relationships, or the actual probability of disruption."
+)
+
+
+def _route_name(route: str) -> str:
+    return route if route == ALL_REAGENTS_ROUTE else f"Route {route}"
+
+
+def scenario_summary_text(s: dict, route_rows: List[dict]) -> str:
+    """One deterministic sentence comparing routes, e.g.
+    'Under a hypothetical Mexico supply interruption, approximately 23.2% of the
+    assessed reagent spend for Route A is exposed versus 0.1% for Route B.'"""
+    target = s.get("country")
+    if s["type"] == "country_disruption":
+        lead = f"Under a hypothetical {target} supply interruption"
+    elif s["type"] == "dominant_supplier_loss":
+        lead = "If each reagent hypothetically lost its dominant supplier country"
+    elif s["type"] == "tariff":
+        lead = f"Under a hypothetical +{fmt_pct(s['tariff_pct'])} tariff on supply from {target or 'each reagent’s dominant supplier country'}"
+    else:
+        lead = (
+            f"Under a hypothetical +{s['lead_time_increase_days']:.0f}-day lead-time increase "
+            f"on supply from {target or 'each reagent’s dominant supplier country'}"
+        )
+    parts = []
+    for i, r in enumerate(route_rows):
+        name = _route_name(r["route"])
+        if r["affected_pct"] is None:
+            parts.append(f"exposure for {name} cannot be computed")
+        elif r["exposure_tier"] == "UNKNOWN":
+            parts.append(f"exposure for {name} is unknown (no trade data)")
+        elif i == 0:
+            parts.append(f"{fmt_pct(r['affected_pct'])} of the assessed reagent spend for {name}")
+        else:
+            parts.append(f"{fmt_pct(r['affected_pct'])} for {name}")
+    if not parts:
+        return f"{lead}, no assessed reagents were available."
+    if len(parts) == 1:
+        body = f"approximately {parts[0]} is exposed"
+    else:
+        body = "approximately " + parts[0] + " is exposed versus " + ", ".join(parts[1:])
+    text = f"{lead}, {body}."
+    if s["type"] == "tariff":
+        added = ", ".join(
+            f"{_route_name(r['route'])} +{fmt_pct(r.get('added_cost_pct'))}"
+            for r in route_rows
+            if r.get("added_cost_pct") is not None
+        )
+        if added:
+            text += f" Added cost as a share of assessed reagent spend: {added}."
+    return text

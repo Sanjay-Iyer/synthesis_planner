@@ -12,7 +12,6 @@ import pandas as pd
 from pydantic import BaseModel
 from typing import Dict, List, Optional
 
-from app.config import COMPOUND_HS6_MAP_PATH
 from .concentration import (
     CONCENTRATION_THRESHOLDS,
     SHARE_OF_LISTED,
@@ -20,9 +19,12 @@ from .concentration import (
     suppliers_from_trade_data,
     assess_concentration,
 )
+from .hs6_mapping import resolve_hs6
 from .risk_config import (
+    COMPOSITE_WEIGHTS,
     CONCENTRATION_TIER_RANK,
     LEAD_TIME_FULL_RISK_DAYS,
+    SCENARIO_MINIMAL_EXPOSURE_PCT,
     canonical_country,
 )
 
@@ -61,6 +63,11 @@ class ReagentRiskInput(BaseModel):
     substitutability: Optional[int] = None
     # Route label -> usage, e.g. {"A": {"cost": 120.0, "mass_g": 400.0}}.
     routes: Dict[str, RouteUsage] = {}
+    # Optional explicit HS6 code (user-asserted; highest mapping priority).
+    hs6: Optional[str] = None
+    # Optional structure identifier (SMILES, InChI, InChIKey or SELFIES) used
+    # for an exact InChIKey -> HS6 match.
+    structure: Optional[str] = None
 
 
 class RiskRequest(BaseModel):
@@ -68,25 +75,25 @@ class RiskRequest(BaseModel):
 
 
 class RiskBreakdown(BaseModel):
-    # Country conditions only (100 - stability, x1.5 if origin unknown).
-    geographic: float
+    # Country conditions only: 100 - WGI political-stability score of the
+    # dominant origin. None when the origin or its score is unknown.
+    geographic: Optional[float] = None
     operational: float
     regulatory: float
     economic: float
     # Top supplier share (%) from trade data; None when it cannot be assessed.
+    # Reported separately — not part of the composite risk index.
     concentration: Optional[float] = None
-    # Value used for the 30% geographic weight of the composite index:
-    # max(geographic, concentration) — unchanged from the previous engine.
-    geo_index_input: Optional[float] = None
 
 
 class ReagentRiskResult(BaseModel):
     name: str
     cas: str
     primary_origin: str
-    stability_score: float
+    # None when the origin is unknown or has no WGI score (see geographic_exposure).
+    stability_score: Optional[float] = None
     secondary_origin: str = "Unknown"
-    secondary_stability_score: float = 50.0
+    secondary_stability_score: Optional[float] = None
     mass_g: float
     cost: float
     risk_index: float
@@ -108,6 +115,10 @@ class ReagentRiskResult(BaseModel):
     data_quality: Optional[dict] = None  # qualitative, rule-based
     supplier_shares: List[dict] = []  # countries with shares (for scenarios)
     routes: Dict[str, dict] = {}
+    # How the composite risk index was built: per-component score, weight and
+    # whether it was used; components that could not be assessed are listed.
+    risk_index_components: Optional[dict] = None
+    risk_index_note: Optional[str] = None
 
 
 # =================================================================
@@ -133,77 +144,33 @@ def load_reagent_mapping() -> pd.DataFrame:
     return df
 
 
-def load_country_stability() -> pd.DataFrame:
-    """Load country stability scores (0-100, based on World Bank WGI)."""
-    path = DATA_DIR / "country_stability.csv"
-    if path.exists():
-        return pd.read_csv(path)
+STABILITY_FILE = DATA_DIR / "country_stability.csv"
+STABILITY_META_FILE = DATA_DIR / "country_stability_meta.json"
 
-    # Generate default if missing
-    stability_data = {
-        "Country": [
-            "Germany",
-            "USA",
-            "Japan",
-            "China",
-            "South Africa",
-            "Russia",
-            "Mexico",
-            "India",
-            "Chile",
-        ],
-        "Stability_Score": [92, 85, 88, 48, 35, 15, 42, 52, 75],
-    }
-    df = pd.DataFrame(stability_data)
-    df.to_csv(path, index=False, encoding="utf-8-sig")
-    return df
+
+def load_country_stability() -> pd.DataFrame:
+    """Load WGI political-stability scores (0-100) produced by scripts/import_wgi.py.
+
+    A missing file yields an empty table — every country is then reported as
+    "no stability data" — rather than writing made-up defaults.
+    """
+    if STABILITY_FILE.exists():
+        return pd.read_csv(STABILITY_FILE, encoding="utf-8")
+    return pd.DataFrame(columns=["Country", "Stability_Score"])
+
+
+def load_stability_meta() -> dict:
+    """Provenance of country_stability.csv (source, indicator, years, retrieval)."""
+    try:
+        with open(STABILITY_META_FILE, encoding="utf-8") as fh:
+            return json.load(fh)
+    except (OSError, json.JSONDecodeError):
+        return {}
 
 
 # =================================================================
 # TRADE DATA & HS6 MAPPING
 # =================================================================
-
-
-def get_hs6_for_inchikey(inchikey: str) -> Optional[str]:
-    """Look up HS6 code for a given InChIKey."""
-    path = COMPOUND_HS6_MAP_PATH
-    if not path.exists():
-        return None
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            return data.get("mappings", {}).get(inchikey, {}).get("hs6_code")
-    except Exception:
-        return None
-
-
-def get_hs6_by_name_hint(name: str) -> Optional[str]:
-    """Try to find an HS6 code by matching the name against name hints."""
-    path = COMPOUND_HS6_MAP_PATH
-    if not path.exists():
-        return None
-    try:
-        with open(path, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            mappings = data.get("mappings", {})
-            name_lower = name.lower()
-            for key, val in mappings.items():
-                hint = val.get("name_hint", "").lower()
-                if hint and (hint in name_lower or name_lower in hint):
-                    return val.get("hs6_code")
-    except Exception:
-        pass
-    return None
-
-
-def _clean_hs6(value) -> Optional[str]:
-    """Digits-only, zero-padded HS6 code, or None (also for NaN/blank)."""
-    if value is None:
-        return None
-    digits = "".join(filter(str.isdigit, str(value)))
-    if not digits:
-        return None
-    return digits[:6].zfill(6)
 
 
 def _connect_compound_db():
@@ -225,74 +192,6 @@ def _compound_columns(conn) -> set:
         return set()
 
 
-def resolve_hs6(
-    name: str,
-    cas: str = "",
-    df_mapping: Optional[pd.DataFrame] = None,
-    conn=None,
-    columns: Optional[set] = None,
-) -> dict:
-    """Resolve a reagent to an HS6 code, recording where the code came from.
-
-    Order: CAS mapping (reagent_mapping.csv) -> compound registry hs6_code ->
-    compound registry InChIKey -> compound_hs6_map.json -> name hint. Also
-    returns any origin stored alongside the CAS mapping / compound record.
-    """
-    out = {
-        "hs6": None,
-        "source": None,
-        "mapped_origin": None,
-        "db_primary_origin": None,
-        "db_secondary_origin": None,
-    }
-    name = (name or "").strip()
-    cas = (cas or "").strip()
-
-    if cas and df_mapping is not None and not df_mapping.empty:
-        rows = df_mapping[df_mapping["Reagent_CAS"].astype(str).str.strip() == cas]
-        if not rows.empty:
-            row = rows.iloc[0]
-            origin = row.get("Primary_Origin")
-            if isinstance(origin, str) and origin.strip():
-                out["mapped_origin"] = origin.strip()
-            hs6 = _clean_hs6(row.get("HS_Code"))
-            if hs6:
-                out.update(hs6=hs6, source="cas_mapping")
-
-    if conn is not None and name:
-        from app.modules.database.db import normalize_name
-
-        cols = columns if columns is not None else _compound_columns(conn)
-        wanted = [
-            c
-            for c in ("inchikey", "hs6_code", "primary_origin", "secondary_origin")
-            if c in cols
-        ]
-        if "normalized_name" in cols and wanted:
-            row = conn.execute(
-                f"SELECT {', '.join(wanted)} FROM compounds WHERE normalized_name = ?",
-                (normalize_name(name),),
-            ).fetchone()
-            if row:
-                data = dict(zip(wanted, row))
-                out["db_primary_origin"] = data.get("primary_origin") or None
-                out["db_secondary_origin"] = data.get("secondary_origin") or None
-                if not out["hs6"]:
-                    db_hs6 = _clean_hs6(data.get("hs6_code"))
-                    if db_hs6:
-                        out.update(hs6=db_hs6, source="compound_db")
-                    elif data.get("inchikey"):
-                        mapped = _clean_hs6(get_hs6_for_inchikey(data["inchikey"]))
-                        if mapped:
-                            out.update(hs6=mapped, source="inchikey_map")
-
-    if not out["hs6"] and name:
-        hinted = _clean_hs6(get_hs6_by_name_hint(name))
-        if hinted:
-            out.update(hs6=hinted, source="name_hint")
-    return out
-
-
 def _country_suppliers(sc: dict) -> List[dict]:
     """Supplier rows that are single countries (regional groupings removed)."""
     return [s for s in suppliers_from_trade_data(sc) if not s["is_aggregate"]]
@@ -312,15 +211,22 @@ def lookup_suggested_origins(reagent_inputs: List[dict]) -> List[dict]:
         for r in reagent_inputs:
             try:
                 resolved = resolve_hs6(
-                    r.get("name", ""), r.get("cas", ""), df_mapping, conn, columns
+                    r.get("name", ""),
+                    r.get("cas", ""),
+                    df_mapping,
+                    conn,
+                    columns,
+                    hs6_input=r.get("hs6"),
+                    structure=r.get("structure"),
                 )
             except Exception:
-                resolved = {"hs6": None, "source": None}
+                resolved = {"hs6": None, "match_method": None, "mapping_quality": None}
             suggested = {
                 "primary": "Unknown",
                 "secondary": "Unknown",
                 "hs6": resolved["hs6"],
-                "hs6_source": resolved["source"],
+                "hs6_match_method": resolved["match_method"],
+                "hs6_mapping_quality": resolved["mapping_quality"],
                 "source_label": None,
             }
             if resolved["hs6"]:
@@ -434,6 +340,11 @@ def get_supply_chain_concentration(hs6_code: str, year: Optional[int] = None) ->
             "(not a world total)"
         ),
         "basis_phrase": basis_phrase,
+        "data_phrase": "the available WITS export data (top listed exporters only)",
+        "scope_note": (
+            f"World exports by the top {listed} listed exporting countries (by quantity). "
+            "Not global production; shares are relative to the listed exporters only."
+        ),
         "coverage": "listed_only",
         "country_count": len([s for s in suppliers if not s["is_aggregate"]]),
         "listed_count": listed,
@@ -484,26 +395,42 @@ ORIGIN_SOURCE_LABELS = {
     "none": "no origin information",
 }
 
-STABILITY_FILE = "app/modules/risk/data/country_stability.csv"
-NEUTRAL_STABILITY = 50.0
+STABILITY_SOURCE_PATH = "app/modules/risk/data/country_stability.csv"
 
 
-def _stability_table(df_stability: pd.DataFrame) -> Dict[str, float]:
+def _num_or_none(value) -> Optional[float]:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if number == number else None  # NaN -> None
+
+
+def _stability_table(df_stability: pd.DataFrame) -> Dict[str, dict]:
+    """canonical country -> {score, lower, upper, year, source_name}."""
     table = {}
-    for country, score in zip(df_stability["Country"], df_stability["Stability_Score"]):
-        try:
-            table[canonical_country(country)] = float(score)
-        except (TypeError, ValueError):
+    for row in df_stability.to_dict(orient="records"):
+        score = _num_or_none(row.get("Stability_Score"))
+        if score is None:
             continue
+        table[canonical_country(row.get("Country"))] = {
+            "score": score,
+            "lower": _num_or_none(row.get("Score_Lower_90")),
+            "upper": _num_or_none(row.get("Score_Upper_90")),
+            "year": int(row["Year"]) if _num_or_none(row.get("Year")) else None,
+            "source_name": row.get("WGI_Country_Name") or row.get("Country"),
+        }
     return table
 
 
-def _lookup_stability(table: Dict[str, float], country: str):
-    """(score, known) — neutral 50 when the country is unknown or not listed."""
+def _lookup_stability(table: Dict[str, dict], country: str):
+    """(entry, status). status: known | origin_unknown | no_stability_data."""
     key = canonical_country(country)
-    if key and key.lower() != "unknown" and key in table:
-        return table[key], True
-    return NEUTRAL_STABILITY, False
+    if not key or key.lower() == "unknown":
+        return None, "origin_unknown"
+    if key in table:
+        return table[key], "known"
+    return None, "no_stability_data"
 
 
 def _provided(value: Optional[str]) -> Optional[str]:
@@ -511,62 +438,110 @@ def _provided(value: Optional[str]) -> Optional[str]:
     return value if value and value.lower() != "unknown" else None
 
 
-def _geographic_exposure(
-    origin, origin_source, secondary, stability, stability_known, geo_risk, sc_label
-) -> dict:
+def _geographic_exposure(origin, origin_source, secondary, entry, status, meta, sc_label) -> dict:
+    """Country conditions for the dominant origin — no supplier-share input."""
     source_label = ORIGIN_SOURCE_LABELS[origin_source]
-    if origin_source == "trade_data_top_supplier" and sc_label:
-        source_label_long = f"{source_label} ({sc_label})"
-    else:
-        source_label_long = source_label
-    if origin == "Unknown":
+    source_long = (
+        f"{source_label} ({sc_label})"
+        if origin_source == "trade_data_top_supplier" and sc_label
+        else source_label
+    )
+    indicator = meta.get("indicator_name") or "country stability score"
+    dataset = meta.get("source") or "country_stability.csv"
+    score = entry["score"] if entry else None
+    geo = round(100 - score, 1) if score is not None else None
+
+    if status == "origin_unknown":
         explanation = (
-            "Origin is unknown. The existing opacity adjustment (x1.5 on the "
-            "country-conditions score) is applied; it reflects missing information, "
-            "not a property of any country."
+            "Origin unknown — insufficient geographic information. The geographic "
+            "(country-conditions) component is not assessed and is left out of the "
+            "composite index; it is not treated as safe or as high risk."
         )
-    elif stability_known:
+    elif status == "no_stability_data":
         explanation = (
-            f"Dominant origin {origin} ({source_label_long}). Country stability score "
-            f"{stability:.0f}/100 gives a country-conditions score of {geo_risk:.0f}/100."
+            f"Dominant origin {origin} ({source_long}). No score for {origin} is "
+            f"available in {dataset}; the geographic component is not assessed."
         )
     else:
+        ci = (
+            f", 90% CI {entry['lower']:.0f}–{entry['upper']:.0f}"
+            if entry.get("lower") is not None and entry.get("upper") is not None
+            else ""
+        )
+        relative = "above" if score >= 50 else "below"
         explanation = (
-            f"Dominant origin {origin} ({source_label_long}). {origin} is not in "
-            "country_stability.csv, so a neutral default of 50 is used."
+            f"Dominant origin {origin} ({source_long}). {indicator}: {score:.0f}/100"
+            f"{ci}{', ' + str(entry['year']) if entry.get('year') else ''} — {relative} "
+            f"the midpoint of the 0–100 reference scale. Country-conditions score = "
+            f"100 − {score:.0f} = {geo:.0f}. This is a governance indicator, not a "
+            "probability of disruption."
         )
     return {
         "dominant_origin": origin,
         "origin_source": origin_source,
         "origin_source_label": source_label,
         "secondary_origin": secondary,
-        "stability_score": stability if stability_known else None,
-        "stability_score_used": stability,
-        "stability_known": stability_known,
+        "status": "ASSESSED" if status == "known" else "UNKNOWN",
+        "stability_status": status,
+        "stability_known": status == "known",
+        "stability_score": score,
+        "stability_ci_90": (
+            [entry["lower"], entry["upper"]]
+            if entry and entry.get("lower") is not None and entry.get("upper") is not None
+            else None
+        ),
+        "stability_year": entry.get("year") if entry else None,
+        "stability_indicator": indicator,
         "stability_source": (
-            STABILITY_FILE
-            if stability_known
-            else f"neutral default {NEUTRAL_STABILITY:.0f} (country not in table)"
+            f"{dataset} ({STABILITY_SOURCE_PATH})" if status == "known" else None
         ),
-        "stability_provenance_note": (
-            "Provenance of country_stability.csv needs confirmation; see guide/DATA_SOURCES.md."
-        ),
-        "geographic_risk_score": round(geo_risk, 1),
-        "opacity_multiplier_applied": origin == "Unknown",
+        "geographic_risk_score": geo,
         "explanation": explanation,
     }
 
 
-def _assess_reagent(r: ReagentRiskInput, df_mapping, stability_table, conn, columns):
+def composite_index(components: Dict[str, Optional[float]]) -> dict:
+    """Weighted mean of the available components (weights renormalised).
+
+    Missing components are listed, never replaced by a value. Concentration is
+    not an input (it is reported separately).
+    """
+    used = {
+        k: v for k, v in components.items() if v is not None and k in COMPOSITE_WEIGHTS
+    }
+    weight_sum = sum(COMPOSITE_WEIGHTS[k] for k in used)
+    score = (
+        sum(COMPOSITE_WEIGHTS[k] * v for k, v in used.items()) / weight_sum
+        if weight_sum
+        else None
+    )
+    return {
+        "score": score,
+        "components": {
+            k: {
+                "score": round(components[k], 1) if components.get(k) is not None else None,
+                "weight": w,
+                "used": k in used,
+            }
+            for k, w in COMPOSITE_WEIGHTS.items()
+        },
+        "weight_coverage": round(weight_sum, 2),
+        "missing": [k for k in COMPOSITE_WEIGHTS if k not in used],
+    }
+
+
+def _assess_reagent(r: ReagentRiskInput, df_mapping, stability_table, meta, conn, columns):
     warnings = []
 
-    # 1. HS6 code and where it came from
+    # 1. HS6 code, how it was matched and how much the match can be trusted
     try:
-        resolved = resolve_hs6(r.name, r.cas, df_mapping, conn, columns)
+        resolved = resolve_hs6(
+            r.name, r.cas, df_mapping, conn, columns, hs6_input=r.hs6, structure=r.structure
+        )
     except Exception:
         resolved = {
             "hs6": None,
-            "source": None,
+            "match_method": None,
             "mapped_origin": None,
             "db_primary_origin": None,
             "db_secondary_origin": None,
@@ -591,7 +566,7 @@ def _assess_reagent(r: ReagentRiskInput, df_mapping, stability_table, conn, colu
         r.substitutability if r.substitutability is not None else DEFAULT_SUBSTITUTABILITY
     )
     profile = build_geographic_profile(
-        supply_chain_data, target_hs6, resolved["source"], substitutability, sub_source
+        supply_chain_data, resolved, substitutability, sub_source
     )
     conc = profile["concentration"]
     has_trade = profile["provenance"]["status"] == "success"
@@ -603,9 +578,9 @@ def _assess_reagent(r: ReagentRiskInput, df_mapping, stability_table, conn, colu
         origin, origin_source = user_origin, "user_input"
     elif has_trade and conc["top_supplier_country"]:
         origin, origin_source = conc["top_supplier_country"], "trade_data_top_supplier"
-    elif resolved["mapped_origin"]:
+    elif resolved.get("mapped_origin"):
         origin, origin_source = resolved["mapped_origin"], "cas_mapping"
-    elif resolved["db_primary_origin"]:
+    elif resolved.get("db_primary_origin"):
         origin, origin_source = resolved["db_primary_origin"], "compound_db"
     else:
         origin, origin_source = "Unknown", "none"
@@ -615,19 +590,21 @@ def _assess_reagent(r: ReagentRiskInput, df_mapping, stability_table, conn, colu
         if origin_source == "trade_data_top_supplier":
             secondary_origin = conc["second_supplier_country"]
         elif origin_source == "compound_db":
-            secondary_origin = _provided(resolved["db_secondary_origin"])
+            secondary_origin = _provided(resolved.get("db_secondary_origin"))
     secondary_origin = secondary_origin or "Unknown"
 
-    # 5. Country conditions (stability) — separate from concentration
-    stability, stability_known = _lookup_stability(stability_table, origin)
-    sec_stability, _ = _lookup_stability(stability_table, secondary_origin)
+    # 5. Geographic risk = country conditions only (100 - WGI score).
+    entry, stability_status = _lookup_stability(stability_table, origin)
+    sec_entry, _ = _lookup_stability(stability_table, secondary_origin)
+    geo_risk = 100 - entry["score"] if entry else None
+    sec_geo_risk = 100 - sec_entry["score"] if sec_entry else None
 
-    if origin == "Unknown":
-        warnings.append("Unverified Origin (Opacity Risk)")
-    elif not stability_known:
+    if stability_status == "origin_unknown":
         warnings.append(
-            f"No stability score for '{origin}' in country_stability.csv; neutral 50 used."
+            "Origin unknown — geographic component not assessed (insufficient geographic information)."
         )
+    elif stability_status == "no_stability_data":
+        warnings.append(f"No stability score for '{origin}'; geographic component not assessed.")
     if r.cas in CRITICAL_CAS:
         warnings.append(f"CRITICAL MATERIAL: {CRITICAL_CAS[r.cas]}")
     if r.cas in REGULATORY_CAS:
@@ -639,56 +616,55 @@ def _assess_reagent(r: ReagentRiskInput, df_mapping, stability_table, conn, colu
             f"({profile['provenance'].get('source')}, {profile['provenance'].get('period_label')})."
         )
 
-    # Geographic (country conditions) risk, 0-100
-    geo_base = 100 - stability
-    geo_risk = min(100, geo_base * 1.5) if origin == "Unknown" else geo_base
-    sec_geo_base = 100 - sec_stability
-    sec_geo_risk = (
-        min(100, sec_geo_base * 1.5) if secondary_origin == "Unknown" else sec_geo_base
-    )
-
-    # Concentration is reported separately. For continuity with the previous
-    # composite index, the 30% geographic weight still uses the worse of the
-    # two: max(country conditions, top-supplier share).
-    conc_score = conc["top_supplier_share"] if conc["tier"] != "UNKNOWN" else None
-    geo_index_input = min(100, max(geo_risk, conc_score)) if conc_score is not None else geo_risk
-
-    # Operational Risk (Lead time + Supplier scarcity)
+    # 6. Other components (unchanged formulas)
     lt_risk = min(100, (r.lead_time_days / LEAD_TIME_FULL_RISK_DAYS) * 100)
     scarcity_risk = max(0, 100 - (r.supplier_count * 20))
     if r.cas in CRITICAL_CAS:
         scarcity_risk = 100
     oper_risk = (lt_risk * 0.5) + (scarcity_risk * 0.5)
 
-    # Regulatory & Hazard Risk (0-100)
     reg_val = r.regulatory_score
     if r.cas in REGULATORY_CAS:
         reg_val = 10  # Max risk
     reg_risk = (r.hazard_score * 4) + (reg_val * 6)
 
-    # Economic Risk (Substitutability)
     econ_risk = substitutability * 10
 
-    composite_score = (
-        geo_index_input * 0.30 + oper_risk * 0.20 + reg_risk * 0.30 + econ_risk * 0.20
+    # 7. Composite index: country conditions, operational, regulatory, economic.
+    #    Concentration is NOT folded in; unknown components are left out.
+    primary = composite_index(
+        {"geographic": geo_risk, "operational": oper_risk, "regulatory": reg_risk, "economic": econ_risk}
     )
-    sec_composite_score = (
-        sec_geo_risk * 0.30 + oper_risk * 0.20 + reg_risk * 0.30 + econ_risk * 0.20
+    secondary = composite_index(
+        {"geographic": sec_geo_risk, "operational": oper_risk, "regulatory": reg_risk, "economic": econ_risk}
     )
 
     exposure_multiplier = (
         (math.log10(r.mass_g + 1) * 0.7) + (math.log10(r.cost + 1) * 0.3) + 1
     )
-    risk_index = composite_score * exposure_multiplier
-    secondary_risk_index = sec_composite_score * exposure_multiplier
+    risk_index = primary["score"] * exposure_multiplier
+    secondary_risk_index = secondary["score"] * exposure_multiplier
 
+    note = (
+        "Composite of geographic (country conditions), operational, regulatory and "
+        "economic components. Concentration is reported separately and is not part "
+        "of this index."
+    )
+    if primary["missing"]:
+        note = (
+            f"Not assessed: {', '.join(primary['missing'])}; the index uses the other "
+            f"components with weights renormalised (coverage {primary['weight_coverage']:.0%}). "
+            + note
+        )
+
+    conc_score = conc["top_supplier_share"] if conc["tier"] != "UNKNOWN" else None
     return ReagentRiskResult(
         name=r.name,
         cas=r.cas,
         primary_origin=origin,
-        stability_score=stability,
+        stability_score=entry["score"] if entry else None,
         secondary_origin=secondary_origin,
-        secondary_stability_score=sec_stability,
+        secondary_stability_score=sec_entry["score"] if sec_entry else None,
         mass_g=r.mass_g,
         cost=r.cost,
         risk_index=round(risk_index, 2),
@@ -700,21 +676,20 @@ def _assess_reagent(r: ReagentRiskInput, df_mapping, stability_table, conn, colu
         substitutability=substitutability,
         warnings=warnings,
         breakdown=RiskBreakdown(
-            geographic=round(geo_risk, 1),
+            geographic=round(geo_risk, 1) if geo_risk is not None else None,
             operational=round(oper_risk, 1),
             regulatory=round(reg_risk, 1),
             economic=round(econ_risk, 1),
             concentration=round(conc_score, 1) if conc_score is not None else None,
-            geo_index_input=round(geo_index_input, 1),
         ),
         supply_chain_data=supply_chain_data,
         geographic_exposure=_geographic_exposure(
             origin,
             origin_source,
             secondary_origin,
-            stability,
-            stability_known,
-            geo_risk,
+            entry,
+            stability_status,
+            meta,
             profile["provenance"].get("source_label"),
         ),
         concentration=conc,
@@ -733,6 +708,8 @@ def _assess_reagent(r: ReagentRiskInput, df_mapping, stability_table, conn, colu
             if s["share_pct"] is not None
         ],
         routes={k: _dump(v) for k, v in (r.routes or {}).items()},
+        risk_index_components=primary,
+        risk_index_note=note,
     )
 
 
@@ -750,20 +727,29 @@ def _concentration_rank(result: ReagentRiskResult):
 
 def _reagent_brief(result: ReagentRiskResult) -> dict:
     conc = result.concentration or {}
+    prov = result.provenance or {}
     return {
         "name": result.name,
         "tier": conc.get("tier"),
         "top_supplier_country": conc.get("top_supplier_country"),
         "top_supplier_share": conc.get("top_supplier_share"),
-        "source_label": (result.provenance or {}).get("source_label"),
+        "source": prov.get("source"),
+        "source_label": prov.get("source_label"),
+        "data_quality": (result.data_quality or {}).get("level"),
     }
 
 
-def summarize_routes(results: List[ReagentRiskResult]) -> Optional[List[dict]]:
-    """Per-route concentration summary (no combined score; the user decides).
+def _pct(part: float, whole: float) -> Optional[float]:
+    return round(part / whole * 100, 2) if whole > 0 else None
 
-    Uses the per-route reagent usage sent by the Planner. Returns None when no
-    reagent carries route information.
+
+def summarize_routes(results: List[ReagentRiskResult]) -> Optional[List[dict]]:
+    """Per-route geographic summary — facts only, no combined score or ranking.
+
+    Uses the per-route reagent spend sent by the Planner. Returns None when no
+    reagent carries route information. All percentages are of the route's
+    *assessed reagent spend* (reagents sent to the Risk Audit), which excludes
+    solvents and other costs.
     """
     by_route: Dict[str, list] = {}
     for res in results:
@@ -775,53 +761,90 @@ def summarize_routes(results: List[ReagentRiskResult]) -> Optional[List[dict]]:
     summaries = []
     for route in sorted(by_route):
         items = by_route[route]
-        assessed_cost = sum(float(u.get("cost") or 0) for _, u in items)
+        spend = sum(float(u.get("cost") or 0) for _, u in items)
         known = [
-            res
-            for res, _ in items
+            (res, u)
+            for res, u in items
             if (res.concentration or {}).get("tier") in CONCENTRATION_TIER_RANK
         ]
-        highest = max(known, key=_concentration_rank, default=None)
+        unknown = [(res, u) for res, u in items if (res, u) not in known]
+        unknown_cost = sum(float(u.get("cost") or 0) for _, u in unknown)
+
+        highest = max((res for res, _ in known), key=_concentration_rank, default=None)
         largest = max(
-            known,
+            (res for res, _ in known),
             key=lambda res: (res.concentration or {}).get("top_supplier_share") or 0,
             default=None,
         )
 
-        # Share of the route's assessed reagent cost by each reagent's dominant
-        # supplier country (reagents with unknown concentration are listed apart).
-        by_country: Dict[str, dict] = {}
-        for res, usage in items:
+        # Spend exposed to each country = sum(route cost x that country's share).
+        country_exposure: Dict[str, dict] = {}
+        for res, usage in known:
+            cost = float(usage.get("cost") or 0)
+            for s in res.supplier_shares:
+                share = s.get("share_pct") or 0
+                if share <= 0:
+                    continue
+                entry = country_exposure.setdefault(
+                    s["country"], {"country": s["country"], "cost": 0.0, "reagents": []}
+                )
+                entry["cost"] += cost * share / 100.0
+                # Name only meaningful contributors; the cost total stays exact.
+                if share >= SCENARIO_MINIMAL_EXPOSURE_PCT and res.name not in entry["reagents"]:
+                    entry["reagents"].append(res.name)
+        exposures = sorted(country_exposure.values(), key=lambda e: e["cost"], reverse=True)
+        for e in exposures:
+            e["pct_of_assessed_spend"] = _pct(e["cost"], spend)
+            e["cost"] = round(e["cost"], 2)
+
+        # Spend grouped by each reagent's dominant supplier country.
+        by_dominant: Dict[str, dict] = {}
+        for res, usage in known:
             country = (res.concentration or {}).get("top_supplier_country")
-            if res not in known or not country:
+            if not country:
                 continue
-            entry = by_country.setdefault(country, {"country": country, "cost": 0.0, "reagents": []})
+            entry = by_dominant.setdefault(country, {"country": country, "cost": 0.0, "reagents": []})
             entry["cost"] += float(usage.get("cost") or 0)
             entry["reagents"].append(res.name)
-        dominant_sources = sorted(by_country.values(), key=lambda e: e["cost"], reverse=True)
-        for entry in dominant_sources:
-            entry["cost_share_pct"] = (
-                round(entry["cost"] / assessed_cost * 100, 1) if assessed_cost > 0 else None
-            )
-            entry["cost"] = round(entry["cost"], 2)
+        dominant_sources = sorted(by_dominant.values(), key=lambda e: e["cost"], reverse=True)
+        for e in dominant_sources:
+            e["cost_share_pct"] = _pct(e["cost"], spend)
+            e["cost"] = round(e["cost"], 2)
+
+        geo_known = [
+            res for res, _ in items if res.breakdown.geographic is not None
+        ]
+        highest_geo = max(geo_known, key=lambda res: res.breakdown.geographic, default=None)
 
         summaries.append(
             {
                 "route": route,
                 "reagent_count": len(items),
-                "assessed_reagent_cost": round(assessed_cost, 2),
+                "reagents_with_trade_data": len(known),
+                "assessed_reagent_cost": round(spend, 2),
+                "high_concentration_count": sum(
+                    1 for res, _ in known if res.concentration["tier"] == "HIGH"
+                ),
+                "high_concentration_reagents": [
+                    res.name for res, _ in known if res.concentration["tier"] == "HIGH"
+                ],
                 "highest_concentration_reagent": _reagent_brief(highest) if highest else None,
                 "largest_dominant_share": _reagent_brief(largest) if largest else None,
-                "high_concentration_reagents": [
-                    res.name
-                    for res, _ in items
-                    if (res.concentration or {}).get("tier") == "HIGH"
-                ],
-                "unknown_concentration_reagents": [
-                    res.name
-                    for res, _ in items
-                    if (res.concentration or {}).get("tier") not in CONCENTRATION_TIER_RANK
-                ],
+                "largest_country_exposure": exposures[0] if exposures else None,
+                "country_exposures": exposures[:5],
+                "unknown_concentration_reagents": [res.name for res, _ in unknown],
+                "unknown_data_cost": round(unknown_cost, 2),
+                "unknown_data_pct": _pct(unknown_cost, spend),
+                "highest_geographic_risk_reagent": (
+                    {
+                        "name": highest_geo.name,
+                        "origin": highest_geo.primary_origin,
+                        "stability_score": highest_geo.stability_score,
+                        "geographic_score": highest_geo.breakdown.geographic,
+                    }
+                    if highest_geo
+                    else None
+                ),
                 "dominant_source_cost_shares": dominant_sources,
             }
         )
@@ -838,12 +861,13 @@ def run_risk_assessment(reagents: List[ReagentRiskInput]) -> dict:
     """
     df_mapping = load_reagent_mapping()
     stability_table = _stability_table(load_country_stability())
+    meta = load_stability_meta()
 
     conn = _connect_compound_db()
     columns = _compound_columns(conn)
     try:
         results = [
-            _assess_reagent(r, df_mapping, stability_table, conn, columns)
+            _assess_reagent(r, df_mapping, stability_table, meta, conn, columns)
             for r in reagents
         ]
     finally:
@@ -869,6 +893,11 @@ def run_risk_assessment(reagents: List[ReagentRiskInput]) -> dict:
             "concentration_high_count": conc_tiers.count("HIGH"),
             "concentration_unknown_count": conc_tiers.count("UNKNOWN"),
             "concentration_thresholds": CONCENTRATION_THRESHOLDS,
+            "composite_weights": COMPOSITE_WEIGHTS,
+            "stability_source": {
+                k: meta.get(k)
+                for k in ("source", "source_url", "indicator", "indicator_name", "years", "retrieved_at")
+            },
             "route_summary": summarize_routes(results),
         },
     }

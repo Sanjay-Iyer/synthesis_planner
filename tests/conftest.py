@@ -3,6 +3,7 @@
 import openpyxl
 import pytest
 
+import app.modules.database.db as db_mod
 from app.modules.supply_chain import provider
 
 
@@ -42,3 +43,10 @@ def usitc_folder(tmp_path, monkeypatch):
     provider._CACHE.update(signature=None, data=None)
     yield folder
     provider._CACHE.update(signature=None, data=None)
+
+
+@pytest.fixture
+def isolated_db(tmp_path, monkeypatch):
+    """Empty compound registry so tests do not depend on the repo database."""
+    monkeypatch.setattr(db_mod, "DB_PATH", tmp_path / "risk_test.db")
+    db_mod.init_db()

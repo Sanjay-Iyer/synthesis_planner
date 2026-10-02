@@ -42,7 +42,9 @@ function addStep(side, data = null) {
                     const pkgpr = r.pkg_price || (r.cost_per_g ? r.cost_per_g * pkgsz : 0);
                     const pkgu = r.pkg_unit || 'g';
                     const mass_u = r.mass_unit || 'g';
-                    return `<div class="reagent-row" style="display: flex; flex-direction: column; gap: 8px; padding: 12px; background: #fafbfc; border: 1px solid #e1e4e8; border-radius: 6px;">
+                    // Structure identifier (SMILES/InChI/InChIKey) kept for exact HS6 matching.
+                    const structure = String(r.structure || r.smiles || r.inchikey || r.selfies || '').replace(/"/g, '&quot;');
+                    return `<div class="reagent-row" data-structure="${structure}" style="display: flex; flex-direction: column; gap: 8px; padding: 12px; background: #fafbfc; border: 1px solid #e1e4e8; border-radius: 6px;">
                         <!-- First Line -->
                         <div style="display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end;">
                             <div style="flex: 2; min-width: 150px; display: flex; flex-direction: column; gap: 4px;">
@@ -346,6 +348,7 @@ async function addReagentFromSmiles(side, stepId) {
         
         inputs[0].value = name;
         inputs[1].value = mw > 0 ? mw : '';
+        targetRow.dataset.structure = val;
         if (mw > 0) calcStoich(inputs[1]);
         
         const displayDiv = document.getElementById(`smiles-display-${side}-${stepId}`);
@@ -545,7 +548,8 @@ function collectStepData(side) {
                 equivalents: equivalents,
                 mass: massVal,
                 mass_unit: unit,
-                is_limiting: is_limiting
+                is_limiting: is_limiting,
+                structure: row.dataset.structure || null
             };
         });
         const sbotlVal = parseFloat(document.getElementById(`sbotl-${side}-${i}`).value) || 1;
@@ -1400,6 +1404,12 @@ async function pushToRiskAudit() {
                 : 'Lab-scale form values (cost engine unavailable)'
         };
 
+        const structureByName = {};
+        steps.forEach(s => s.reagents.forEach(r => {
+            const key = (r.name || '').toLowerCase().trim();
+            if (key && r.structure && !structureByName[key]) structureByName[key] = r.structure;
+        }));
+
         const rows = scaled
             ? estimate.steps.flatMap(s => (s.reagents || []).map(r => ({ name: r.name, mass_g: r.mass_g, cost: r.item_cost })))
             : steps.flatMap(s => s.reagents.map(r => {
@@ -1414,6 +1424,7 @@ async function pushToRiskAudit() {
             const key = r.name.toLowerCase().trim();
             if (!reagentMap[key]) reagentMap[key] = { name: r.name, cas: '', mass_g: 0, cost: 0, routes: {} };
             const entry = reagentMap[key];
+            if (!entry.structure && structureByName[key]) entry.structure = structureByName[key];
             const mass = parseFloat(r.mass_g) || 0;
             const cost = parseFloat(r.cost) || 0;
             entry.mass_g += mass;

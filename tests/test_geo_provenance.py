@@ -3,7 +3,6 @@
 import pandas as pd
 import pytest
 
-import app.modules.database.db as db_mod
 from app.modules.risk import engine
 from app.modules.risk.concentration import build_geographic_profile
 from app.modules.risk.engine import ReagentRiskInput, run_risk_assessment
@@ -14,10 +13,19 @@ from app.modules.trade_data import db as trade_db
 HS6 = "291100"
 
 
-@pytest.fixture
-def isolated_db(tmp_path, monkeypatch):
-    monkeypatch.setattr(db_mod, "DB_PATH", tmp_path / "risk_test.db")
-    db_mod.init_db()
+def resolution(hs6, method):
+    """A resolve_hs6()-style mapping record for profile-level tests."""
+    exact = method in ("cas", "inchikey", "user_input")
+    return {
+        "hs6": hs6,
+        "match_method": method,
+        "match_label": method,
+        "source": "test",
+        "exact": exact,
+        "mapping_quality": "HIGH" if exact else "MEDIUM",
+        "broad_category": None,
+        "note": None,
+    }
 
 
 @pytest.fixture
@@ -42,7 +50,7 @@ def china_dominant_workbook(folder, write_usitc_workbook):
 def test_usitc_result_carries_source_year_hs6_and_basis(usitc_folder, write_usitc_workbook):
     china_dominant_workbook(usitc_folder, write_usitc_workbook)
     sc = engine.get_supply_chain_concentration(HS6)
-    profile = build_geographic_profile(sc, HS6, "cas_mapping")
+    profile = build_geographic_profile(sc, resolution(HS6, "cas"))
     prov = profile["provenance"]
 
     assert prov["source"] == "USITC DataWeb"
@@ -54,7 +62,10 @@ def test_usitc_result_carries_source_year_hs6_and_basis(usitc_folder, write_usit
     assert prov["ranking_basis"] == "U.S. import customs value (USD)"
     assert prov["coverage"] == "all_reported_countries"
     assert prov["country_count"] == 3
-    assert prov["hs6_source"] == "cas_mapping"
+    assert prov["hs6_source"] == "cas"
+    assert prov["hs6_mapping"]["mapping_quality"] == "HIGH"
+    assert prov["hs6_mapping"]["exact"] is True
+    assert "not global supply" in prov["scope_note"]
     assert prov["source_files"] == ["imports.xlsx"]
 
     conc = profile["concentration"]
@@ -95,7 +106,7 @@ def test_wits_fallback_clearly_says_wits(monkeypatch):
     monkeypatch.setattr(trade_db, "load", lambda *a, **k: fixture_db)
 
     sc = engine.get_supply_chain_concentration("282580")
-    profile = build_geographic_profile(sc, "282580", "compound_db")
+    profile = build_geographic_profile(sc, resolution("282580", "compound_registry"))
     prov, conc = profile["provenance"], profile["concentration"]
 
     assert prov["source"] == "WITS"
@@ -120,7 +131,7 @@ def test_partial_year_data_is_clearly_marked(usitc_folder, write_usitc_workbook)
         [("Mexico", HS6, [0, 0, 40]), ("Canada", HS6, [0, 0, 60])],
     )
     sc = engine.get_supply_chain_concentration(HS6)
-    profile = build_geographic_profile(sc, HS6, "cas_mapping")
+    profile = build_geographic_profile(sc, resolution(HS6, "cas"))
     prov = profile["provenance"]
     assert prov["is_partial_year"] is True
     assert prov["period_type"] == "partial_year"
@@ -131,7 +142,7 @@ def test_partial_year_data_is_clearly_marked(usitc_folder, write_usitc_workbook)
 
 
 def test_no_hs6_mapping_is_unknown_and_no_data():
-    profile = build_geographic_profile({"status": "no_hs6_mapping"}, None, None)
+    profile = build_geographic_profile({"status": "no_hs6_mapping"}, None)
     assert profile["concentration"]["tier"] == "UNKNOWN"
     assert profile["data_quality"]["level"] == "NO_DATA"
     assert profile["alternatives"]["alternative_sourcing_basis"] == "no_information"
@@ -162,7 +173,10 @@ def test_assessment_separates_geography_from_concentration(
     # Country conditions (100 - stability) vs concentration (top share) are separate.
     assert r["breakdown"]["geographic"] == round(100 - geo["stability_score"], 1)
     assert r["breakdown"]["concentration"] == 95.0
-    assert r["breakdown"]["geo_index_input"] == 95.0
+    # The composite index does not use the concentration share.
+    used = r["risk_index_components"]["components"]
+    assert "concentration" not in used
+    assert used["geographic"]["score"] == r["breakdown"]["geographic"]
 
     assert r["concentration"]["tier"] == "HIGH"
     assert r["provenance"]["source"] == "USITC DataWeb"

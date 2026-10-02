@@ -98,37 +98,66 @@ changed versus the previous complete year, or when the total moved by ≥50%.
 
 ---
 
-## 3. Country stability / governance scores
+## 3. Country stability / governance scores (World Bank WGI)
 
 | | |
 |---|---|
-| File | `app/modules/risk/data/country_stability.csv` (8 countries, 0–100, higher = more stable) |
-| Current provenance | **Current provenance needs confirmation.** The file was added in the first commit (2026-05-01). Code comments and `guide/08_risk_audit.md` describe it as "based on / modeled on World Bank WGI", but no WGI indicator, release year or normalisation is recorded, and the values cannot be traced to a specific WGI release from the repository. |
-| Planned source | World Bank **Worldwide Governance Indicators (WGI)** — <https://www.worldbank.org/en/publication/worldwide-governance-indicators>. **Planned, not implemented.** See `todo_plan/stability_score_expansion.md`. |
+| Source | World Bank **Worldwide Governance Indicators (WGI)** — <https://www.worldbank.org/en/publication/worldwide-governance-indicators> |
+| Status | **Implemented.** Imported 2026-10-02 from the World Bank API (WGI source, dataset last updated 2026-09-25). |
+| Indicator | `GOV_WGI_PV.SC` — *Political Stability and Absence of Violence/Terrorism: governance score (0–100)*, with its 90% confidence bounds `GOV_WGI_PV.SC_LB` / `_UB` |
+| Year | 2025 for all 208 economies (latest non-missing year per economy) |
+| Files | `app/modules/risk/data/country_stability.csv` (Country, Stability_Score, Score_Lower_90, Score_Upper_90, Year, ISO3, WGI_Country_Name, Indicator) and `country_stability_meta.json` (source, indicator, retrieval time, API URL) |
+| Import script | `scripts/import_wgi.py` — `python scripts/import_wgi.py` (API) or `--input <DataBank CSV>` (offline); see the script header for the manual download steps |
 
-Countries not in the table (e.g. Canada, South Korea, Netherlands) get a
-neutral default of 50, and the result says so (`stability_known: false`).
-Stability describes country conditions only; it is reported separately from
-sourcing concentration.
+**How it is used.** Geographic (country-conditions) score = 100 − WGI score of the
+reagent's dominant origin. The score is used as published (already 0–100); no
+rescaling. It is a **governance perception indicator**, not a probability of
+supply disruption, and it is reported separately from sourcing concentration.
+Results describe the score relative to the 0–100 scale ("above/below the
+midpoint"), never a judgement of a country.
+
+**Coverage gaps.** Economies the World Bank API does not cover (e.g. **Taiwan**,
+French overseas departments such as Réunion, and several small territories)
+have no score. They are reported as `no_stability_data` — the geographic
+component is *not assessed*; no neutral value is substituted.
+
+**Replaced table.** The previous 8-country table (unknown provenance; e.g. China
+48, Russia 15) was replaced. Its values are not comparable with WGI governance
+scores (WGI 2025: China 66.0, Russia 49.1, Mexico 55.0, Canada 79.8, South Korea
+81.7) — the old table is in git history (commit `1c45ac7` and earlier).
+
+**Country names.** WGI uses World Bank spellings ("Korea, Rep.", "Viet Nam",
+"Turkiye", "Bahamas, The", …). All sources are matched through
+`canonical_country()` / `COUNTRY_ALIASES` in `app/modules/risk/risk_config.py`
+(accent-, case- and backtick-insensitive). Canonical names follow USITC.
 
 ---
 
 ## 4. Reagent → HS6 mapping (needed before any trade lookup)
 
-Resolved in this order (`resolve_hs6` in `app/modules/risk/engine.py`); the
-source used is reported as `provenance.hs6_source`:
+Resolved in this order (`resolve_hs6` in `app/modules/risk/hs6_mapping.py`).
+Each result carries `provenance.hs6_mapping` = {hs6, match_method, source, exact,
+mapping_quality, broad_category, note}:
 
-1. `app/modules/risk/data/reagent_mapping.csv` — CAS → HS code (hand-curated,
-   6 rows; also stores a manually entered origin).
-2. Compound registry `database/synthesis_architect.db` (`compounds.hs6_code`) —
-   values seeded by project scripts.
-3. `database/compound_hs6_map.json` — InChIKey → HS6 (5 entries, seeded by
-   `scripts/seed_hs6_map.py`).
-4. Name hint from `compound_hs6_map.json` (substring match; data quality capped
-   at MEDIUM).
+| # | match_method | Source | Exact | Quality |
+|---|---|---|---|---|
+| 1 | `user_input` | HS6 typed in the Risk Audit (Advanced Mode) or CSV `HS6` column | yes | HIGH (user-asserted) |
+| 2 | `cas` | `app/modules/risk/data/reagent_mapping.csv` (6 hand-curated rows) | yes | HIGH |
+| 3 | `inchikey` | `database/compound_hs6_map.json` (5 entries), InChIKey computed with RDKit from the reagent's SMILES/InChI/SELFIES (passed from the Planner) | yes | HIGH |
+| 4 | `compound_registry` | `compounds.hs6_code` in `database/synthesis_architect.db`, record found by normalised **name** (values seeded by project scripts) | no | MEDIUM |
+| 5 | `compound_registry_inchikey` | InChIKey of a registry record found by name → `compound_hs6_map.json` | no | MEDIUM |
+| 6 | `name_hint` | `compound_hs6_map.json` name hint, **exact** match after removing grade/purity qualifiers (substring matches are rejected) | no | MEDIUM |
 
-Most reagents have no mapping today, which means no trade data — reported as
-UNKNOWN, never as low risk.
+**Broad categories.** If the trade-data description marks a residual category
+("NESOI", "n.e.s.", "Other …") — or, when no description is available, the HS6
+ends in 9 (the HS convention for "Other" subheadings) — the mapping is
+downgraded to **LOW** and labelled "broad product category": the trade data
+then describes many products, not the reagent. Example: manganese(II) acetate →
+291529 "SALTS OF ACETIC ACID, NESOI".
+
+Mapping quality caps the result's data quality (LOW → LOW, MEDIUM → MEDIUM).
+No LLM suggests codes. Reagents with no mapping have no trade data and are
+reported as UNKNOWN, never as low risk.
 
 ---
 

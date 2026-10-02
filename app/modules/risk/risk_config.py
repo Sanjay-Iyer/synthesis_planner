@@ -46,6 +46,21 @@ YOY_TOTAL_CHANGE_NOTE_PCT = 50.0
 LEAD_TIME_FULL_RISK_DAYS = 30
 
 # -----------------------------------------------------------------
+# Composite risk index (legacy "Risk Index" column)
+# -----------------------------------------------------------------
+# Weighted mean of the components that are available. Concentration is NOT a
+# component: it is reported as its own result. A component that cannot be
+# assessed (e.g. geographic when the origin or its WGI score is unknown) is
+# left out and the remaining weights are renormalised; the result lists the
+# missing components instead of substituting a value.
+COMPOSITE_WEIGHTS = {
+    "geographic": 0.30,
+    "operational": 0.20,
+    "regulatory": 0.30,
+    "economic": 0.20,
+}
+
+# -----------------------------------------------------------------
 # Scenario / shock analysis
 # -----------------------------------------------------------------
 # Route exposure tier from the share of the route's assessed reagent cost
@@ -86,20 +101,23 @@ AGGREGATE_REPORTERS = frozenset(
     }
 )
 
-# Spelling differences between sources (USITC, WITS, country_stability.csv).
-# Keys are lowercase variants; values are the canonical name used for matching.
+# Spelling differences between sources: USITC DataWeb, WITS / World Bank (also
+# used by WGI), and user input. Canonical names follow USITC where possible
+# because trade data drives origins. Keys are matched after _match_key()
+# (lowercase, accents removed, backticks -> apostrophes, single spaces).
 COUNTRY_ALIASES = {
+    # World Bank / WITS / WGI style -> canonical
     "korea, rep.": "South Korea",
     "korea, republic of": "South Korea",
     "republic of korea": "South Korea",
     "korea": "South Korea",
+    "korea, dem. people's rep.": "North Korea",
     "russian federation": "Russia",
     "united states": "USA",
     "united states of america": "USA",
     "us": "USA",
     "u.s.": "USA",
     "turkiye": "Turkey",
-    "türkiye": "Turkey",
     "chinese taipei": "Taiwan",
     "taiwan, china": "Taiwan",
     "viet nam": "Vietnam",
@@ -107,19 +125,67 @@ COUNTRY_ALIASES = {
     "czechia (czech republic)": "Czech Republic",
     "hong kong, china": "Hong Kong",
     "hong kong sar, china": "Hong Kong",
+    "macao sar, china": "Macau",
+    "macao": "Macau",
     "iran, islamic rep.": "Iran",
     "egypt, arab rep.": "Egypt",
     "slovak republic": "Slovakia",
     "united kingdom of great britain and northern ireland": "United Kingdom",
+    "bahamas, the": "Bahamas",
+    "gambia, the": "Gambia",
+    "brunei darussalam": "Brunei",
+    "cote d'ivoire": "Côte d'Ivoire",
+    "curacao": "Curaçao",
+    "congo, dem. rep.": "Democratic Republic of the Congo",
+    "congo, rep.": "Republic of the Congo",
+    "eswatini (swaziland)": "Eswatini",
+    "swaziland": "Eswatini",
+    "kyrgyz republic": "Kyrgyzstan",
+    "lao pdr": "Laos",
+    "micronesia, fed. sts.": "Micronesia",
+    "myanmar (burma)": "Myanmar",
+    "burma": "Myanmar",
+    "naoero": "Nauru",
+    "st. kitts and nevis": "Saint Kitts and Nevis",
+    "st. lucia": "Saint Lucia",
+    "st. vincent and the grenadines": "Saint Vincent and the Grenadines",
+    "somalia, fed. rep.": "Somalia",
+    "syrian arab republic": "Syria",
+    "sao tome and principe": "São Tomé and Príncipe",
+    "venezuela, rb": "Venezuela",
+    "yemen, rep.": "Yemen",
+    "puerto rico (us)": "Puerto Rico",
+    "virgin islands (u.s.)": "U.S. Virgin Islands",
+    "north macedonia": "North Macedonia",
+    "macedonia": "North Macedonia",
+    # WGI reports the West Bank and Gaza together; USITC lists them separately.
+    "west bank": "West Bank and Gaza",
+    "gaza strip": "West Bank and Gaza",
 }
 
 
+def _match_key(name) -> str:
+    """Lowercase, accent-free, single-spaced key for alias lookups."""
+    import unicodedata
+
+    text = " ".join(str(name).replace("`", "'").replace("’", "'").split())
+    text = unicodedata.normalize("NFKD", text)
+    text = "".join(ch for ch in text if not unicodedata.combining(ch))
+    return text.lower()
+
+
 def canonical_country(name) -> str:
-    """Return the canonical spelling of a country name for matching."""
+    """Return the canonical spelling of a country name for matching.
+
+    Every module (stability lookup, scenarios, concentration) matches countries
+    through this function, so a new source spelling only needs an alias here.
+    """
     if name is None:
         return ""
     cleaned = " ".join(str(name).split())
-    return COUNTRY_ALIASES.get(cleaned.lower(), cleaned)
+    if not cleaned:
+        return ""
+    return COUNTRY_ALIASES.get(_match_key(cleaned), cleaned)
 
 
 def is_aggregate_reporter(name) -> bool:

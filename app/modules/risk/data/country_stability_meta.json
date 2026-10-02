@@ -1,0 +1,20 @@
+{
+  "source": "World Bank Worldwide Governance Indicators (WGI)",
+  "source_url": "https://www.worldbank.org/en/publication/worldwide-governance-indicators",
+  "indicator": "GOV_WGI_PV.SC",
+  "indicator_name": "Political Stability and Absence of Violence/Terrorism - governance score (0-100)",
+  "bounds": [
+    "GOV_WGI_PV.SC_LB",
+    "GOV_WGI_PV.SC_UB"
+  ],
+  "scale": "0-100, higher = better governance score on this dimension",
+  "method": "Latest non-missing year per economy; score used without rescaling.",
+  "years": [
+    2025
+  ],
+  "economies": 208,
+  "retrieved_at": "2026-10-02T21:28:00+00:00",
+  "interpretation": "A governance perception indicator used as country-conditions context. It is not a probability of supply disruption.",
+  "api_url": "https://api.worldbank.org/v2/country/all/indicator/GOV_WGI_PV.SC?source=3&format=json&per_page=20000&date=2000:2026",
+  "wgi_last_updated": "2026-09-25"
+}

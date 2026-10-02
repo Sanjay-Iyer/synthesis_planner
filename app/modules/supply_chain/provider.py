@@ -489,6 +489,11 @@ def get_origin_concentration(
         "share_basis": "share_of_total",
         "share_basis_label": "Share of total reported U.S. imports (all origin countries)",
         "basis_phrase": "reported U.S. imports for this HS6 product",
+        "data_phrase": "the available U.S. import data",
+        "scope_note": (
+            "U.S. imports for consumption only: shows where U.S. imports come from. "
+            "Does not include U.S. domestic production and is not global supply."
+        ),
         "coverage": "all_reported_countries",
         "country_count": len(ranked),
         "listed_count": len(top_exporters),

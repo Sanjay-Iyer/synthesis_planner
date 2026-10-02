@@ -3,6 +3,13 @@
 
 # TODO: Expand country stability scores
 
+> **DONE 2026-10-02.** `country_stability.csv` now holds World Bank WGI 2025
+> Political Stability governance scores (`GOV_WGI_PV.SC`, 0-100) for 208
+> economies, imported by `scripts/import_wgi.py`, with a central alias layer in
+> `risk_config.COUNTRY_ALIASES`. See `guide/DATA_SOURCES.md` §3. Remaining gap:
+> economies not in the World Bank API (e.g. Taiwan) are reported as "no
+> stability data". The plan below is kept for history.
+
 **Goal:** Replace the tiny placeholder country-stability table with broad coverage so
 geographic supply-chain risk is meaningful for the countries that actually show up
 in the USITC trade data (163 import origins, 218 export destinations in HTS Ch. 29).
@@ -91,14 +98,14 @@ them in one pass — see below.)
 
 ## Implementation checklist
 
-- [ ] Decide scoring method (default: WGI Political Stability percentile, 0–100).
-- [ ] Generate `country_stability.csv` covering all USITC `Country` spellings (script:
+- [x] Decide scoring method (default: WGI Political Stability percentile, 0–100).
+- [x] Generate `country_stability.csv` covering all USITC `Country` spellings (script:
       pull distinct `Country` values from both files in `data/supply_chain/`, left-join
       to WGI, fill gaps with method #4 or a documented default).
-- [ ] Verify exact-name matches (USITC "Korea" vs "South Korea", "Russia" vs
+- [x] Verify exact-name matches (USITC "Korea" vs "South Korea", "Russia" vs
       "Russian Federation", "Taiwan" vs "Chinese Taipei", "Turkey" vs "Türkiye").
       Add an alias map in `load_country_stability()` if spellings diverge.
-- [ ] Add a `source` / `as_of_year` note in the CSV header comment for provenance.
-- [ ] Re-run a sample risk assessment and confirm geo risk changed for Ireland, etc.
+- [x] Add a `source` / `as_of_year` note in the CSV header comment for provenance.
+- [x] Re-run a sample risk assessment and confirm geo risk changed for Ireland, etc.
 - [ ] Optional: expand `compound_hs6_map.json` / `reagent_mapping.csv` so more reagents
       resolve to an HTS6 and pick up these origins automatically.

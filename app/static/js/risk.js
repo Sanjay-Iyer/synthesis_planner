@@ -127,6 +127,7 @@ function addReagentInputRow(data = null) {
         <input type="number" step="any" class="r-cost" placeholder="Cost" value="${esc(round2(data?.cost) || '')}">
         <input type="text" class="r-route" placeholder="A,B" value="${esc(routeLabel)}" title="Route(s) using this reagent, e.g. A or A,B">
         <!-- Advanced fields -->
+        <input type="text" class="r-hs6 adv-field" placeholder="HS6" title="Optional HS6 code (user-entered; highest mapping priority)" value="${esc(data?.hs6 || '')}">
         <input type="number" step="any" class="r-lead adv-field" placeholder="Lead (d)" value="${esc(data?.lead_time_days || '14')}">
         <input type="number" step="any" class="r-haz adv-field" placeholder="Haz (1-10)" value="${esc(data?.hazard_score || '5')}">
         <input type="number" step="any" class="r-reg adv-field" placeholder="Reg (1-10)" value="${esc(data?.regulatory_score || '5')}">
@@ -136,6 +137,8 @@ function addReagentInputRow(data = null) {
     `;
     // Exact per-route usage from the Planner (kept even if the row total is rounded).
     if (routeUsage) row.dataset.routeUsage = JSON.stringify(routeUsage);
+    // Structure identifier from the Planner (SMILES/InChI/InChIKey) for exact HS6 matching.
+    if (data?.structure) row.dataset.structure = data.structure;
     container.appendChild(row);
     if (data?.cas) checkCAS(row.querySelector('.cas-input'));
 }
@@ -217,7 +220,9 @@ function collectReagentInputs() {
             // null = not provided; the engine uses 5 and labels it as a default.
             substitutability: isNaN(sub) ? null : sub,
             supplier_count: 3, // Default
-            routes: collectRouteUsage(row, mass, cost)
+            routes: collectRouteUsage(row, mass, cost),
+            hs6: (row.querySelector('.r-hs6')?.value || '').trim() || null,
+            structure: row.dataset.structure || null
         });
     });
     return reagents;
@@ -246,9 +251,10 @@ function loadCSV(event) {
         const regIdx = header.findIndex(h => /reg/i.test(h));
         const subIdx = header.findIndex(h => /sub/i.test(h));
         const routeIdx = header.findIndex(h => /^route/i.test(h));
+        const hs6Idx = header.findIndex(h => /^hs6$|^hs_?code$|^hs6_?code$/i.test(h));
 
         // Auto-enable advanced mode if advanced columns found
-        if (leadIdx >= 0 || hazIdx >= 0 || subIdx >= 0) {
+        if (leadIdx >= 0 || hazIdx >= 0 || subIdx >= 0 || hs6Idx >= 0) {
             document.getElementById('advancedToggle').checked = true;
             toggleAdvancedMode();
         }
@@ -272,7 +278,8 @@ function loadCSV(event) {
                 hazard_score: hazIdx >= 0 ? parseInt(cols[hazIdx]) || 5 : 5,
                 regulatory_score: regIdx >= 0 ? parseInt(cols[regIdx]) || 5 : 5,
                 substitutability: subIdx >= 0 && !isNaN(parseInt(cols[subIdx])) ? parseInt(cols[subIdx]) : '',
-                route: routeIdx >= 0 ? (cols[routeIdx] || '').replace(/;/g, ',') : ''
+                route: routeIdx >= 0 ? (cols[routeIdx] || '').replace(/;/g, ',') : '',
+                hs6: hs6Idx >= 0 ? cols[hs6Idx] : ''
             });
         }
 
@@ -340,8 +347,8 @@ async function runRiskAssessment() {
         const data = await res.json();
         lastRiskResults = data;
         displayRiskResults(data);
+        prepareScenarioPanel(data);  // clears any previous scenario first
         renderRouteSummary(data);
-        prepareScenarioPanel(data);
         initVisualizations(data);
     } catch (e) {
         console.error("Client Error during assessment:", e);
@@ -494,7 +501,7 @@ function renderHeatmap(reagents) {
         columns.forEach(([label, key]) => {
             const val = r.breakdown[key];
             if (val === null || val === undefined) {
-                html += `<div class="heatmap-cell" style="background:#b2bec3" title="${label}: unknown (no usable trade data)">n/a</div>`;
+                html += `<div class="heatmap-cell" style="background:#b2bec3" title="${label}: not assessed (insufficient data) — not treated as safe or risky">n/a</div>`;
                 return;
             }
             const color = getHeatmapColor(val);
@@ -529,9 +536,19 @@ function displayRiskResults(data) {
     data.reagents.forEach(r => {
         const row = document.createElement('tr');
         const geo = r.geographic_exposure || {};
-        const stabilityCell = geo.stability_known === false
-            ? `<span title="${esc(geo.stability_source || '')}">50 <span class="muted-sm">(default)</span></span>`
-            : `<span title="${esc(geo.stability_provenance_note || '')}">${Math.round(r.stability_score || 0)}/100</span>`;
+        const comp = r.risk_index_components || {};
+        let stabilityCell;
+        if (geo.stability_known) {
+            const ci = geo.stability_ci_90 ? ` (90% CI ${Math.round(geo.stability_ci_90[0])}–${Math.round(geo.stability_ci_90[1])})` : '';
+            stabilityCell = `<span title="${esc((geo.stability_indicator || '') + ci + ' — ' + (geo.stability_source || ''))}">${Math.round(r.stability_score)}/100</span>
+                <div class="muted-sm">WGI ${esc(geo.stability_year || '')}</div>`;
+        } else {
+            const why = geo.stability_status === 'origin_unknown' ? 'origin unknown' : 'no WGI score';
+            stabilityCell = `<span title="${esc(geo.explanation || '')}">Unknown</span><div class="muted-sm">${why}; not assessed</div>`;
+        }
+        const indexNote = (comp.missing && comp.missing.length)
+            ? `<div class="muted-sm" title="${esc(r.risk_index_note || '')}">not assessed: ${esc(comp.missing.join(', '))}</div>`
+            : '';
 
         row.innerHTML = `
             <td style="font-weight:600;">${esc(r.name || 'Unknown')}</td>
@@ -545,7 +562,7 @@ function displayRiskResults(data) {
             <td>${concentrationCell(r)}</td>
             <td>${(r.mass_g || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
             <td>${fmtMoney(r.cost || 0)}</td>
-            <td>${r.risk_index ? r.risk_index.toFixed(1) : '0.0'}</td>
+            <td title="${esc(r.risk_index_note || '')}">${r.risk_index ? r.risk_index.toFixed(1) : '0.0'}${indexNote}</td>
             <td>
                 <span class="status-pill status-${esc((r.risk_level || 'UNKNOWN').split(' ')[0].toLowerCase())}">
                     ${esc(r.risk_level || 'UNKNOWN')}
@@ -567,13 +584,15 @@ function displayRiskResults(data) {
 
 /**
  * Concentration Risk card: tier, top suppliers, plain-language explanation and
- * the provenance of every number (source, HS6, period, basis, coverage).
+ * the provenance of every number (source, scope, HS6 match, period, basis,
+ * coverage, data quality).
  */
 function concentrationCell(r) {
     const c = r.concentration || {};
     const p = r.provenance || {};
     const q = r.data_quality || {};
     const a = r.alternatives || {};
+    const m = p.hs6_mapping || {};
     const tier = c.tier || 'UNKNOWN';
     const tierCls = tier.toLowerCase();
 
@@ -585,6 +604,10 @@ function concentrationCell(r) {
         }
     }
 
+    const mappingText = m.hs6
+        ? `${esc(m.match_label || m.match_method)}${m.exact ? ' (exact)' : ' (not exact)'} · mapping quality <b>${esc(m.mapping_quality || 'n/a')}</b>${m.broad_category ? ' · broad category' : ''}`
+        : 'none';
+
     const meta = [];
     if (p.status === 'success') {
         const src = p.source_url
@@ -592,22 +615,25 @@ function concentrationCell(r) {
             : esc(p.source);
         meta.push(`Source: ${src}`);
         meta.push(`HS6: ${esc(p.hs6_code)}${p.description ? ` — ${esc(p.description)}` : ''}`);
+        meta.push(`HS6 match: ${mappingText}`);
         const partial = p.is_partial_year ? ' <b style="color:var(--orange);">(partial year / YTD)</b>' : '';
         meta.push(`Period: ${esc(p.period_label)}${partial}`);
         meta.push(`Basis: ${esc(p.ranking_basis)}`);
         meta.push(`Coverage: ${esc(c.coverage_note || p.share_basis_label || '')}`);
     } else if (p.hs6_code) {
         meta.push(`HS6: ${esc(p.hs6_code)} — no trade data indexed`);
+        meta.push(`HS6 match: ${mappingText}`);
     } else {
         meta.push('No HS6 code mapped for this reagent');
     }
-    if (p.hs6_source_label) meta.push(`HS6 from: ${esc(p.hs6_source_label)}`);
     meta.push(`Data quality: <b title="${esc((q.reasons || []).join(' '))}">${esc(q.level || 'n/a')}</b>`);
 
     const details = [];
+    if (p.scope_note) details.push(`<b>Scope:</b> ${esc(p.scope_note)}`);
     if (c.rule) details.push(`Rule: ${esc(c.rule)}`);
     if (c.caveat) details.push(`<span class="conc-note">${esc(c.caveat)}</span>`);
     (q.reasons || []).forEach(reason => details.push(`Quality: ${esc(reason)}`));
+    if (m.hs6) details.push(`HS6 mapping source: ${esc(m.source || '')}${m.note ? ' — ' + esc(m.note) : ''}`);
     if (p.year_selection_note) details.push(`Year: ${esc(p.year_selection_note)}`);
     (p.notes || []).forEach(n => details.push(esc(n)));
     if (a.summary) details.push(`Alternatives: ${esc(a.summary)}`);
@@ -630,44 +656,70 @@ function concentrationCell(r) {
 }
 
 /**
- * Route comparison: process metrics (from the Planner) next to sourcing
- * concentration facts. Deliberately no combined score.
+ * Route comparison: process metrics (from the Planner) next to supply-geography
+ * facts, as one compact table. Deliberately no combined score or ranking.
  */
+let lastScenarioResult = null;
+
 function renderRouteSummary(data) {
     const card = document.getElementById('routeSummaryCard');
     const grid = document.getElementById('routeSummaryGrid');
-    const routes = (data.summary && data.summary.route_summary) || null;
+    const routes = (data && data.summary && data.summary.route_summary) || null;
     if (!routes || !routes.length) { card.style.display = 'none'; grid.innerHTML = ''; return; }
 
-    const brief = b => b
-        ? `${esc(b.name)}: <span class="status-pill status-${esc((b.tier || 'unknown').toLowerCase())}" style="font-size:0.6rem; padding:1px 6px;">${esc(b.tier)}</span> ${esc(b.top_supplier_country)} ${fmtPct(b.top_supplier_share)}`
-        : '—';
+    const ctxFor = rt => (routeContext || {})[rt.route] || {};
+    const pill = tier => `<span class="status-pill status-${esc((tier || 'unknown').toLowerCase())}" style="font-size:0.6rem; padding:1px 6px;">${esc(tier || 'UNKNOWN')}</span>`;
+    const brief = b => b ? `${fmtPct(b.top_supplier_share)} ${esc(b.top_supplier_country)} ${pill(b.tier)}<div class="muted-sm">${esc(b.name)} · ${esc(b.source || '')} · quality ${esc(b.data_quality || 'n/a')}</div>` : '—';
 
-    grid.innerHTML = routes.map(rt => {
-        const ctx = (routeContext || {})[rt.route] || {};
-        const totalCost = ctx.total_cost !== null && ctx.total_cost !== undefined
-            ? `${fmtMoney(ctx.total_cost)}${ctx.target_kg ? ` for ${esc(ctx.target_kg)} kg` : ''}`
-            : '—';
-        const eFactor = ctx.e_factor !== null && ctx.e_factor !== undefined ? esc(ctx.e_factor) : '—';
-        const sources = (rt.dominant_source_cost_shares || []).slice(0, 4)
-            .map(s => `${esc(s.country)} ${s.cost_share_pct !== null ? fmtPct(s.cost_share_pct) : ''} <span class="muted-sm">(${esc(s.reagents.join(', '))})</span>`)
-            .join('<br>') || '—';
-        return `
-            <div class="route-box">
-                <h4>Route ${esc(rt.route)}</h4>
-                <dl>
-                    <dt>Total cost</dt><dd>${totalCost}</dd>
-                    <dt>E-factor</dt><dd>${eFactor}</dd>
-                    <dt>Reagents assessed</dt><dd>${rt.reagent_count} (${fmtMoney(rt.assessed_reagent_cost)} reagent cost)</dd>
-                    <dt>Highest concentration</dt><dd>${brief(rt.highest_concentration_reagent)}</dd>
-                    <dt>Largest dominant share</dt><dd>${brief(rt.largest_dominant_share)}</dd>
-                    <dt>HIGH concentration</dt><dd>${rt.high_concentration_reagents.length ? esc(rt.high_concentration_reagents.join(', ')) : 'None'}</dd>
-                    <dt>Unknown concentration</dt><dd>${rt.unknown_concentration_reagents.length ? esc(rt.unknown_concentration_reagents.join(', ')) : 'None'}</dd>
-                    <dt>Reagent cost by dominant source</dt><dd style="font-weight:400;">${sources}</dd>
-                </dl>
-                ${ctx.cost_basis ? `<div class="muted-sm" style="margin-top:8px;">Costs: ${esc(ctx.cost_basis)}</div>` : '<div class="muted-sm" style="margin-top:8px;">Costs: as entered in the table (no Planner metrics).</div>'}
-            </div>`;
+    const scenarioRows = {};
+    if (lastScenarioResult) {
+        (lastScenarioResult.routes || []).forEach(r => { scenarioRows[r.route] = r; });
+    }
+
+    const rows = [
+        ['section', 'Process metrics (Planner)'],
+        ['Total route cost', rt => {
+            const c = ctxFor(rt);
+            return c.total_cost !== null && c.total_cost !== undefined ? `${fmtMoney(c.total_cost)}${c.target_kg ? ` for ${esc(c.target_kg)} kg` : ''}` : '—';
+        }],
+        ['E-factor', rt => { const c = ctxFor(rt); return c.e_factor !== null && c.e_factor !== undefined ? esc(c.e_factor) : '—'; }],
+        ['section', 'Supply geography (Risk Audit)'],
+        ['Assessed reagent spend', rt => {
+            const c = ctxFor(rt);
+            const share = c.total_cost ? ` <span class="muted-sm">(${fmtPct(rt.assessed_reagent_cost / c.total_cost * 100)} of total route cost)</span>` : '';
+            return `${fmtMoney(rt.assessed_reagent_cost)}${share}`;
+        }],
+        ['Reagents assessed / with trade data', rt => `${rt.reagent_count} / ${rt.reagents_with_trade_data}`],
+        ['HIGH concentration reagents', rt => `${rt.high_concentration_count}${rt.high_concentration_reagents.length ? `<div class="muted-sm">${esc(rt.high_concentration_reagents.join(', '))}</div>` : ''}`],
+        ['Highest single-country share', rt => brief(rt.largest_dominant_share)],
+        ['Largest single-country exposure', rt => {
+            const e = rt.largest_country_exposure;
+            return e ? `<b>${esc(e.country)}</b> — ${fmtPct(e.pct_of_assessed_spend)} of assessed reagent spend<div class="muted-sm">via ${esc(e.reagents.join(', '))}</div>` : '—';
+        }],
+        ['Unknown trade-data exposure', rt => rt.unknown_concentration_reagents.length
+            ? `${fmtPct(rt.unknown_data_pct)} of assessed reagent spend<div class="muted-sm">${esc(rt.unknown_concentration_reagents.join(', '))}</div>`
+            : 'None'],
+        ['Highest country-conditions score', rt => {
+            const g = rt.highest_geographic_risk_reagent;
+            return g ? `${esc(g.geographic_score)} <span class="muted-sm">(${esc(g.origin)}, WGI ${esc(Math.round(g.stability_score))}/100 · ${esc(g.name)})</span>` : '—';
+        }],
+    ];
+    if (lastScenarioResult) {
+        rows.push(['section', `Selected scenario: ${esc(lastScenarioResult.scenario.label)}`]);
+        rows.push(['Exposed share of assessed reagent spend', rt => {
+            const s = scenarioRows[rt.route];
+            if (!s) return '—';
+            const upper = s.exposure_tier_if_unknown_affected ? `<div class="muted-sm">up to ${esc(s.exposure_tier_if_unknown_affected)} if unknown-data reagents were affected</div>` : '';
+            return `<b>${fmtPct(s.affected_pct)}</b> ${pill(s.exposure_tier)} <span class="muted-sm">${esc(s.exposure_label)}</span>${upper}`;
+        }]);
+    }
+
+    const header = `<tr><th>Metric</th>${routes.map(rt => `<th>Route ${esc(rt.route)}</th>`).join('')}</tr>`;
+    const body = rows.map(([label, fn]) => {
+        if (label === 'section') return `<tr class="section"><td colspan="${routes.length + 1}">${fn}</td></tr>`;
+        return `<tr><td class="metric">${label}</td>${routes.map(rt => `<td>${fn(rt)}</td>`).join('')}</tr>`;
     }).join('');
+    grid.innerHTML = `<table class="route-table">${header}${body}</table>`;
     card.style.display = 'block';
 }
 
@@ -681,6 +733,7 @@ function prepareScenarioPanel(data) {
     const set = new Set();
     (data.reagents || []).forEach(r => (r.supplier_shares || []).forEach(s => { if (s.country) set.add(s.country); }));
     scenarioCountries = Array.from(set).sort();
+    lastScenarioResult = null;
     document.getElementById('scenarioCard').style.display = data.reagents && data.reagents.length ? 'block' : 'none';
     document.getElementById('scenarioResults').innerHTML = '';
     updateScenarioControls();
@@ -731,7 +784,9 @@ async function runScenario() {
             const err = await res.json().catch(() => ({}));
             throw new Error(typeof err.detail === 'string' ? err.detail : JSON.stringify(err.detail || err));
         }
-        renderScenarioResults(await res.json());
+        lastScenarioResult = await res.json();
+        renderScenarioResults(lastScenarioResult);
+        renderRouteSummary(lastRiskResults);
     } catch (e) {
         console.error('Scenario failed', e);
         document.getElementById('scenarioResults').innerHTML = `<div class="conc-note">Scenario failed: ${esc(e.message)}</div>`;
@@ -747,13 +802,13 @@ function renderScenarioResults(res) {
         const tierCls = (rt.exposure_tier || 'unknown').toLowerCase();
         const lines = [];
         if (rt.affected_pct !== null && rt.affected_pct !== undefined) {
-            lines.push(`Affected: <b>${fmtPct(rt.affected_pct)}</b> of assessed reagent cost (${fmtMoney(rt.affected_cost)} of ${fmtMoney(rt.assessed_reagent_cost)})`);
+            lines.push(`Exposed: <b>${fmtPct(rt.affected_pct)}</b> of assessed reagent spend (${fmtMoney(rt.affected_cost)} of ${fmtMoney(rt.assessed_reagent_cost)})`);
         }
-        if (rt.unknown_pct) lines.push(`No trade data: ${fmtPct(rt.unknown_pct)} of cost (${esc(rt.unknown_reagents.join(', '))})`);
+        if (rt.unknown_pct) lines.push(`No trade data: ${fmtPct(rt.unknown_pct)} of spend (${esc(rt.unknown_reagents.join(', '))})`);
         if (rt.high_dependency_reagents && rt.high_dependency_reagents.length) {
             lines.push(`High dependency: ${esc(rt.high_dependency_reagents.join(', '))}`);
         }
-        if (rt.added_cost !== undefined) lines.push(`Added cost: ${fmtMoney(rt.added_cost)} (+${fmtPct(rt.added_cost_pct)} of reagent cost)`);
+        if (rt.added_cost !== undefined) lines.push(`Added cost: ${fmtMoney(rt.added_cost)} (+${fmtPct(rt.added_cost_pct)} of reagent spend)`);
         if (rt.lead_time_increase_days !== undefined) lines.push(`Lead time +${esc(rt.lead_time_increase_days)} days on the affected share of supply`);
         if (rt.note) lines.push(`<span class="conc-note">${esc(rt.note)}</span>`);
         return `
@@ -785,6 +840,8 @@ function renderScenarioResults(res) {
 
     document.getElementById('scenarioResults').innerHTML = `
         <h4 style="margin:0 0 6px;">${esc(s.label || 'Scenario')}</h4>
+        <p style="margin:0 0 6px; font-size:0.9rem;"><b>${esc(res.summary_text || '')}</b></p>
+        <p class="muted-sm" style="margin:0 0 8px;">Hypothetical sensitivity analysis, not a prediction. ${esc(res.limitations || '')}</p>
         <details style="margin-bottom:10px;"><summary class="muted-sm" style="cursor:pointer;">Method & assumptions (deterministic)</summary>
             <ul class="muted-sm" style="margin:6px 0 0 18px;">${(s.assumptions || []).map(x => `<li>${esc(x)}</li>`).join('')}</ul>
         </details>
@@ -804,10 +861,11 @@ function exportRiskCSV() {
     const header = [
         'Reagent', 'CAS', 'Origin', 'Stability_Score', 'Mass_g', 'Cost', 'HS_Code', 'Risk_Index', 'Risk_Level',
         'Concentration_Pct', 'Concentration_Flag', 'Data_Source',
-        'Origin_Source', 'Stability_Known', 'Top_Supplier', 'Top_Supplier_Share_Pct', 'Second_Supplier',
-        'Second_Supplier_Share_Pct', 'Supplier_Countries', 'Concentration_Explanation', 'Trade_Source', 'Period',
-        'Partial_Year', 'Ranking_Basis', 'Share_Basis', 'HS6_Source', 'Data_Quality', 'Alternate_Country_Count',
-        'Substitutability', 'Substitutability_Source', 'Routes'
+        'Origin_Source', 'Stability_Status', 'Geographic_Score', 'Top_Supplier', 'Top_Supplier_Share_Pct', 'Second_Supplier',
+        'Second_Supplier_Share_Pct', 'Supplier_Countries', 'Concentration_Explanation', 'Trade_Source', 'Scope', 'Period',
+        'Partial_Year', 'Ranking_Basis', 'Share_Basis', 'HS6_Match_Method', 'HS6_Mapping_Quality', 'HS6_Exact',
+        'Data_Quality', 'Alternate_Country_Count', 'Substitutability', 'Substitutability_Source',
+        'Risk_Index_Missing_Components', 'Routes'
     ];
     let csv = header.join(',') + '\n';
     lastRiskResults.reagents.forEach(r => {
@@ -815,14 +873,17 @@ function exportRiskCSV() {
         const p = r.provenance || {};
         const g = r.geographic_exposure || {};
         const a = r.alternatives || {};
+        const m = p.hs6_mapping || {};
         const cells = [
-            r.name, r.cas, r.primary_origin, r.stability_score, r.mass_g, r.cost, r.hs_code || '', r.risk_index, r.risk_level,
+            r.name, r.cas, r.primary_origin, r.stability_score ?? '', r.mass_g, r.cost, r.hs_code || '', r.risk_index, r.risk_level,
             c.top_supplier_share ?? '', c.tier || '', p.source_label || '',
-            g.origin_source || '', g.stability_known, c.top_supplier_country || '', c.top_supplier_share ?? '',
-            c.second_supplier_country || '', c.second_supplier_share ?? '', c.supplier_countries_available ?? '',
-            c.explanation || '', p.source || '', p.period_label || '', p.is_partial_year ?? '', p.ranking_basis || '',
-            p.share_basis_label || '', p.hs6_source || '', (r.data_quality || {}).level || '', a.alternate_country_count ?? '',
-            a.substitutability_score ?? '', a.substitutability_source || '', Object.keys(r.routes || {}).join(';')
+            g.origin_source || '', g.stability_status || '', (r.breakdown || {}).geographic ?? '', c.top_supplier_country || '',
+            c.top_supplier_share ?? '', c.second_supplier_country || '', c.second_supplier_share ?? '',
+            c.supplier_countries_available ?? '', c.explanation || '', p.source || '', p.scope_note || '', p.period_label || '',
+            p.is_partial_year ?? '', p.ranking_basis || '', p.share_basis_label || '', m.match_method || '', m.mapping_quality || '',
+            m.exact ?? '', (r.data_quality || {}).level || '', a.alternate_country_count ?? '',
+            a.substitutability_score ?? '', a.substitutability_source || '',
+            ((r.risk_index_components || {}).missing || []).join(';'), Object.keys(r.routes || {}).join(';')
         ];
         csv += cells.map(csvCell).join(',') + '\n';
     });

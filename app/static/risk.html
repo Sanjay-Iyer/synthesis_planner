@@ -28,7 +28,7 @@
             transition: all 0.3s ease;
         }
         .reagent-input-row.advanced {
-            grid-template-columns: 2fr 1.2fr 1fr 1fr 0.7fr 0.7fr 0.6fr 0.7fr 0.7fr 0.7fr 0.7fr auto;
+            grid-template-columns: 2fr 1.2fr 1fr 1fr 0.7fr 0.7fr 0.6fr 0.8fr 0.7fr 0.7fr 0.7fr 0.7fr auto;
         }
         .reagent-input-row .adv-field { display: none; }
         .reagent-input-row.advanced .adv-field { display: block; }
@@ -136,6 +136,14 @@
         .summary-cards { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-top: 25px; }
 
         /* Route summary + scenario */
+        .route-table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 0.82rem; }
+        .route-table th, .route-table td { padding: 7px 10px; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+        .route-table th { font-size: 0.72rem; text-transform: uppercase; color: var(--text-muted); }
+        .route-table td.metric { color: var(--text-muted); width: 30%; }
+        .route-table tr.section td { background: #f8f9fa; font-weight: 700; font-size: 0.72rem; text-transform: uppercase; color: var(--text-muted); }
+        .help-box { font-size: 0.78rem; color: var(--text-muted); margin-top: 8px; }
+        .help-box summary { cursor: pointer; color: var(--primary); }
+        .help-box ul { margin: 6px 0 0 18px; }
         .route-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin-top: 12px; }
         .route-box { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; background: #fff; }
         .route-box h4 { margin: 0 0 8px; }
@@ -208,6 +216,7 @@
                         <div>Mass (g)</div>
                         <div>Cost ($)</div>
                         <div title="Route(s) using this reagent, e.g. A or A,B. Filled automatically from the Planner.">Route</div>
+                        <div class="adv-field" title="Optional HS6 code you know applies (highest mapping priority; shown as user-entered).">HS6</div>
                         <div class="adv-field">Lead (d)</div>
                         <div class="adv-field">Haz (1-10)</div>
                         <div class="adv-field">Reg (1-10)</div>
@@ -255,9 +264,18 @@
 
         <!-- Route comparison (no combined score — the user decides) -->
         <div class="card" style="margin-top:25px; display:none;" id="routeSummaryCard">
-            <h3 style="margin-bottom:4px;">Route Comparison — Process Metrics vs. Sourcing Concentration</h3>
-            <p class="muted-sm" style="margin:0;">Side-by-side facts only; no combined "best route" score. Concentration is based on the trade data shown per reagent.</p>
-            <div class="route-summary-grid" id="routeSummaryGrid"></div>
+            <h3 style="margin-bottom:4px;">Route Comparison — Process Metrics vs. Supply Geography</h3>
+            <p class="muted-sm" style="margin:0;">Route economics and route supply resilience can tell different stories. Facts only: there is no combined score and no recommended route.</p>
+            <div id="routeSummaryGrid"></div>
+            <details class="help-box"><summary>What do these numbers mean?</summary>
+                <ul>
+                    <li><b>Assessed reagent spend</b> is the cost of the reagents sent to this audit (production scale from the Planner). Solvents and other route costs are not assessed, so percentages are of reagent spend, not of total route cost.</li>
+                    <li><b>Concentration</b> uses supplier-country shares from trade data (USITC: share of U.S. import value; WITS: share among the top listed exporters). U.S. import origins are not global supply and exclude U.S. domestic production.</li>
+                    <li><b>Largest single-country exposure</b> = Σ (reagent spend × that country's share) for the country with the highest total.</li>
+                    <li><b>Geographic (country conditions)</b> = 100 − World Bank WGI political-stability governance score of the dominant origin. It is a governance indicator, not a disruption probability, and is reported separately from concentration.</li>
+                    <li>Reagents without trade data are counted as <b>unknown</b>, never as safe or as high risk.</li>
+                </ul>
+            </details>
         </div>
 
         <!-- Results Table -->

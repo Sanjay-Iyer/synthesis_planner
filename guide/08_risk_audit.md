@@ -62,41 +62,25 @@ When you click **"🌍 Analyze Risk"** on the Synthesis Planner, reagent data is
 
 For each reagent, the engine computes four independent risk dimensions and combines them:
 
-### 1. Geographic Risk (Weight: 30%)
+### 1. Geographic Risk — country conditions (Weight: 30%)
 
-Scale: 0–100
+Scale: 0–100. **Country conditions only** — supplier concentration is a separate
+result and is never folded in here.
 
 ```
-geo_base = 100 - country_stability_score
-
-If origin is "Unknown":
-    geo_risk = min(100, geo_base × 1.5)    ← "Opacity Multiplier"
-Else:
-    geo_risk = geo_base
-
-concentration = top supplier share (%) from trade data, or None if unknown
-geo_index_input = max(geo_risk, concentration)   ← used for the 30% weight
+WGI = World Bank WGI political-stability governance score (0-100) of the dominant origin
+geographic = 100 - WGI                      if the origin and its WGI score are known
+geographic = None  (UNKNOWN, not assessed)  if the origin is unknown or has no WGI score
 ```
 
-`breakdown.geographic` is **country conditions only**; `breakdown.concentration`
-is reported separately (see *Geographic Exposure vs. Concentration Risk*
-below). The composite index still uses the worse of the two for its 30%
-geographic weight, as before.
+There is no ×1.5 "opacity" penalty and no neutral 50: an unknown origin means
+*insufficient geographic information* — not safe, not high risk. The result's
+`geographic_exposure.stability_status` is `known`, `origin_unknown` or
+`no_stability_data`. WGI is a governance perception indicator, not a
+disruption probability; see `guide/DATA_SOURCES.md` §3.
 
-Country stability scores come from `country_stability.csv` (modeled on World Bank Worldwide Governance Indicators):
-
-| Country | Stability Score | Resulting geo_base |
-|---|---|---|
-| Germany | 92 | 8 (low risk) |
-| Japan | 88 | 12 |
-| USA | 85 | 15 |
-| Chile | 75 | 25 |
-| India | 52 | 48 |
-| China | 48 | 52 |
-| Mexico | 42 | 58 |
-| South Africa | 35 | 65 |
-| Russia | 15 | 85 (high risk) |
-| Unknown | 50 (default) | 75 (50 × 1.5, opacity penalty) |
+Examples (WGI 2025): Canada 79.8 → 20.2 · South Korea 81.7 → 18.3 · China 66.0 →
+34.0 · Mexico 55.0 → 45.0 · Taiwan → not assessed (not in the World Bank API).
 
 ### 2. Operational Risk (Weight: 20%)
 
@@ -153,12 +137,21 @@ A substitutability of 10 (hardest to replace) = 100 economic risk.
 ### Composite Score and Final Risk Index
 
 ```
-composite_score = geo × 0.30 + oper × 0.20 + reg × 0.30 + econ × 0.20
+weights   = geographic 0.30, operational 0.20, regulatory 0.30, economic 0.20   (risk_config.COMPOSITE_WEIGHTS)
+available = components that could be assessed (geographic may be None)
+composite = Σ weight × score over available / Σ weight over available       ← renormalised
 
 exposure_multiplier = log₁₀(mass_g + 1) × 0.7 + log₁₀(cost + 1) × 0.3 + 1
-
-risk_index = composite_score × exposure_multiplier
+risk_index          = composite × exposure_multiplier
 ```
+
+* **Concentration is not a component** of this index; it has its own tier and
+  appears in the route summary and scenarios.
+* A component that cannot be assessed is **left out and listed**
+  (`risk_index_components.missing`, shown as "not assessed: geographic" under the
+  Risk Index). No value is substituted for it.
+* `risk_index_components` lists each component's score, weight and whether it
+  was used; `risk_index_note` states the same in words.
 
 The exposure multiplier scales risk by how much material is at stake. A reagent used at 10 kg with $5,000 cost has a higher risk_index than the same reagent at 1 g and $5, even if the composite score is identical.
 
@@ -216,10 +209,12 @@ number of supplier countries. The trade year is the latest **complete** year;
 see `guide/DATA_SOURCES.md`.
 
 `data_quality.level` is qualitative and rule-based: starts HIGH, capped at
-LOW for partial-year data, unknown period, unknown concentration or a grouping
-outranking all countries; capped at MEDIUM for listed-only (WITS top-5) shares,
-fewer than 3 supplier countries, or an HS6 matched by name only. `NO_DATA`
-when there is no HS6 mapping or trade data. Reasons are listed.
+LOW for partial-year data, unknown period, unknown concentration, a grouping
+outranking all countries, or a LOW-quality HS6 mapping (broad "NESOI"/"Other"
+category); capped at MEDIUM for listed-only (WITS top-5) shares, fewer than 3
+supplier countries, or a MEDIUM-quality HS6 mapping (matched by name rather than
+CAS / structure). `NO_DATA` when there is no HS6 mapping or trade data. Reasons
+are listed. HS6 mapping methods and quality rules: `guide/DATA_SOURCES.md` §4.
 
 ### Alternatives and substitutability (`alternatives`)
 
@@ -235,12 +230,22 @@ when there is no HS6 mapping or trade data. Reasons are listed.
 
 ## Route Comparison
 
-When reagents arrive from the Planner they carry which route uses them and
-the production-scale cost per route. The Risk Audit then shows, per route:
-total cost and E-factor (from the Planner), the highest-concentration reagent,
-the largest dominant-country share, HIGH and UNKNOWN concentration reagents,
-and reagent cost grouped by each reagent's dominant source country. There is
-no combined score; the user makes the route decision.
+When reagents arrive from the Planner they carry which route uses them, their
+production-scale spend per route and (if known) their structure. The Risk
+Audit shows one table, routes as columns, with no combined score and no
+recommended route:
+
+| Row | Meaning |
+|---|---|
+| Total route cost, E-factor | From the Planner (process metrics) |
+| Assessed reagent spend | Spend on the reagents sent to the audit, and its share of total route cost (solvents and other costs are not assessed) |
+| Reagents assessed / with trade data | Count of reagents, and of those with usable concentration data |
+| HIGH concentration reagents | Count and names |
+| Highest single-country share | Largest top-supplier share in the route, with reagent, source and data quality |
+| Largest single-country exposure | max over countries of Σ (reagent spend × that country's share) ÷ assessed spend |
+| Unknown trade-data exposure | Spend on reagents with no usable trade data (never counted as safe) |
+| Highest country-conditions score | Reagent whose dominant origin has the highest 100 − WGI |
+| Selected scenario | After running a scenario: exposed share of assessed spend per route |
 
 Manual rows can use the **Route** column (`A`, `B` or `A,B`); a manual row's
 cost is attributed to each listed route.
@@ -275,10 +280,18 @@ sourcing exposure affected", "high dependency on disrupted country", "limited
 observed alternative sourcing") and never claims a material becomes
 unavailable. Solvents are not part of the assessed reagent cost.
 
+Each result includes a one-sentence `summary_text` ("Under a hypothetical South
+Korea supply interruption, approximately 7.7% of the assessed reagent spend for
+Route A is exposed versus 62.5% for Route B.") and the fixed limitation: the
+scenario assumes procurement follows the observed trade mix and does not model
+domestic production, supplier inventories, qualified vendor relationships or the
+probability of disruption.
+
 ### Auto-Generated Warnings
 
 The engine appends warning strings for:
-- `"Unverified Origin (Opacity Risk)"` — when origin is "Unknown"
+- `"Origin unknown — geographic component not assessed (insufficient geographic information)."` — when origin is unknown
+- `"No stability score for '<country>'; geographic component not assessed."` — when the origin has no WGI score
 - `"CRITICAL MATERIAL: Platinum (Strategic Concentration: South Africa)"` — when CAS is in the critical list
 - `"REGULATORY FLAG: DCM (EPA TSCA Section 6 - Commercial Ban in force)"` — when CAS is in the regulatory list
 
@@ -299,7 +312,7 @@ A full-width table with columns:
 | Reagent | Chemical name (bold) |
 | CAS | CAS number (monospace font) |
 | Origin | Dominant origin, how it was determined, and secondary origin |
-| Stability | Country stability score out of 100, or "50 (default)" when the country is not in the table |
+| Stability | WGI political-stability governance score out of 100 (year and 90% CI on hover), or "Unknown — not assessed" when the origin is unknown or has no WGI score |
 | Concentration | Concentration Risk card: tier, top two suppliers with shares, explanation, source, HS6, period, basis, coverage, data quality; "Why / provenance details" expands notes and alternatives |
 | Mass (g) | Total mass |
 | Cost ($) | Total cost |
@@ -373,17 +386,9 @@ Reagent_CAS, HS_Code, Primary_Origin
 Grows over time as users save mappings via the "💾 Save Mappings" button.
 
 ### country_stability.csv
-Political/economic stability scores (0–100, higher = more stable):
-```
-Country, Stability_Score
-Germany, 92
-USA,     85
-Japan,   88
-China,   48
-South Africa, 35
-Russia,  15
-Mexico,  42
-India,   52
-```
+World Bank WGI political-stability governance scores (0–100) for 208 economies,
+generated by `scripts/import_wgi.py` (provenance in `country_stability_meta.json`;
+see `guide/DATA_SOURCES.md` §3). If the file is missing, no scores are invented:
+every origin is reported as "no stability data".
 
-Both files are **auto-generated with defaults** if missing on first server start.
+`reagent_mapping.csv` is still auto-generated with defaults if missing.

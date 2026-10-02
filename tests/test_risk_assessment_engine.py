@@ -28,8 +28,13 @@ def test_risk_assessment_does_not_crash_with_unknown_origin(mock_db):
         ReagentRiskInput(name="Test Chemical", origin="Unknown", mass_g=1.0, cost=1.0)
     ]
     results = run_risk_assessment(reagents)
-    assert results["reagents"][0]["primary_origin"] == "Unknown"
-    assert results["reagents"][0]["stability_score"] == 50.0
+    r = results["reagents"][0]
+    assert r["primary_origin"] == "Unknown"
+    # Unknown origin is reported as UNKNOWN: no neutral 50 and no penalty.
+    assert r["stability_score"] is None
+    assert r["geographic_exposure"]["stability_status"] == "origin_unknown"
+    assert r["breakdown"]["geographic"] is None
+    assert r["risk_index_components"]["missing"] == ["geographic"]
 
 
 def test_stability_row_defined_before_use(mock_db):

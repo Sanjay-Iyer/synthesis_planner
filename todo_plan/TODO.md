@@ -150,6 +150,15 @@ Reviewed 2026-06-05. Findings below.
       workers each rebuilds independently. Fine for now — note it.
 
 ### 3b-2. Geographic-risk follow-ups (from the 2026-10-02 concentration work)
+- [x] **DONE (2026-10-02)** Composite index no longer mixes concentration into the
+      geographic component and no longer applies the x1.5 unknown-origin penalty;
+      unknown components are left out and listed (`risk_config.COMPOSITE_WEIGHTS`).
+- [x] **DONE (2026-10-02)** WGI country coverage (208 economies) + central country aliases.
+- [x] **DONE (2026-10-02)** HS6 resolver with match method / exactness / mapping quality
+      (`app/modules/risk/hs6_mapping.py`); broad NESOI/"Other" categories flagged LOW;
+      Planner passes SMILES for exact InChIKey matching.
+- [ ] **P2** Optional LLM HS6 *suggestions* (marked "proposed / needs review", verified to
+      exist in the trade index before use) — not implemented.
 - [ ] **P2** Route-level comparison is facts-only today (Route Comparison card). If a
       route score is ever added, keep it transparent (show each input) — no opaque
       single "best route" number.

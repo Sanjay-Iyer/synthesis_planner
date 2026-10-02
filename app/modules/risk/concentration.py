@@ -26,6 +26,7 @@ SHARE_OF_TOTAL = "share_of_total"  # shares of the full reported total (USITC)
 SHARE_OF_LISTED = "share_of_listed"  # shares of the listed rows only (WITS top 5)
 
 DEFAULT_BASIS_PHRASE = "the reported supply for this product"
+DEFAULT_DATA_PHRASE = "the available trade data"
 
 # Data-quality levels, best first.
 _QUALITY_ORDER = ["HIGH", "MEDIUM", "LOW"]
@@ -113,6 +114,7 @@ def assess_concentration(
     total_country_count: Optional[int] = None,
     basis_phrase: str = DEFAULT_BASIS_PHRASE,
     thresholds: Optional[dict] = None,
+    data_phrase: str = DEFAULT_DATA_PHRASE,
 ) -> dict:
     """Classify sourcing concentration from supplier-country shares.
 
@@ -208,12 +210,13 @@ def assess_concentration(
         if only_country:
             explanation = (
                 f"{top['country']} is the only origin country in {basis_phrase} "
-                f"({fmt_pct(top1)}). This creates high single-country concentration."
+                f"({fmt_pct(top1)}). This indicates high single-country concentration "
+                f"in {data_phrase}."
             )
         else:
             explanation = (
                 f"{fmt_pct(top1)} of {basis_phrase} originated from {top['country']}. "
-                "This creates high single-country concentration."
+                f"This indicates high single-country concentration in {data_phrase}."
             )
     elif combined is not None and combined >= th["high_top2_combined_pct"]:
         tier = "HIGH"
@@ -224,22 +227,23 @@ def assess_concentration(
         explanation = (
             f"{top['country']} ({fmt_pct(top1)}) and {second['country']} "
             f"({fmt_pct(second['share_pct'])}) together account for {fmt_pct(combined)} "
-            f"of {basis_phrase}. This creates high two-country concentration."
+            f"of {basis_phrase}. This indicates high two-country concentration in "
+            f"{data_phrase}."
         )
     elif top1 >= th["medium_top1_pct"]:
         tier = "MEDIUM"
         result["rule"] = f"top supplier share {fmt_pct(top1)} >= {fmt_pct(th['medium_top1_pct'])}"
         explanation = (
             f"The largest supplier, {top['country']}, accounts for {fmt_pct(top1)} of "
-            f"{basis_phrase}. Sourcing is moderately concentrated."
+            f"{basis_phrase}. This indicates moderate concentration in {data_phrase}."
         )
     else:
         tier = "LOW"
         result["rule"] = f"top supplier share {fmt_pct(top1)} < {fmt_pct(th['medium_top1_pct'])}"
         explanation = (
             f"The largest supplier, {top['country']}, accounts for {fmt_pct(top1)} of "
-            f"{basis_phrase}. Sourcing appears relatively diversified based on the "
-            "available data."
+            f"{basis_phrase}. This indicates relatively diversified sourcing in "
+            f"{data_phrase}."
         )
 
     # The second supplier's share bounds the two-country rule. If it is not
@@ -381,22 +385,37 @@ def assess_alternatives(
 # PROVENANCE & DATA QUALITY
 # =================================================================
 
-HS6_SOURCE_LABELS = {
-    "cas_mapping": "CAS → HS mapping (reagent_mapping.csv)",
-    "compound_db": "Compound registry (SQLite compounds.hs6_code)",
-    "inchikey_map": "InChIKey → HS6 map (compound_hs6_map.json)",
-    "name_hint": "Name match against compound_hs6_map.json hints",
-}
+
+def _mapping_summary(mapping: Optional[dict]) -> dict:
+    mapping = mapping or {}
+    keys = (
+        "hs6",
+        "match_method",
+        "match_label",
+        "source",
+        "exact",
+        "mapping_quality",
+        "broad_category",
+        "description",
+        "note",
+    )
+    return {k: mapping.get(k) for k in keys}
 
 
-def build_provenance(sc: Optional[dict], hs6: Optional[str], hs6_source: Optional[str]) -> dict:
+def build_provenance(sc: Optional[dict], mapping: Optional[dict]) -> dict:
     """Collect the 'where did this number come from' fields for one reagent."""
+    mapping = _mapping_summary(mapping)
+    hs6 = mapping.get("hs6")
     prov = {
         "status": (sc or {}).get("status", "no_hs6_mapping" if not hs6 else "no_trade_data"),
         "hs6_code": hs6,
-        "hs6_source": hs6_source,
-        "hs6_source_label": HS6_SOURCE_LABELS.get(hs6_source),
+        "hs6_mapping": mapping,
+        # Short aliases used by the CSV export / older clients.
+        "hs6_source": mapping.get("match_method"),
+        "hs6_source_label": mapping.get("match_label"),
     }
+    if prov["status"] == "no_hs6_mapping" and hs6:
+        prov["status"] = "no_trade_data"
     if not sc or sc.get("status") != "success":
         return prov
     keys = (
@@ -405,6 +424,7 @@ def build_provenance(sc: Optional[dict], hs6: Optional[str], hs6_source: Optiona
         "source_label",
         "source_files",
         "description",
+        "scope_note",
         "year",
         "period_type",
         "period_label",
@@ -434,9 +454,11 @@ def assess_data_quality(provenance: dict, concentration: dict) -> dict:
 
     Starts at HIGH and is capped by each limitation found:
       LOW    — partial-year/YTD period; unknown period coverage; concentration
-               UNKNOWN; a non-country grouping outranks every country
+               UNKNOWN; a non-country grouping outranks every country; HS6
+               mapping quality LOW (e.g. a broad "NESOI"/"Other" category)
       MEDIUM — shares relative to listed suppliers only (not a world total);
-               fewer than 3 supplier countries reported; HS6 matched by name only
+               fewer than 3 supplier countries reported; HS6 mapping quality
+               MEDIUM (matched by name, not by CAS / structure)
     """
     if provenance.get("status") != "success":
         reason = (
@@ -462,30 +484,43 @@ def assess_data_quality(provenance: dict, concentration: dict) -> dict:
     countries = concentration.get("supplier_countries_available") or 0
     if countries < 3:
         caps.append(("MEDIUM", f"Only {countries} supplier countr{'y' if countries == 1 else 'ies'} reported."))
-    if provenance.get("hs6_source") == "name_hint":
-        caps.append(("MEDIUM", "HS6 code matched by reagent name, not by CAS or structure."))
+    mapping = provenance.get("hs6_mapping") or {}
+    quality = mapping.get("mapping_quality")
+    if quality == "LOW":
+        caps.append(("LOW", f"HS6 mapping quality LOW. {mapping.get('note') or ''}".strip()))
+    elif quality == "MEDIUM":
+        caps.append(
+            ("MEDIUM", f"HS6 matched by {(mapping.get('match_label') or 'name').lower()}, not by CAS or structure.")
+        )
 
     level = "HIGH"
     for cap_level, _ in caps:
         if _QUALITY_ORDER.index(cap_level) > _QUALITY_ORDER.index(level):
             level = cap_level
     reasons = [reason for _, reason in caps] or [
-        "Complete-year data covering all reported supplier countries, with a mapped HS6 code."
+        "Complete-year data covering all reported supplier countries, with an exact HS6 match."
     ]
     return {"level": level, "reasons": reasons}
 
 
 def build_geographic_profile(
     sc: Optional[dict],
-    hs6: Optional[str],
-    hs6_source: Optional[str],
+    resolution: Optional[dict],
     substitutability_score: Optional[int] = None,
     substitutability_source: str = "default",
 ) -> dict:
-    """Concentration + alternatives + provenance + data quality for one reagent."""
+    """Concentration + alternatives + provenance + data quality for one reagent.
+
+    ``resolution`` is the output of ``hs6_mapping.resolve_hs6`` (or None).
+    """
+    from .hs6_mapping import finalize_mapping
+
     sc = sc or {}
+    resolution = resolution or {"hs6": None}
+    hs6 = resolution.get("hs6")
     suppliers = suppliers_from_trade_data(sc)
     has_data = sc.get("status") == "success"
+    mapping = finalize_mapping(resolution, sc.get("description") if has_data else None)
     # A full country count is only meaningful when every reporting country is
     # in the data (USITC); WITS stores the top exporters only.
     total_count = (
@@ -496,6 +531,7 @@ def build_geographic_profile(
         share_basis=sc.get("share_basis", SHARE_OF_TOTAL),
         total_country_count=total_count,
         basis_phrase=sc.get("basis_phrase", DEFAULT_BASIS_PHRASE),
+        data_phrase=sc.get("data_phrase", DEFAULT_DATA_PHRASE),
     )
     if not has_data:
         concentration["explanation"] = (
@@ -504,7 +540,7 @@ def build_geographic_profile(
             else f"No trade data is available for HS6 {hs6}."
         ) + " Concentration is unknown (not assumed safe or risky)."
         concentration["rule"] = "no trade data"
-    provenance = build_provenance(sc, hs6, hs6_source)
+    provenance = build_provenance(sc, mapping)
     alternatives = assess_alternatives(
         suppliers,
         concentration,
@@ -517,5 +553,6 @@ def build_geographic_profile(
         "concentration": concentration,
         "alternatives": alternatives,
         "provenance": provenance,
+        "mapping": mapping,
         "data_quality": assess_data_quality(provenance, concentration),
     }
