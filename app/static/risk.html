@@ -21,14 +21,14 @@
         .upload-zone.active { border-color: var(--secondary); background: rgba(39, 174, 96, 0.05); }
         .reagent-input-row {
             display: grid;
-            grid-template-columns: 2fr 1.2fr 1.2fr 1.2fr 0.8fr 0.8fr auto;
+            grid-template-columns: 2fr 1.2fr 1.2fr 1.2fr 0.8fr 0.8fr 0.6fr auto;
             gap: 12px;
             margin-bottom: 8px;
             align-items: center;
             transition: all 0.3s ease;
         }
         .reagent-input-row.advanced {
-            grid-template-columns: 2fr 1.2fr 1fr 1fr 0.7fr 0.7fr 0.7fr 0.7fr 0.7fr 0.7fr auto;
+            grid-template-columns: 2fr 1.2fr 1fr 1fr 0.7fr 0.7fr 0.6fr 0.7fr 0.7fr 0.7fr 0.7fr auto;
         }
         .reagent-input-row .adv-field { display: none; }
         .reagent-input-row.advanced .adv-field { display: block; }
@@ -117,7 +117,35 @@
         .status-medium { background: #fff9db; color: #856404; border: 1px solid #ffeeba; }
         .status-medium-high { background: #fff4e6; color: #d9480f; border: 1px solid #ffd8a8; }
         .status-high { background: #fff5f5; color: #c92a2a; border: 1px solid #ffc9c9; }
-        .status-unknown { background: #f1f3f5; color: #495057; border: 1px solid #dee2e6; }
+        .status-unknown, .status-no_data { background: #f1f3f5; color: #495057; border: 1px solid #dee2e6; }
+
+        /* Concentration / provenance card in the results table */
+        .conc-card { padding: 8px; background: #f8f9fa; border-radius: 4px; border-left: 3px solid var(--border); min-width: 230px; }
+        .conc-card.tier-high { border-left-color: var(--danger); }
+        .conc-card.tier-medium { border-left-color: var(--orange); }
+        .conc-card.tier-low { border-left-color: var(--secondary); }
+        .conc-card .conc-head { display: flex; justify-content: space-between; align-items: center; gap: 6px; margin-bottom: 4px; }
+        .conc-card .conc-title { font-size: 0.65rem; font-weight: 700; color: var(--text-muted); letter-spacing: 0.4px; }
+        .conc-card .conc-shares { font-size: 0.78rem; margin-bottom: 4px; }
+        .conc-card .conc-why { font-size: 0.72rem; margin-bottom: 4px; }
+        .conc-card .conc-meta { font-size: 0.66rem; color: var(--text-muted); line-height: 1.45; }
+        .conc-card details summary { cursor: pointer; font-size: 0.68rem; color: var(--primary); margin-top: 4px; }
+        .conc-card .conc-note { font-size: 0.66rem; color: var(--orange); font-style: italic; }
+        .muted-sm { font-size: 0.7rem; color: var(--text-muted); }
+
+        .summary-cards { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px; margin-top: 25px; }
+
+        /* Route summary + scenario */
+        .route-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px; margin-top: 12px; }
+        .route-box { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 14px; background: #fff; }
+        .route-box h4 { margin: 0 0 8px; }
+        .route-box dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; margin: 0; font-size: 0.8rem; }
+        .route-box dt { color: var(--text-muted); }
+        .route-box dd { margin: 0; font-weight: 600; }
+        .scenario-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin-top: 10px; }
+        .scenario-controls label { display: flex; flex-direction: column; font-size: 0.72rem; color: var(--text-muted); gap: 4px; }
+        .scenario-controls select, .scenario-controls input { font-size: 0.85rem; min-width: 140px; }
+        .scenario-table td, .scenario-table th { font-size: 0.78rem; }
 
         @media (max-width: 768px) {
             .risk-grid { grid-template-columns: 1fr; }
@@ -179,6 +207,7 @@
                         <div>Secondary Origin</div>
                         <div>Mass (g)</div>
                         <div>Cost ($)</div>
+                        <div title="Route(s) using this reagent, e.g. A or A,B. Filled automatically from the Planner.">Route</div>
                         <div class="adv-field">Lead (d)</div>
                         <div class="adv-field">Haz (1-10)</div>
                         <div class="adv-field">Reg (1-10)</div>
@@ -217,11 +246,24 @@
                 <div class="label">Total Risk Exposure</div>
                 <div class="value" id="sumExposure" style="color:var(--orange);">0</div>
             </div>
+            <div class="summary-card">
+                <div class="label">High Concentration</div>
+                <div class="value" id="sumConcHigh" style="color:var(--danger);">0</div>
+                <div class="muted-sm" id="sumConcUnknown"></div>
+            </div>
+        </div>
+
+        <!-- Route comparison (no combined score — the user decides) -->
+        <div class="card" style="margin-top:25px; display:none;" id="routeSummaryCard">
+            <h3 style="margin-bottom:4px;">Route Comparison — Process Metrics vs. Sourcing Concentration</h3>
+            <p class="muted-sm" style="margin:0;">Side-by-side facts only; no combined "best route" score. Concentration is based on the trade data shown per reagent.</p>
+            <div class="route-summary-grid" id="routeSummaryGrid"></div>
         </div>
 
         <!-- Results Table -->
         <div class="card" style="margin-top:25px; display:none;" id="resultsCard">
             <h3 style="margin-bottom:10px;">Detailed Risk Report</h3>
+            <p class="muted-sm" style="margin:0 0 8px;"><b>Origin / Stability</b> describe country conditions for the dominant origin. <b>Concentration</b> describes how concentrated the reported supply is, with its source. These are reported separately.</p>
             <table class="risk-table">
                 <thead>
                     <tr>
@@ -229,6 +271,7 @@
                         <th>CAS</th>
                         <th>Origin</th>
                         <th>Stability</th>
+                        <th>Concentration</th>
                         <th>Mass (g)</th>
                         <th>Cost ($)</th>
                         <th>Risk Index</th>
@@ -239,6 +282,34 @@
                 <tbody id="riskTableBody"></tbody>
             </table>
             <button class="btn btn-orange" onclick="exportRiskCSV()" style="margin-top:15px;">📊 Export Risk Report</button>
+        </div>
+
+        <!-- Scenario / Shock analysis -->
+        <div class="card" style="margin-top:25px; display:none;" id="scenarioCard">
+            <h3 style="margin-bottom:4px;">🧪 Scenario / Shock Analysis</h3>
+            <p class="muted-sm" style="margin:0;">Deterministic sensitivity analysis on the supplier shares shown above. It does not forecast events and does not claim a material becomes unavailable.</p>
+            <div class="scenario-controls">
+                <label>Scenario
+                    <select id="scenarioType" onchange="updateScenarioControls()">
+                        <option value="dominant_supplier_loss">Loss of dominant supplier country</option>
+                        <option value="country_disruption">Selected country supply interruption</option>
+                        <option value="tariff">Tariff increase</option>
+                        <option value="lead_time">Lead-time increase</option>
+                    </select>
+                </label>
+                <label id="scenarioCountryLabel" style="display:none;">Country
+                    <select id="scenarioCountry"></select>
+                </label>
+                <label id="scenarioTariffLabel" style="display:none;">Tariff (%)
+                    <input type="number" id="scenarioTariff" value="25" min="0" step="any">
+                </label>
+                <label id="scenarioLeadLabel" style="display:none;">Lead-time increase (days)
+                    <input type="number" id="scenarioLead" value="90" min="0" step="1">
+                </label>
+                <button class="btn btn-secondary" onclick="runScenario()" id="runScenarioBtn">Run Scenario</button>
+            </div>
+            <div id="scenarioResults" style="margin-top:15px;"></div>
+        </div>
     </div>
 
     <!-- VISUALIZATION SECTION -->
@@ -266,7 +337,6 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="/js/risk.js"></script>
 </body>
 </html>

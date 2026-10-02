@@ -10,7 +10,8 @@ def test_lookup_suggested_origins_by_name():
     assert len(results) == 1
     assert results[0]["hs6"] == "291736"
     # The live-scanned USITC import dataset takes priority over the older WITS
-    # export fallback. Its seeded 2026 U.S. origin record is Mexico.
+    # export fallback. Its latest complete year (2025, not the Jan-2026 YTD
+    # column) has Mexico as the top U.S. import origin.
     assert results[0]["primary"] == "Mexico"
 
 

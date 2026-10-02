@@ -23,11 +23,15 @@ def refresh_supply_chain():
 
 
 @router.get("/lookup/{hs6}")
-def lookup_hs6(hs6: str, year: int | None = None):
-    """Return the import concentration + export context for an HS6 code."""
+def lookup_hs6(hs6: str, year: int | None = None, ytd: bool = False):
+    """Return the import concentration + export context for an HS6 code.
+
+    The latest complete year is used by default; ``ytd=true`` explicitly opts
+    into newer partial-year (year-to-date) data, which is labelled as such.
+    """
     if year is not None:
         return {
-            "concentration": provider.get_origin_concentration(hs6, year),
-            "profile": provider.get_trade_profile(hs6),
+            "concentration": provider.get_origin_concentration(hs6, year, allow_partial=ytd),
+            "profile": provider.get_trade_profile(hs6, allow_partial=ytd),
         }
-    return provider.get_trade_profile(hs6)
+    return provider.get_trade_profile(hs6, allow_partial=ytd)

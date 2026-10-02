@@ -73,7 +73,15 @@ If origin is "Unknown":
     geo_risk = min(100, geo_base × 1.5)    ← "Opacity Multiplier"
 Else:
     geo_risk = geo_base
+
+concentration = top supplier share (%) from trade data, or None if unknown
+geo_index_input = max(geo_risk, concentration)   ← used for the 30% weight
 ```
+
+`breakdown.geographic` is **country conditions only**; `breakdown.concentration`
+is reported separately (see *Geographic Exposure vs. Concentration Risk*
+below). The composite index still uses the worse of the two for its 30%
+geographic weight, as before.
 
 Country stability scores come from `country_stability.csv` (modeled on World Bank Worldwide Governance Indicators):
 
@@ -163,6 +171,110 @@ The exposure multiplier scales risk by how much material is at stake. A reagent 
 | 100 – 150 | **MEDIUM-HIGH** (Elevated Concern) |
 | > 150 | **HIGH** (Critical Supply Chain) |
 
+---
+
+## Geographic Exposure vs. Concentration Risk
+
+The two are reported as separate concepts for every reagent:
+
+| | Geographic exposure (`geographic_exposure`) | Concentration risk (`concentration`) |
+|---|---|---|
+| Question | Where does it come from, and what are conditions there? | How concentrated is the reported supply? |
+| Inputs | Dominant origin + `country_stability.csv` | Supplier-country shares from USITC / WITS |
+| Example | "Dominant origin China, stability 48/100" | "95% of reported U.S. imports for this HS6 product originated from China. This creates high single-country concentration." |
+
+No country is labelled risky by name; results describe measurable shares.
+
+**Dominant origin priority:** user-entered origin → top supplier country in trade
+data → CAS mapping → value stored in the compound registry → Unknown. The
+source is shown (`origin_source`). The assessment no longer writes origins back
+to the database.
+
+### Concentration tiers (`app/modules/risk/risk_config.py`)
+
+| Tier | Rule |
+|---|---|
+| **HIGH** | top supplier ≥ 50%, **or** top two combined ≥ 80% |
+| **MEDIUM** | top supplier ≥ 30% |
+| **LOW** | otherwise ("relatively diversified based on the available data") |
+| **UNKNOWN** | no usable shares (no HS6 mapping, no trade data, or a lone WITS-listed exporter) |
+
+Only the top one or two countries are needed. Unlisted countries are never
+assumed to be 0%; when only the top N are known the result says
+"Concentration assessment is based on the top N reported supplier countries."
+If the second share is missing and could push the tier to HIGH, a caveat says
+so. Regional groupings ("European Union", "Other Asia, nes") are excluded from
+the top-supplier calculation and listed separately. No HHI is computed.
+
+### Provenance and data quality
+
+Each reagent's `provenance` gives: source (USITC DataWeb / WITS) and URL,
+source file, HS6 code and how it was mapped, year, period type and label
+(full year vs. partial/YTD), why that year was chosen, trade flow, ranking
+basis (U.S. import customs value / export quantity), share basis, coverage and
+number of supplier countries. The trade year is the latest **complete** year;
+see `guide/DATA_SOURCES.md`.
+
+`data_quality.level` is qualitative and rule-based: starts HIGH, capped at
+LOW for partial-year data, unknown period, unknown concentration or a grouping
+outranking all countries; capped at MEDIUM for listed-only (WITS top-5) shares,
+fewer than 3 supplier countries, or an HS6 matched by name only. `NO_DATA`
+when there is no HS6 mapping or trade data. Reasons are listed.
+
+### Alternatives and substitutability (`alternatives`)
+
+* `alternate_supplier_countries` / `alternate_country_count` — other origin
+  countries **observed in trade data** (not qualified suppliers).
+* `alternative_supply_known` and `alternative_chemistry_known` are always
+  `false`: the app has no procurement data and does not infer substitutes.
+* `substitutability_score` / `_source` / `_confidence` — `user_input`
+  ("user_asserted") when entered in Advanced Mode, otherwise the default 5
+  with source `default` and confidence `none`.
+
+---
+
+## Route Comparison
+
+When reagents arrive from the Planner they carry which route uses them and
+the production-scale cost per route. The Risk Audit then shows, per route:
+total cost and E-factor (from the Planner), the highest-concentration reagent,
+the largest dominant-country share, HIGH and UNKNOWN concentration reagents,
+and reagent cost grouped by each reagent's dominant source country. There is
+no combined score; the user makes the route decision.
+
+Manual rows can use the **Route** column (`A`, `B` or `A,B`); a manual row's
+cost is attributed to each listed route.
+
+---
+
+## Scenario / Shock Analysis
+
+`POST /api/risk/scenario` (`app/modules/risk/scenario.py`) — deterministic
+sensitivity on the shares above, not forecasting:
+
+| Scenario | Target country |
+|---|---|
+| Loss of dominant supplier | each reagent's own top supplier |
+| Country supply interruption | chosen country |
+| Tariff (+X%, default 25) | chosen country, or each reagent's top supplier |
+| Lead time (+N days, default 90) | chosen country, or each reagent's top supplier |
+
+```
+exposure_share(r)    = share of r's reported supply from the target country
+affected_cost(r, R)  = route R's cost of r × exposure_share / 100
+route affected %     = Σ affected_cost / Σ assessed reagent cost in R × 100
+tariff added cost    = affected_cost × tariff %
+lead time (affected) = current lead time + N days, on the affected share only
+```
+
+Route tiers: **highly exposed** ≥ 25% of assessed reagent cost, **moderately
+exposed** ≥ 10%, **lower exposure** otherwise. Reagents without trade data are
+**UNKNOWN** and their cost is reported separately; when it could raise the
+tier, the result shows the upper bound. Wording describes exposure ("95%
+sourcing exposure affected", "high dependency on disrupted country", "limited
+observed alternative sourcing") and never claims a material becomes
+unavailable. Solvents are not part of the assessed reagent cost.
+
 ### Auto-Generated Warnings
 
 The engine appends warning strings for:
@@ -186,8 +298,9 @@ A full-width table with columns:
 |---|---|
 | Reagent | Chemical name (bold) |
 | CAS | CAS number (monospace font) |
-| Origin | Country of origin |
-| Stability | Country stability score out of 100 |
+| Origin | Dominant origin, how it was determined, and secondary origin |
+| Stability | Country stability score out of 100, or "50 (default)" when the country is not in the table |
+| Concentration | Concentration Risk card: tier, top two suppliers with shares, explanation, source, HS6, period, basis, coverage, data quality; "Why / provenance details" expands notes and alternatives |
 | Mass (g) | Total mass |
 | Cost ($) | Total cost |
 | Risk Index | Numerical risk score (1 decimal) |
@@ -215,8 +328,8 @@ A full-width table with columns:
 ### Diagnostic Risk Heatmap
 - **Type**: CSS grid (not a Chart.js canvas)
 - **Y-axis**: Reagent names
-- **X-axis**: Four risk dimensions — Geographic, Operational, Regulatory, Economic
-- **Cell values**: Raw scores (0–100)
+- **X-axis**: Five dimensions — Geographic (country conditions), Concentration (top supplier share), Operational, Regulatory, Economic
+- **Cell values**: Raw scores (0–100); Concentration shows a grey "n/a" when it cannot be assessed
 - **Cell colors**: HSL gradient — green (0, safe) → yellow (50) → red (100, critical)
 - **What it shows**: Pinpoints exactly *why* each reagent is risky. Is it the country of origin (Geographic)? Long lead times (Operational)? An EPA ban (Regulatory)? No substitutes (Economic)?
 
@@ -227,7 +340,12 @@ A full-width table with columns:
 ### 📊 Export Risk Report
 Downloads `geographic_risk_report.csv` with columns:
 ```
-Reagent, CAS, Origin, Stability_Score, Mass_g, Cost, HS_Code, Risk_Index, Risk_Level
+Reagent, CAS, Origin, Stability_Score, Mass_g, Cost, HS_Code, Risk_Index, Risk_Level,
+Concentration_Pct, Concentration_Flag, Data_Source, Origin_Source, Stability_Known,
+Top_Supplier, Top_Supplier_Share_Pct, Second_Supplier, Second_Supplier_Share_Pct,
+Supplier_Countries, Concentration_Explanation, Trade_Source, Period, Partial_Year,
+Ranking_Basis, Share_Basis, HS6_Source, Data_Quality, Alternate_Country_Count,
+Substitutability, Substitutability_Source, Routes
 ```
 
 ### 💾 Save Mappings

@@ -1366,45 +1366,75 @@ function exportToCSV() {
 /**
  * Consolidates all reagents from the dashboard and redirects to the Risk Audit tool.
  */
-function pushToRiskAudit() {
-    const stepsA = collectStepData('vA');
-    const stepsB = collectStepData('vB');
-    const allSteps = [...stepsA, ...stepsB];
-    
-    if (allSteps.length === 0) {
-        alert("Add some synthesis steps first!");
-        return;
-    }
-
-    // Consolidate reagents by name/CAS to avoid duplicates
+/**
+ * Sends both routes' reagents to the Risk Audit, keeping which route uses
+ * each reagent (and how much) so the audit can summarise and stress-test each
+ * route separately. Costs come from the cost engine at each route's target kg
+ * (production scale); if that call fails, lab-scale form values are used and
+ * the basis is labelled accordingly.
+ */
+async function pushToRiskAudit() {
+    const sides = [['vA', 'A'], ['vB', 'B']];
     const reagentMap = {};
-    allSteps.forEach(step => {
-        step.reagents.forEach(r => {
-            const key = (r.cas || r.name).toLowerCase().trim();
-            if (!reagentMap[key]) {
-                reagentMap[key] = {
-                    name: r.name,
-                    cas: r.cas || '',
-                    mass_g: 0,
-                    cost: 0
-                };
-            }
-            const rMass = parseFloat(r.mass) || 0;
-            const rCost = parseFloat(r.item_cost) || (rMass * (parseFloat(r.cost_per_g) || 0));
-            
-            reagentMap[key].mass_g += rMass;
-            reagentMap[key].cost += rCost;
-        });
-    });
+    const routeContext = {};
 
-    const consolidated = Object.values(reagentMap).filter(r => r.name);
-    
+    for (const [side, label] of sides) {
+        const steps = collectStepData(side);
+        if (!steps.length) continue;
+
+        let estimate = null;
+        try {
+            estimate = await getEstimate(side);
+        } catch (e) {
+            console.error(`Cost estimate failed for Route ${label}`, e);
+        }
+        const scaled = estimate && Array.isArray(estimate.steps) && estimate.steps.length;
+        const target = parseFloat(document.getElementById(`target-${side}`).value) || 1.0;
+        routeContext[label] = {
+            total_cost: scaled ? estimate.total_cost : null,
+            cost_per_kg: scaled ? estimate.cost_per_kg : null,
+            e_factor: scaled ? estimate.e_factor : null,
+            target_kg: target,
+            cost_basis: scaled
+                ? `Production-scale estimate for ${target} kg (Planner cost engine)`
+                : 'Lab-scale form values (cost engine unavailable)'
+        };
+
+        const rows = scaled
+            ? estimate.steps.flatMap(s => (s.reagents || []).map(r => ({ name: r.name, mass_g: r.mass_g, cost: r.item_cost })))
+            : steps.flatMap(s => s.reagents.map(r => {
+                let mass = parseFloat(r.mass) || 0;
+                if (r.mass_unit === 'mg') mass /= 1000;
+                if (r.mass_unit === 'kg') mass *= 1000;
+                return { name: r.name, mass_g: mass, cost: mass * (parseFloat(r.cost_per_g) || 0) };
+            }));
+
+        rows.forEach(r => {
+            if (!r.name || !r.name.trim()) return;
+            const key = r.name.toLowerCase().trim();
+            if (!reagentMap[key]) reagentMap[key] = { name: r.name, cas: '', mass_g: 0, cost: 0, routes: {} };
+            const entry = reagentMap[key];
+            const mass = parseFloat(r.mass_g) || 0;
+            const cost = parseFloat(r.cost) || 0;
+            entry.mass_g += mass;
+            entry.cost += cost;
+            const usage = entry.routes[label] || (entry.routes[label] = { cost: 0, mass_g: 0 });
+            usage.cost += cost;
+            usage.mass_g += mass;
+        });
+    }
+
+    const consolidated = Object.values(reagentMap);
     if (consolidated.length === 0) {
-        alert("No reagents found in the active routes.");
+        alert("Add some synthesis steps with named reagents first!");
         return;
     }
 
-    localStorage.setItem('pendingRiskData', JSON.stringify(consolidated));
+    localStorage.setItem('pendingRiskData', JSON.stringify({
+        version: 2,
+        reagents: consolidated,
+        routes: routeContext
+    }));
     window.location.href = '/risk.html';
 }
 

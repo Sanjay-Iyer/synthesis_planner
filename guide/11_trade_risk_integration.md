@@ -24,6 +24,13 @@ Options:
 - `--dry-run`: Parse and print results without saving.
 
 ## 3. How Risk is Calculated
+> **Note:** the thresholds below are the `concentration_score` stored in
+> `wits_exports.json` at ingest time. The Risk Audit now classifies
+> concentration with one central rule for both USITC and WITS (see
+> `guide/08_risk_audit.md` → *Concentration tiers*), excludes regional
+> groupings, and labels WITS shares as top-5-only. USITC DataWeb data is
+> preferred when available; see `guide/DATA_SOURCES.md`.
+
 The system analyzes the share of the top exporters within the top 5 ranking.
 
 | Risk Level | Thresholds |

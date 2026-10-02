@@ -85,7 +85,7 @@ scale-up, a yield-sensitivity audit, charts, CSV round-trip, and DB save.
 Reviewed 2026-06-05. Findings below.
 
 ### 3a. Risk engine — correctness
-- [ ] **P1** Skip aggregate "reporters" when auto-selecting origins. Trade data
+- [x] **P1 — DONE (2026-10-02)** Skip aggregate "reporters" when auto-selecting origins. Trade data
       includes blocs like *European Union*, *Other Asia, nes*, *Areas, nes*. Today
       `run_risk_assessment` / `lookup_suggested_origins` can set a reagent's origin
       to one of these, which then misses the stability lookup and misleads the user.
@@ -95,11 +95,11 @@ Reviewed 2026-06-05. Findings below.
       and the frontend derives a CSS class from `level.split(' ')[0]`. Both break if
       the label text changes. Return a `risk_tier` enum (LOW/MEDIUM/MEDIUM_HIGH/HIGH)
       alongside the display label. (`risk/engine.py:433`, `risk.js` displayRiskResults)
-- [ ] **P1** Don't silently **mutate the DB during assessment**. `run_risk_assessment`
+- [x] **P1 — DONE (2026-10-02)** Don't silently **mutate the DB during assessment**. `run_risk_assessment`
       does `UPDATE compounds SET primary_origin…` + commit inside the per-reagent
       loop. Make persistence explicit (separate endpoint / flag) so a read-style
       assessment has no side effects. (`risk/engine.py:~338`)
-- [ ] **P2** **One DB connection per assessment**, not one per reagent. Currently
+- [x] **P2 — DONE (2026-10-02)** **One DB connection per assessment**, not one per reagent. Currently
       `connect_db()` is called inside the loop (`risk/engine.py:320`); open once,
       pass it down. Also cache the `PRAGMA table_info(compounds)` schema check
       instead of running it every reagent.
@@ -107,7 +107,7 @@ Reviewed 2026-06-05. Findings below.
       `load_country_stability()` read CSV from disk on every call (several times per
       request) and *write a default file as a side effect of reading*. Load once /
       memoize; separate seeding from reading.
-- [ ] **P2** **Extract a shared `resolve_hs6(name, cas)`** helper. The CAS→mapping →
+- [x] **P2 — DONE (2026-10-02)** **Extract a shared `resolve_hs6(name, cas)`** helper. The CAS→mapping →
       name-hint → DB resolution logic is duplicated between `lookup_suggested_origins`
       and `run_risk_assessment`. DRY it and unit-test it.
 - [ ] **P2** **Externalize the risk model.** Weights (0.30/0.20/0.30/0.20),
@@ -128,7 +128,10 @@ Reviewed 2026-06-05. Findings below.
 - See **[stability_score_expansion.md](stability_score_expansion.md)** — expand the
   country-stability table and add a country-name alias layer (USITC "South Korea" vs
   WGI "Korea, Rep.", "Russia" vs "Russian Federation", "Taiwan" vs "Chinese Taipei").
-- [ ] **P1** **Minimum-coverage guard for partial-year data.** Jan-2026 has very thin
+- [x] **P1 — DONE (2026-10-02)** Latest *complete* year is now preferred over
+      partial-year/YTD data (`select_trade_year`); YTD only when no complete year
+      exists or `?ytd=true`, always labelled. Original item:
+      **Minimum-coverage guard for partial-year data.** Jan-2026 has very thin
       country coverage, so most HTS6 currently resolve to a 1–2-country snapshot and
       read as ~90–100% concentrated. Require a minimum reporting-country count (or
       minimum total value) before trusting a year; otherwise fall back to the latest
@@ -146,6 +149,18 @@ Reviewed 2026-06-05. Findings below.
 - [ ] **P3** Document the cache model (process-local, no TTL): with multiple uvicorn
       workers each rebuilds independently. Fine for now — note it.
 
+### 3b-2. Geographic-risk follow-ups (from the 2026-10-02 concentration work)
+- [ ] **P2** Route-level comparison is facts-only today (Route Comparison card). If a
+      route score is ever added, keep it transparent (show each input) — no opaque
+      single "best route" number.
+- [ ] **P2** Concentration uses U.S. import shares (USITC) or top-5 export shares
+      (WITS). Add HHI only for sources with all-country coverage (USITC).
+- [ ] **P2** Scenario costs exclude solvents (they are not assessed reagents); consider
+      sending solvents to the Risk Audit as well.
+- [ ] **P3** Optional logistics/shipping cost-multiplier scenario.
+- [ ] **P3** Escape remaining user content in the Planner (`dashboard.js`); the Risk
+      Audit results/inputs are now escaped.
+
 ### 3c. API
 - [ ] **P2** Validate the `hs6` path param format in `/api/supply-chain/lookup/{hs6}`
       and return structured error codes from `/api/risk/assess` (the frontend
@@ -154,7 +169,7 @@ Reviewed 2026-06-05. Findings below.
       a multi-thousand-reagent payload).
 
 ### 3d. Frontend (risk.html / risk.js)
-- [ ] **P1** **Remove the duplicate `chart.js` include** — it's loaded twice
+- [x] **P1 — DONE (2026-10-02)** **Remove the duplicate `chart.js` include** — it's loaded twice
       (`risk.html:8` and `risk.html:269`).
 - [ ] **P1** **Robust CSV parsing.** `loadCSV` uses `line.split(',')`, which corrupts
       any quoted field containing a comma (descriptions, "Company, Inc."). Use a real
@@ -165,7 +180,7 @@ Reviewed 2026-06-05. Findings below.
       when building the export CSV (`exportRiskCSV`).
 - [ ] **P2** Add a **loading state** to "Run Risk Assessment" (only Auto-Lookup has
       one) and replace blocking `alert()` calls with inline toasts/messages.
-- [ ] **P3** **Show origin provenance** per reagent ("origin set from USITC Imports
+- [x] **P3 — DONE (2026-10-02)** **Show origin provenance** per reagent ("origin set from USITC Imports
       2024, 62% share") so users understand why an origin was chosen and can override.
 - [ ] **P3** Accessibility: the heatmap encodes risk by color only — add labels/ARIA
       and check contrast.

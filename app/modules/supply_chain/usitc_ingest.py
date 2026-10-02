@@ -94,6 +94,68 @@ def _detect_header_row(path: str, sheet: str, max_scan: int = 12):
     return None, title
 
 
+_MONTHS = (
+    "january",
+    "february",
+    "march",
+    "april",
+    "may",
+    "june",
+    "july",
+    "august",
+    "september",
+    "october",
+    "november",
+    "december",
+)
+_MONTH_RE = "|".join(_MONTHS)
+# e.g. "January_to_january_year_2026", "January to March 2026"
+_PARTIAL_RANGE_RE = re.compile(
+    rf"({_MONTH_RE})[\s_\-]*to[\s_\-]*({_MONTH_RE})[\s_\-]*(?:year)?[\s_\-]*(\d{{4}})",
+    re.I,
+)
+
+
+def describe_partial_period(column) -> Optional[dict]:
+    """Describe a partial-year (YTD) column, or return None if it is not one.
+
+    Returns ``{"year", "start_month", "end_month", "months", "label"}``. A column
+    that mentions a month and a year but no recognizable range is still treated
+    as partial (``months`` = None) so it is never mistaken for a full year.
+    """
+    cs = str(column).strip()
+    m = _PARTIAL_RANGE_RE.search(cs)
+    if m:
+        start = _MONTHS.index(m.group(1).lower()) + 1
+        end = _MONTHS.index(m.group(2).lower()) + 1
+        year = int(m.group(3))
+        months = end - start + 1 if end >= start else None
+        start_abbr = m.group(1)[:3].title()
+        end_abbr = m.group(2)[:3].title()
+        span = start_abbr if start == end else f"{start_abbr}–{end_abbr}"
+        plural = "" if months == 1 else "s"
+        label = f"YTD {span} {year}" + (f" ({months} month{plural})" if months else "")
+        return {
+            "year": year,
+            "start_month": start,
+            "end_month": end,
+            "months": months,
+            "label": label,
+        }
+    if re.search(_MONTH_RE, cs, re.I):
+        ym = re.search(r"(\d{4})", cs)
+        if ym:
+            year = int(ym.group(1))
+            return {
+                "year": year,
+                "start_month": None,
+                "end_month": None,
+                "months": None,
+                "label": f"Partial-year {year} (period not parsed: {cs})",
+            }
+    return None
+
+
 def _classify_year_columns(columns: List[str]):
     """Split header columns into {full_year: col} and {partial_year: col}."""
     full_years: Dict[int, str] = {}
@@ -106,10 +168,9 @@ def _classify_year_columns(columns: List[str]):
             full_years[int(m.group(1))] = col
             continue
         # A partial-year column, e.g. "January_to_january_year_2026".
-        if "january" in cs.lower():
-            ym = re.search(r"(\d{4})", cs)
-            if ym:
-                partial_years[int(ym.group(1))] = col
+        period = describe_partial_period(cs)
+        if period:
+            partial_years[period["year"]] = col
     return full_years, partial_years
 
 
@@ -124,6 +185,7 @@ def parse_usitc_file(path: str) -> dict:
             "title": str,
             "full_years": [2020, ...],
             "partial_years": [2026, ...],
+            "partial_periods": {2026: {"label": "YTD Jan 2026 (1 month)", ...}},
             "records": [
                 {"country": str, "hts6": str, "description": str,
                  "values": {year_int: float, ...}},
@@ -198,5 +260,8 @@ def parse_usitc_file(path: str) -> dict:
         "title": title,
         "full_years": sorted(full_years),
         "partial_years": sorted(partial_years),
+        "partial_periods": {
+            year: describe_partial_period(col) for year, col in partial_years.items()
+        },
         "records": records,
     }
