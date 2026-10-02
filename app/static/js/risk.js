@@ -27,6 +27,16 @@ function fmtPct(value) {
     return Number.isInteger(r) ? `${r}%` : `${r.toFixed(1)}%`;
 }
 
+function userValue(value, autoFilled) {
+    const v = (value || '').trim();
+    return autoFilled && v === autoFilled ? '' : v;
+}
+
+function intOrNull(value) {
+    const n = parseInt(value);
+    return isNaN(n) ? null : n;
+}
+
 function fmtMoney(value) {
     if (value === null || value === undefined || isNaN(value)) return '—';
     return '$' + Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 });
@@ -128,9 +138,9 @@ function addReagentInputRow(data = null) {
         <input type="text" class="r-route" placeholder="A,B" value="${esc(routeLabel)}" title="Route(s) using this reagent, e.g. A or A,B">
         <!-- Advanced fields -->
         <input type="text" class="r-hs6 adv-field" placeholder="HS6" title="Optional HS6 code (user-entered; highest mapping priority)" value="${esc(data?.hs6 || '')}">
-        <input type="number" step="any" class="r-lead adv-field" placeholder="Lead (d)" value="${esc(data?.lead_time_days || '14')}">
-        <input type="number" step="any" class="r-haz adv-field" placeholder="Haz (1-10)" value="${esc(data?.hazard_score || '5')}">
-        <input type="number" step="any" class="r-reg adv-field" placeholder="Reg (1-10)" value="${esc(data?.regulatory_score || '5')}">
+        <input type="number" step="any" class="r-lead adv-field" placeholder="Lead (d)" title="Lead time in days. Blank = default 14, marked as a default." value="${esc(data?.lead_time_days ?? '')}">
+        <input type="number" step="any" class="r-haz adv-field" placeholder="Haz (1-10)" title="Hazard 1-10. Blank = default 5, marked as a default." value="${esc(data?.hazard_score ?? '')}">
+        <input type="number" step="any" class="r-reg adv-field" placeholder="Reg (1-10)" title="Regulatory 1-10. Blank = default 5, marked as a default." value="${esc(data?.regulatory_score ?? '')}">
         <input type="number" step="any" class="r-sub adv-field" placeholder="Sub (1-10)" title="Substitutability 1-10 (10 = hardest to replace). Leave blank if unknown — a default of 5 is used and labelled as a default." value="${esc(data?.substitutability ?? '')}">
 
         <button class="btn btn-danger btn-sm" onclick="this.parentElement.remove()" style="padding:4px 8px;">✕</button>
@@ -210,16 +220,18 @@ function collectReagentInputs() {
         reagents.push({
             name: name,
             cas: row.querySelector('.r-cas').value.trim(),
-            origin: row.querySelector('.r-origin').value.trim(),
-            secondary_origin: row.querySelector('.r-secondary-origin').value.trim(),
+            // Origins filled by Auto-Lookup are not user statements: send them
+            // blank so the engine re-derives them and labels them as trade data.
+            origin: userValue(row.querySelector('.r-origin').value, row.dataset.autoOrigin),
+            secondary_origin: userValue(row.querySelector('.r-secondary-origin').value, row.dataset.autoSecondary),
             mass_g: mass,
             cost: cost,
-            lead_time_days: parseInt(row.querySelector('.r-lead').value) || 14,
-            hazard_score: parseInt(row.querySelector('.r-haz').value) || 5,
-            regulatory_score: parseInt(row.querySelector('.r-reg').value) || 5,
+            // Blank -> null: the engine uses its default and marks it as a default.
+            lead_time_days: intOrNull(row.querySelector('.r-lead').value),
+            hazard_score: intOrNull(row.querySelector('.r-haz').value),
+            regulatory_score: intOrNull(row.querySelector('.r-reg').value),
             // null = not provided; the engine uses 5 and labels it as a default.
             substitutability: isNaN(sub) ? null : sub,
-            supplier_count: 3, // Default
             routes: collectRouteUsage(row, mass, cost),
             hs6: (row.querySelector('.r-hs6')?.value || '').trim() || null,
             structure: row.dataset.structure || null
@@ -274,9 +286,9 @@ function loadCSV(event) {
                 secondary_origin: '', 
                 mass_g: massIdx >= 0 ? parseFloat(cols[massIdx]) || 0 : 0,
                 cost: costIdx >= 0 ? parseFloat(cols[costIdx]) || 0 : 0,
-                lead_time_days: leadIdx >= 0 ? parseInt(cols[leadIdx]) || 14 : 14,
-                hazard_score: hazIdx >= 0 ? parseInt(cols[hazIdx]) || 5 : 5,
-                regulatory_score: regIdx >= 0 ? parseInt(cols[regIdx]) || 5 : 5,
+                lead_time_days: leadIdx >= 0 ? (intOrNull(cols[leadIdx]) ?? '') : '',
+                hazard_score: hazIdx >= 0 ? (intOrNull(cols[hazIdx]) ?? '') : '',
+                regulatory_score: regIdx >= 0 ? (intOrNull(cols[regIdx]) ?? '') : '',
                 substitutability: subIdx >= 0 && !isNaN(parseInt(cols[subIdx])) ? parseInt(cols[subIdx]) : '',
                 route: routeIdx >= 0 ? (cols[routeIdx] || '').replace(/;/g, ',') : '',
                 hs6: hs6Idx >= 0 ? cols[hs6Idx] : ''
@@ -361,7 +373,7 @@ function initVisualizations(data) {
         document.getElementById('vizSection').style.display = 'block';
         if (data.reagents && data.reagents.length > 0) {
             renderBubbleChart(data.reagents);
-            renderStackedBarChart(data.reagents);
+            renderCountryExposureChart(data);
             renderHeatmap(data.reagents);
         }
     } catch (err) {
@@ -413,66 +425,45 @@ function renderBubbleChart(reagents) {
     });
 }
 
-function renderStackedBarChart(reagents) {
+/**
+ * Spend exposure by country: for every reagent with trade data, reagent spend x
+ * that country's share of reported trade, summed per country (and per route).
+ * Reagents without trade data are not plotted (stated in the caption).
+ */
+function renderCountryExposureChart(data) {
     const ctx = document.getElementById('stackedBarChart').getContext('2d');
     if (stackedBarChart) stackedBarChart.destroy();
-
-    const primaryMap = {};
-    const secondaryMap = {};
-    const allCountries = new Set();
-
-    reagents.forEach(r => {
-        const p_origin = r.primary_origin || 'Unknown';
-        const s_origin = r.secondary_origin || 'Unknown';
-        
-        allCountries.add(p_origin);
-        allCountries.add(s_origin);
-
-        primaryMap[p_origin] = (primaryMap[p_origin] || 0) + (r.risk_index || 0);
-        secondaryMap[s_origin] = (secondaryMap[s_origin] || 0) + (r.secondary_risk_index || 0);
-    });
-
-    const labels = Array.from(allCountries).sort();
-    const primaryData = labels.map(l => primaryMap[l] || 0);
-    const secondaryData = labels.map(l => secondaryMap[l] || 0);
+    const ce = (data.summary && data.summary.country_exposure) || { routes: [], countries: [] };
+    const top = (ce.countries || []).slice(0, 12);
+    const palette = ['rgba(9, 132, 227, 0.75)', 'rgba(39, 174, 96, 0.75)', 'rgba(142, 68, 173, 0.75)', 'rgba(243, 156, 18, 0.75)'];
+    const datasets = (ce.routes || []).map((route, i) => ({
+        label: route === 'All reagents' ? 'All reagents' : `Route ${route}`,
+        data: top.map(c => c.by_route[route] || 0),
+        backgroundColor: palette[i % palette.length],
+        borderRadius: 4
+    }));
 
     stackedBarChart = new Chart(ctx, {
         type: 'bar',
-        data: {
-            labels: labels,
-            datasets: [
-                {
-                    label: 'Primary Origin Exposure',
-                    data: primaryData,
-                    backgroundColor: 'rgba(214, 48, 49, 0.8)',
-                    borderRadius: 5
-                },
-                {
-                    label: 'Secondary Origin Exposure',
-                    data: secondaryData,
-                    backgroundColor: 'rgba(9, 132, 227, 0.6)',
-                    borderRadius: 5
-                }
-            ]
-        },
+        data: { labels: top.map(c => c.country), datasets },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            plugins: { 
-                legend: { display: true, labels: { color: '#bdc3c7' } },
-                title: { display: false }
+            plugins: {
+                legend: { display: true },
+                tooltip: { callbacks: { label: (c) => `${c.dataset.label}: ${fmtMoney(c.raw)} of reagent spend` } }
             },
             scales: {
-                x: { ticks: { color: '#bdc3c7' }, grid: { display: false } },
-                y: { 
-                    beginAtZero: true, 
-                    title: { display: true, text: 'Aggregated Risk Index', color: '#bdc3c7' },
-                    ticks: { color: '#bdc3c7' },
-                    grid: { color: 'rgba(255,255,255,0.08)' }
-                }
+                x: { stacked: true, grid: { display: false } },
+                y: { stacked: true, beginAtZero: true, title: { display: true, text: 'Assessed reagent spend exposed ($)' } }
             }
         }
     });
+    const caption = document.getElementById('countryChartCaption');
+    if (caption) {
+        const unknown = ce.unknown_spend ? ` ${fmtMoney(ce.unknown_spend)} of spend has no trade data and is not shown.` : '';
+        caption.textContent = 'Reagent spend × each country\'s share of reported trade (USITC: U.S. imports; WITS: top listed exporters), summed per country. Shows where reported sourcing is concentrated; it does not rate countries.' + unknown;
+    }
 }
 
 function renderHeatmap(reagents) {
@@ -546,8 +537,12 @@ function displayRiskResults(data) {
             const why = geo.stability_status === 'origin_unknown' ? 'origin unknown' : 'no WGI score';
             stabilityCell = `<span title="${esc(geo.explanation || '')}">Unknown</span><div class="muted-sm">${why}; not assessed</div>`;
         }
-        const indexNote = (comp.missing && comp.missing.length)
-            ? `<div class="muted-sm" title="${esc(r.risk_index_note || '')}">not assessed: ${esc(comp.missing.join(', '))}</div>`
+        const indexBits = [];
+        if (comp.missing && comp.missing.length) indexBits.push(`not assessed: ${esc(comp.missing.join(', '))}`);
+        if (comp.defaults_used && comp.defaults_used.length) indexBits.push(`defaults: ${esc(comp.defaults_used.join(', '))}`);
+        if (comp.exposure_multiplier) indexBits.push(`×${esc(comp.exposure_multiplier)} quantity factor`);
+        const indexNote = indexBits.length
+            ? `<div class="muted-sm" title="${esc(r.risk_index_note || '')}">${indexBits.join('<br>')}</div>`
             : '';
 
         row.innerHTML = `
@@ -620,6 +615,18 @@ function concentrationCell(r) {
         meta.push(`Period: ${esc(p.period_label)}${partial}`);
         meta.push(`Basis: ${esc(p.ranking_basis)}`);
         meta.push(`Coverage: ${esc(c.coverage_note || p.share_basis_label || '')}`);
+        if (p.total_value_usd) {
+            const v = p.volatility || {};
+            const yoy = (v.total_change_pct !== null && v.total_change_pct !== undefined)
+                ? ` (${v.total_change_pct > 0 ? '+' : ''}${esc(v.total_change_pct)}% vs ${esc(v.prior_year)}${v.top_supplier_changed ? `; top supplier was ${esc(v.prior_top_supplier)}` : ''})`
+                : '';
+            meta.push(`Total reported: ${fmtMoney(p.total_value_usd)}${yoy}`);
+        }
+        const tb = p.trade_balance;
+        if (tb && tb.net_exporter) {
+            meta.push(`<span class="conc-note">U.S. exports (${fmtMoney(tb.exports_value_usd)}) exceed imports in ${esc(tb.year)} — imports are only part of U.S. supply.</span>`);
+        }
+        if (p.scope_note) meta.push(`Scope: ${esc(p.scope_note)}`);
     } else if (p.hs6_code) {
         meta.push(`HS6: ${esc(p.hs6_code)} — no trade data indexed`);
         meta.push(`HS6 match: ${mappingText}`);
@@ -629,7 +636,6 @@ function concentrationCell(r) {
     meta.push(`Data quality: <b title="${esc((q.reasons || []).join(' '))}">${esc(q.level || 'n/a')}</b>`);
 
     const details = [];
-    if (p.scope_note) details.push(`<b>Scope:</b> ${esc(p.scope_note)}`);
     if (c.rule) details.push(`Rule: ${esc(c.rule)}`);
     if (c.caveat) details.push(`<span class="conc-note">${esc(c.caveat)}</span>`);
     (q.reasons || []).forEach(reason => details.push(`Quality: ${esc(reason)}`));
@@ -689,12 +695,24 @@ function renderRouteSummary(data) {
             const share = c.total_cost ? ` <span class="muted-sm">(${fmtPct(rt.assessed_reagent_cost / c.total_cost * 100)} of total route cost)</span>` : '';
             return `${fmtMoney(rt.assessed_reagent_cost)}${share}`;
         }],
+        ['Not assessed (solvents, other costs)', rt => {
+            const c = ctxFor(rt);
+            if (!c.total_cost) return '—';
+            const rest = Math.max(c.total_cost - rt.assessed_reagent_cost, 0);
+            return `${fmtMoney(rest)} <span class="muted-sm">(${fmtPct(rest / c.total_cost * 100)} of total route cost — no geographic data)</span>`;
+        }],
         ['Reagents assessed / with trade data', rt => `${rt.reagent_count} / ${rt.reagents_with_trade_data}`],
         ['HIGH concentration reagents', rt => `${rt.high_concentration_count}${rt.high_concentration_reagents.length ? `<div class="muted-sm">${esc(rt.high_concentration_reagents.join(', '))}</div>` : ''}`],
         ['Highest single-country share', rt => brief(rt.largest_dominant_share)],
         ['Largest single-country exposure', rt => {
             const e = rt.largest_country_exposure;
-            return e ? `<b>${esc(e.country)}</b> — ${fmtPct(e.pct_of_assessed_spend)} of assessed reagent spend<div class="muted-sm">via ${esc(e.reagents.join(', '))}</div>` : '—';
+            if (!e) return '—';
+            const contrib = (e.contributions || []).slice(0, 3)
+                .map(c => `${esc(c.name)} (${fmtMoney(c.cost)}, ${esc(c.source || '')}, quality ${esc(c.data_quality)})`).join('; ');
+            const weak = e.weak_data_pct
+                ? `<div class="conc-note">${fmtPct(e.weak_data_pct)} of this exposure rests on MEDIUM/LOW-quality data</div>`
+                : '<div class="muted-sm">All contributing data HIGH quality</div>';
+            return `<b>${esc(e.country)}</b> — ${fmtPct(e.pct_of_assessed_spend)} of assessed reagent spend${weak}<div class="muted-sm">via ${contrib}</div>`;
         }],
         ['Unknown trade-data exposure', rt => rt.unknown_concentration_reagents.length
             ? `${fmtPct(rt.unknown_data_pct)} of assessed reagent spend<div class="muted-sm">${esc(rt.unknown_concentration_reagents.join(', '))}</div>`
@@ -710,7 +728,7 @@ function renderRouteSummary(data) {
             const s = scenarioRows[rt.route];
             if (!s) return '—';
             const upper = s.exposure_tier_if_unknown_affected ? `<div class="muted-sm">up to ${esc(s.exposure_tier_if_unknown_affected)} if unknown-data reagents were affected</div>` : '';
-            return `<b>${fmtPct(s.affected_pct)}</b> ${pill(s.exposure_tier)} <span class="muted-sm">${esc(s.exposure_label)}</span>${upper}`;
+            return `<b>${esc(s.affected_pct_label || fmtPct(s.affected_pct))}</b> ${pill(s.exposure_tier)} <span class="muted-sm">${esc(s.exposure_label)}</span>${upper}`;
         }]);
     }
 
@@ -802,13 +820,13 @@ function renderScenarioResults(res) {
         const tierCls = (rt.exposure_tier || 'unknown').toLowerCase();
         const lines = [];
         if (rt.affected_pct !== null && rt.affected_pct !== undefined) {
-            lines.push(`Exposed: <b>${fmtPct(rt.affected_pct)}</b> of assessed reagent spend (${fmtMoney(rt.affected_cost)} of ${fmtMoney(rt.assessed_reagent_cost)})`);
+            lines.push(`Exposed: <b>${esc(rt.affected_pct_label || fmtPct(rt.affected_pct))}</b> of assessed reagent spend (${fmtMoney(rt.affected_cost)} of ${fmtMoney(rt.assessed_reagent_cost)})`);
         }
-        if (rt.unknown_pct) lines.push(`No trade data: ${fmtPct(rt.unknown_pct)} of spend (${esc(rt.unknown_reagents.join(', '))})`);
+        if (rt.unknown_pct) lines.push(`No trade data: ${esc(rt.unknown_pct_label || fmtPct(rt.unknown_pct))} of spend (${esc(rt.unknown_reagents.join(', '))})`);
         if (rt.high_dependency_reagents && rt.high_dependency_reagents.length) {
             lines.push(`High dependency: ${esc(rt.high_dependency_reagents.join(', '))}`);
         }
-        if (rt.added_cost !== undefined) lines.push(`Added cost: ${fmtMoney(rt.added_cost)} (+${fmtPct(rt.added_cost_pct)} of reagent spend)`);
+        if (rt.added_cost !== undefined) lines.push(`Added cost: ${fmtMoney(rt.added_cost)} (+${esc(rt.added_cost_pct_label || fmtPct(rt.added_cost_pct))} of reagent spend)`);
         if (rt.lead_time_increase_days !== undefined) lines.push(`Lead time +${esc(rt.lead_time_increase_days)} days on the affected share of supply`);
         if (rt.note) lines.push(`<span class="conc-note">${esc(rt.note)}</span>`);
         return `
@@ -831,8 +849,8 @@ function renderScenarioResults(res) {
             <td style="font-weight:600;">${esc(r.name)}</td>
             <td>${esc(routes)}</td>
             <td>${esc(r.target_country || '—')}</td>
-            <td><span class="status-pill status-${r.status === 'EXPOSED' ? 'high' : (r.status === 'UNKNOWN' ? 'unknown' : 'low')}" style="font-size:0.6rem; padding:1px 6px;">${esc(r.status)}</span> ${r.exposure_share_pct !== null ? fmtPct(r.exposure_share_pct) : ''}</td>
-            <td>${r.status === 'UNKNOWN' ? 'unknown' : fmtMoney(affected)}</td>
+            <td><span class="status-pill status-${r.status === 'EXPOSED' ? 'high' : (r.status === 'NOT_EXPOSED' ? 'low' : 'unknown')}" style="font-size:0.6rem; padding:1px 6px;">${esc(r.status === 'NOT_LISTED' ? 'NOT LISTED' : r.status)}</span> ${r.status === 'NOT_LISTED' ? '<span class="muted-sm">not in listed exporters</span>' : esc(r.exposure_share_label || '')}</td>
+            <td>${r.status === 'UNKNOWN' || r.status === 'NOT_LISTED' ? '<span class="muted-sm">not counted</span>' : fmtMoney(affected)}</td>
             <td>${alts}</td>
             <td>${esc(r.assessment)}${lead}</td>
         </tr>`;
@@ -961,8 +979,8 @@ async function autoLookupOrigins() {
                 const pInput = row.querySelector('.r-origin');
                 const sInput = row.querySelector('.r-secondary-origin');
                 
-                if (!pInput.value || pInput.value === 'Unknown') pInput.value = s.primary;
-                if (!sInput.value || sInput.value === 'Unknown') sInput.value = s.secondary;
+                if (!pInput.value || pInput.value === 'Unknown') { pInput.value = s.primary; row.dataset.autoOrigin = s.primary; }
+                if (!sInput.value || sInput.value === 'Unknown') { sInput.value = s.secondary; row.dataset.autoSecondary = s.secondary; }
                 
                 // Add visual highlight
                 pInput.style.background = '#e3f2fd';

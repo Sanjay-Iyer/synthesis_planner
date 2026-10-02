@@ -11,9 +11,11 @@ All logic is deterministic. Thresholds live in ``risk_config``.
 
 from __future__ import annotations
 
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Iterable, List, Optional
 
 from .risk_config import (
+    YOY_TOTAL_CHANGE_NOTE_PCT,
     CONCENTRATION_THRESHOLDS,
     LIMITED_ALTERNATIVES_SHARE_PCT,
     MAX_ALTERNATE_COUNTRIES_LISTED,
@@ -39,8 +41,9 @@ def fmt_pct(value: Optional[float]) -> str:
     value = float(value)
     if 0 < value < 0.05:
         return "<0.1%"
-    rounded = round(value, 1)
-    return f"{rounded:.0f}%" if rounded.is_integer() else f"{rounded:.1f}%"
+    # Half-up on the decimal representation, so 23.15 -> 23.2 everywhere.
+    rounded = Decimal(repr(value)).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
+    return f"{rounded:.0f}%" if rounded == rounded.to_integral_value() else f"{rounded:.1f}%"
 
 
 def _share(value) -> Optional[float]:
@@ -78,7 +81,10 @@ def suppliers_from_trade_data(sc: Optional[dict]) -> List[dict]:
             share = row.get("share_of_top5_pct")
         suppliers.append(
             {
-                "country": str(name),
+                # Canonical spelling ("Korea, Rep." -> "South Korea") so every
+                # source and screen names a country the same way.
+                "country": canonical_country(name),
+                "reported_name": str(name),
                 "share_pct": _share(share),
                 "is_aggregate": row.get("reporter_type") == "aggregate"
                 or is_aggregate_reporter(name),
@@ -442,6 +448,9 @@ def build_provenance(sc: Optional[dict], mapping: Optional[dict]) -> dict:
         "listed_count",
         "total_value_usd",
         "prior_year",
+        "volatility",
+        "trade_balance",
+        "excluded_no_quantity_count",
         "notes",
     )
     prov.update({k: sc.get(k) for k in keys if k in sc})
@@ -480,6 +489,33 @@ def assess_data_quality(provenance: dict, concentration: dict) -> dict:
     if provenance.get("share_basis") == SHARE_OF_LISTED:
         caps.append(
             ("MEDIUM", "Shares are relative to the listed top exporters, not a world total.")
+        )
+    excluded = provenance.get("excluded_no_quantity_count") or 0
+    listed = provenance.get("listed_count") or 0
+    if excluded and excluded > listed:
+        caps.append(
+            (
+                "LOW",
+                f"{excluded} exporters were excluded for missing quantity — more than the {listed} listed.",
+            )
+        )
+    volatility = provenance.get("volatility") or {}
+    if volatility.get("top_supplier_changed"):
+        caps.append(
+            (
+                "MEDIUM",
+                f"Year-to-year volatility: the top supplier in {volatility.get('prior_year')} "
+                f"was {volatility.get('prior_top_supplier')}.",
+            )
+        )
+    change = volatility.get("total_change_pct")
+    if change is not None and abs(change) >= YOY_TOTAL_CHANGE_NOTE_PCT:
+        caps.append(
+            (
+                "MEDIUM",
+                f"Year-to-year volatility: total reported trade changed {change:+.0f}% "
+                f"vs {volatility.get('prior_year')}.",
+            )
         )
     countries = concentration.get("supplier_countries_available") or 0
     if countries < 3:

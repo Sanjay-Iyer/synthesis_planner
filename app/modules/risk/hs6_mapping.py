@@ -69,6 +69,17 @@ _QUALIFIERS = {
 _INCHIKEY_RE = re.compile(r"^[A-Z]{14}-[A-Z]{10}-[A-Z]$")
 _SELFIES_RE = re.compile(r"(\[[^\[\]]+\])+")
 _BROAD_DESC_RE = re.compile(r"\bNESOI\b|\bn\.?e\.?s\b|not elsewhere|^\s*other\b", re.I)
+# "Germanium oxides and zirconium dioxides" covers two different products; the
+# standard "X, its salts and esters" form still describes one substance, while
+# "their salts" means the heading lists several substances.
+_DERIVATIVE_WORDS = r"(?:salts|esters|derivatives|anhydrides|halides|peroxides|peroxyacids)"
+_ITS_DERIVATIVES_RE = re.compile(
+    rf"(?:,|\band\b)?\s*\bits\s+(?:[a-z]+\s+)?{_DERIVATIVE_WORDS}"
+    rf"(?:\s*(?:,|and|or)\s*(?:[a-z]+\s+)?{_DERIVATIVE_WORDS})*",
+    re.I,
+)
+_AND_RE = re.compile(r"\band\b", re.I)
+_THEIR_RE = re.compile(r"\btheir\b", re.I)
 
 
 # -----------------------------------------------------------------
@@ -265,6 +276,12 @@ def broad_category(hs6: Optional[str], description: Optional[str]) -> Optional[s
     if description:
         if _BROAD_DESC_RE.search(description):
             return f"Broad product category: '{description}'."
+        core = _ITS_DERIVATIVES_RE.sub("", description)
+        if _THEIR_RE.search(core) or _AND_RE.search(core):
+            return (
+                f"Multi-product heading: '{description}' — trade data may be dominated "
+                "by a different product than this reagent."
+            )
         return None
     if hs6.endswith("9"):
         return (

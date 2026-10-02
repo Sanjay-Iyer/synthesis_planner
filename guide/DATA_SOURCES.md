@@ -105,7 +105,7 @@ changed versus the previous complete year, or when the total moved by ≥50%.
 | Source | World Bank **Worldwide Governance Indicators (WGI)** — <https://www.worldbank.org/en/publication/worldwide-governance-indicators> |
 | Status | **Implemented.** Imported 2026-10-02 from the World Bank API (WGI source, dataset last updated 2026-09-25). |
 | Indicator | `GOV_WGI_PV.SC` — *Political Stability and Absence of Violence/Terrorism: governance score (0–100)*, with its 90% confidence bounds `GOV_WGI_PV.SC_LB` / `_UB` |
-| Year | 2025 for all 208 economies (latest non-missing year per economy) |
+| Year | 2025 for all 215 economies (latest non-missing year per economy) |
 | Files | `app/modules/risk/data/country_stability.csv` (Country, Stability_Score, Score_Lower_90, Score_Upper_90, Year, ISO3, WGI_Country_Name, Indicator) and `country_stability_meta.json` (source, indicator, retrieval time, API URL) |
 | Import script | `scripts/import_wgi.py` — `python scripts/import_wgi.py` (API) or `--input <DataBank CSV>` (offline); see the script header for the manual download steps |
 
@@ -116,10 +116,12 @@ supply disruption, and it is reported separately from sourcing concentration.
 Results describe the score relative to the 0–100 scale ("above/below the
 midpoint"), never a judgement of a country.
 
-**Coverage gaps.** Economies the World Bank API does not cover (e.g. **Taiwan**,
-French overseas departments such as Réunion, and several small territories)
-have no score. They are reported as `no_stability_data` — the geographic
-component is *not assessed*; no neutral value is substituted.
+**Coverage.** 215 economies with a 2025 score, including economies the API
+returns without an ISO3 code (e.g. **Taiwan** as "Taiwan, China", Réunion,
+Jersey). Economies whose latest score is more than 3 years older than the
+newest year (e.g. the dissolved Netherlands Antilles) are dropped. Origins with
+no score are reported as `no_stability_data` — the geographic component is *not
+assessed*; no neutral value is substituted.
 
 **Replaced table.** The previous 8-country table (unknown provenance; e.g. China
 48, Russia 15) was replaced. Its values are not comparable with WGI governance

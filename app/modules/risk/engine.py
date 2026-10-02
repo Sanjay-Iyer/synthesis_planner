@@ -32,6 +32,10 @@ from .risk_config import (
 DATA_DIR = Path(__file__).resolve().parent / "data"
 
 DEFAULT_SUBSTITUTABILITY = 5
+DEFAULT_LEAD_TIME_DAYS = 14
+DEFAULT_HAZARD = 5
+DEFAULT_REGULATORY = 5
+DEFAULT_SUPPLIER_COUNT = 3
 
 
 # =================================================================
@@ -53,11 +57,13 @@ class ReagentRiskInput(BaseModel):
     secondary_origin: Optional[str] = None
     mass_g: float = 0.0
     cost: float = 0.0
-    # Advanced fields
-    lead_time_days: int = 14
-    hazard_score: int = 5  # 1-10 (Toxicity/Handling)
-    regulatory_score: int = 5  # 1-10 (EPA/TSCA/Export Controls)
-    supplier_count: int = 3
+    # Advanced fields. None = not provided: the documented default is used and
+    # the result marks that component input as a default (see
+    # risk_index_components[...]["basis"]).
+    lead_time_days: Optional[int] = None  # default 14
+    hazard_score: Optional[int] = None  # 1-10 (Toxicity/Handling), default 5
+    regulatory_score: Optional[int] = None  # 1-10 (EPA/TSCA/Export Controls), default 5
+    supplier_count: Optional[int] = None  # default 3 (not editable in the UI)
     # 1-10 (10 = hardest to replace). None = not provided -> default 5, and the
     # result says so (substitutability_source = "default").
     substitutability: Optional[int] = None
@@ -299,14 +305,17 @@ def get_supply_chain_concentration(hs6_code: str, year: Optional[int] = None) ->
         "WITS shares are relative to the listed top exporters only, which "
         "overstates concentration compared with a world total."
     ]
+    excluded_count = len((record.get("excluded_rows") or {}).get("missing_quantity") or [])
     for warning in record.get("warnings", []):
         if warning.get("code") == "excluded_rows_missing_quantity":
-            notes.append(
-                f"{warning.get('count')} exporter(s) excluded because they reported "
-                "trade value but no quantity."
-            )
+            excluded_count = warning.get("count") or excluded_count
             break
-    groupings = [s["country"] for s in suppliers if s["is_aggregate"]]
+    if excluded_count:
+        notes.append(
+            f"{excluded_count} exporter(s) excluded because they reported trade value "
+            "but no quantity."
+        )
+    groupings = [s["reported_name"] for s in suppliers if s["is_aggregate"]]
     if groupings:
         notes.append(
             "Regional groupings listed by WITS were not treated as countries: "
@@ -346,6 +355,7 @@ def get_supply_chain_concentration(hs6_code: str, year: Optional[int] = None) ->
             "Not global production; shares are relative to the listed exporters only."
         ),
         "coverage": "listed_only",
+        "excluded_no_quantity_count": excluded_count,
         "country_count": len([s for s in suppliers if not s["is_aggregate"]]),
         "listed_count": listed,
         "top_exporters": top_exporters,
@@ -377,14 +387,15 @@ REGULATORY_CAS = {
 
 def label_risk(risk_index: float) -> str:
     """Classify risk level based on aggregated score."""
+    # Bands of the composite index only — not a supply-chain criticality rating.
     if risk_index > 150:
-        return "HIGH (Critical Supply Chain)"
+        return "HIGH (composite index > 150)"
     elif risk_index > 100:
-        return "MEDIUM-HIGH (Elevated Concern)"
+        return "MEDIUM-HIGH (composite index 100-150)"
     elif risk_index > 50:
-        return "MEDIUM (Monitored)"
+        return "MEDIUM (composite index 50-100)"
     else:
-        return "LOW (Stable)"
+        return "LOW (composite index <= 50)"
 
 
 ORIGIN_SOURCE_LABELS = {
@@ -616,19 +627,37 @@ def _assess_reagent(r: ReagentRiskInput, df_mapping, stability_table, meta, conn
             f"({profile['provenance'].get('source')}, {profile['provenance'].get('period_label')})."
         )
 
-    # 6. Other components (unchanged formulas)
-    lt_risk = min(100, (r.lead_time_days / LEAD_TIME_FULL_RISK_DAYS) * 100)
-    scarcity_risk = max(0, 100 - (r.supplier_count * 20))
+    # 6. Other components (unchanged formulas). Inputs not provided use the
+    #    documented defaults and are marked as such.
+    lead_time = r.lead_time_days if r.lead_time_days is not None else DEFAULT_LEAD_TIME_DAYS
+    hazard = r.hazard_score if r.hazard_score is not None else DEFAULT_HAZARD
+    regulatory = r.regulatory_score if r.regulatory_score is not None else DEFAULT_REGULATORY
+    suppliers_n = r.supplier_count if r.supplier_count is not None else DEFAULT_SUPPLIER_COUNT
+
+    lt_risk = min(100, (lead_time / LEAD_TIME_FULL_RISK_DAYS) * 100)
+    scarcity_risk = max(0, 100 - (suppliers_n * 20))
     if r.cas in CRITICAL_CAS:
         scarcity_risk = 100
     oper_risk = (lt_risk * 0.5) + (scarcity_risk * 0.5)
 
-    reg_val = r.regulatory_score
+    reg_val = regulatory
     if r.cas in REGULATORY_CAS:
         reg_val = 10  # Max risk
-    reg_risk = (r.hazard_score * 4) + (reg_val * 6)
+    reg_risk = (hazard * 4) + (reg_val * 6)
 
     econ_risk = substitutability * 10
+
+    def _basis(provided: list) -> str:
+        if all(provided):
+            return "user_input"
+        return "partly_default" if any(provided) else "default"
+
+    bases = {
+        "geographic": "WGI" if geo_risk is not None else "not_assessed",
+        "operational": _basis([r.lead_time_days is not None, r.supplier_count is not None]),
+        "regulatory": _basis([r.hazard_score is not None, r.regulatory_score is not None]),
+        "economic": _basis([r.substitutability is not None]),
+    }
 
     # 7. Composite index: country conditions, operational, regulatory, economic.
     #    Concentration is NOT folded in; unknown components are left out.
@@ -638,18 +667,31 @@ def _assess_reagent(r: ReagentRiskInput, df_mapping, stability_table, meta, conn
     secondary = composite_index(
         {"geographic": sec_geo_risk, "operational": oper_risk, "regulatory": reg_risk, "economic": econ_risk}
     )
+    for key, comp in primary["components"].items():
+        comp["basis"] = bases[key]
+    primary["defaults_used"] = [
+        k for k in ("operational", "regulatory", "economic") if bases[k] != "user_input"
+    ]
 
     exposure_multiplier = (
         (math.log10(r.mass_g + 1) * 0.7) + (math.log10(r.cost + 1) * 0.3) + 1
     )
+    primary["exposure_multiplier"] = round(exposure_multiplier, 2)
     risk_index = primary["score"] * exposure_multiplier
     secondary_risk_index = secondary["score"] * exposure_multiplier
 
     note = (
         "Composite of geographic (country conditions), operational, regulatory and "
-        "economic components. Concentration is reported separately and is not part "
-        "of this index."
+        "economic components, multiplied by a purchase-quantity factor "
+        f"(x{exposure_multiplier:.2f} from mass and cost). Concentration is reported "
+        "separately and is not part of this index. This is not a supply-chain "
+        "criticality rating."
     )
+    if primary["defaults_used"]:
+        note = (
+            f"Default inputs used for: {', '.join(primary['defaults_used'])} "
+            "(enter values in Advanced Mode). " + note
+        )
     if primary["missing"]:
         note = (
             f"Not assessed: {', '.join(primary['missing'])}; the index uses the other "
@@ -671,8 +713,8 @@ def _assess_reagent(r: ReagentRiskInput, df_mapping, stability_table, meta, conn
         secondary_risk_index=round(secondary_risk_index, 2),
         risk_level=label_risk(risk_index),
         hs_code=target_hs6,
-        lead_time=r.lead_time_days,
-        hazard=r.hazard_score,
+        lead_time=lead_time,
+        hazard=hazard,
         substitutability=substitutability,
         warnings=warnings,
         breakdown=RiskBreakdown(
@@ -743,6 +785,91 @@ def _pct(part: float, whole: float) -> Optional[float]:
     return round(part / whole * 100, 2) if whole > 0 else None
 
 
+def _country_exposures(pairs, spend: float) -> List[dict]:
+    """Spend exposed to each country = sum(reagent spend x that country's share).
+
+    ``pairs`` are (result, usage) with usable concentration data. Each entry
+    lists its contributing reagents with their data quality, so a total built
+    on weak data (WITS top-5 shares, name matches, broad HS6 headings) is
+    visibly marked as such.
+    """
+    exposure: Dict[str, dict] = {}
+    for res, usage in pairs:
+        cost = float(usage.get("cost") or 0)
+        quality = (res.data_quality or {}).get("level") or "NO_DATA"
+        source = (res.provenance or {}).get("source")
+        for s in res.supplier_shares:
+            share = s.get("share_pct") or 0
+            if share <= 0:
+                continue
+            entry = exposure.setdefault(
+                s["country"],
+                {"country": s["country"], "cost": 0.0, "reagents": [], "contributions": [], "cost_by_quality": {}},
+            )
+            amount = cost * share / 100.0
+            entry["cost"] += amount
+            entry["cost_by_quality"][quality] = entry["cost_by_quality"].get(quality, 0.0) + amount
+            # Name only meaningful contributors; the cost total stays exact.
+            if share >= SCENARIO_MINIMAL_EXPOSURE_PCT:
+                entry["reagents"].append(res.name)
+                entry["contributions"].append(
+                    {
+                        "name": res.name,
+                        "share_pct": round(share, 2),
+                        "cost": round(amount, 2),
+                        "data_quality": quality,
+                        "source": source,
+                    }
+                )
+    ranked = sorted(exposure.values(), key=lambda e: e["cost"], reverse=True)
+    for e in ranked:
+        total = e["cost"]
+        weak = sum(v for q, v in e["cost_by_quality"].items() if q != "HIGH")
+        e["pct_of_assessed_spend"] = _pct(total, spend)
+        e["weak_data_pct"] = round(weak / total * 100, 1) if total > 0 else None
+        e["cost_by_quality"] = {q: round(v, 2) for q, v in e["cost_by_quality"].items()}
+        e["contributions"].sort(key=lambda c: c["cost"], reverse=True)
+        e["cost"] = round(total, 2)
+    return ranked
+
+
+def country_exposure_overview(results: List[ReagentRiskResult]) -> dict:
+    """Share-weighted spend exposure per country across all assessed reagents.
+
+    Used for the "Spend exposure by country" chart. Reagents with route usage
+    contribute per route; reagents without trade data are reported as unknown
+    spend, never plotted as a country.
+    """
+    pairs, unknown_cost, total = [], 0.0, 0.0
+    for res in results:
+        routes = res.routes or {}
+        usages = routes.items() if routes else [("All reagents", {"cost": res.cost})]
+        for route, usage in usages:
+            cost = float((usage or {}).get("cost") or 0)
+            total += cost
+            if (res.concentration or {}).get("tier") in CONCENTRATION_TIER_RANK:
+                pairs.append((route, res, usage or {}))
+            else:
+                unknown_cost += cost
+    routes = sorted({route for route, _, _ in pairs})
+    countries: Dict[str, dict] = {}
+    for route in routes:
+        route_pairs = [(res, usage) for r, res, usage in pairs if r == route]
+        for e in _country_exposures(route_pairs, total):
+            entry = countries.setdefault(e["country"], {"country": e["country"], "by_route": {}, "total": 0.0})
+            entry["by_route"][route] = e["cost"]
+            entry["total"] += e["cost"]
+    ranked = sorted(countries.values(), key=lambda e: e["total"], reverse=True)
+    for e in ranked:
+        e["total"] = round(e["total"], 2)
+    return {
+        "routes": routes,
+        "countries": ranked,
+        "assessed_spend": round(total, 2),
+        "unknown_spend": round(unknown_cost, 2),
+    }
+
+
 def summarize_routes(results: List[ReagentRiskResult]) -> Optional[List[dict]]:
     """Per-route geographic summary — facts only, no combined score or ranking.
 
@@ -777,25 +904,7 @@ def summarize_routes(results: List[ReagentRiskResult]) -> Optional[List[dict]]:
             default=None,
         )
 
-        # Spend exposed to each country = sum(route cost x that country's share).
-        country_exposure: Dict[str, dict] = {}
-        for res, usage in known:
-            cost = float(usage.get("cost") or 0)
-            for s in res.supplier_shares:
-                share = s.get("share_pct") or 0
-                if share <= 0:
-                    continue
-                entry = country_exposure.setdefault(
-                    s["country"], {"country": s["country"], "cost": 0.0, "reagents": []}
-                )
-                entry["cost"] += cost * share / 100.0
-                # Name only meaningful contributors; the cost total stays exact.
-                if share >= SCENARIO_MINIMAL_EXPOSURE_PCT and res.name not in entry["reagents"]:
-                    entry["reagents"].append(res.name)
-        exposures = sorted(country_exposure.values(), key=lambda e: e["cost"], reverse=True)
-        for e in exposures:
-            e["pct_of_assessed_spend"] = _pct(e["cost"], spend)
-            e["cost"] = round(e["cost"], 2)
+        exposures = _country_exposures(known, spend)
 
         # Spend grouped by each reagent's dominant supplier country.
         by_dominant: Dict[str, dict] = {}
@@ -899,6 +1008,7 @@ def run_risk_assessment(reagents: List[ReagentRiskInput]) -> dict:
                 for k in ("source", "source_url", "indicator", "indicator_name", "years", "retrieved_at")
             },
             "route_summary": summarize_routes(results),
+            "country_exposure": country_exposure_overview(results),
         },
     }
 

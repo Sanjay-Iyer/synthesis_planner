@@ -37,7 +37,12 @@ data files change.
    (InChIKey, exact), data quality HIGH. Scope: U.S. imports only — not global
    supply and not U.S. domestic production.
    For Route A the counterpart is *Terephthalic acid*: **Mexico 86.2% · South
-   Korea 13.5% — HIGH**, 6 supplier countries, data quality HIGH.
+   Korea 13.5% — HIGH**, 6 supplier countries, exact structure match, data
+   quality MEDIUM because the 2025 picture is volatile (Canada led in 2024 with
+   61.7%; total U.S. imports fell 70%). The card shows both facts.
+   *Ethylene glycol* (both routes): Canada 99.2% of U.S. imports — but the card
+   also notes that U.S. exports of ethylene glycol exceed imports, so import
+   origins describe only part of U.S. supply.
 4. **Route Comparison** table:
 
    | | Route A | Route B |
@@ -47,7 +52,7 @@ data files change.
    | Reagents with trade data | 4 of 5 | 5 of 5 |
    | HIGH concentration reagents | 4 | 3 |
    | Highest single-country share | Canada 99.2% (ethylene glycol) | Canada 99.2% (ethylene glycol) |
-   | Largest single-country exposure | China 39.7% of reagent spend | **South Korea 62.5%** (DMT) |
+   | Largest single-country exposure | China 39.7% — marked: 100% rests on MEDIUM/LOW-quality data | **South Korea 62.5%** (DMT, HIGH-quality data) |
    | Unknown trade-data exposure | 6.1% (UV stabilizer) | none |
 
 5. **Scenario / Shock Analysis** → *Selected country supply interruption* →
@@ -57,8 +62,10 @@ data files change.
 
    Route B: highly exposed (DMT, high dependency, limited observed alternative
    sourcing). Route A: lower exposure (could be up to MEDIUM if its unknown-data
-   reagent were affected). Then try **Mexico**: Route A 23.1% vs Route B 0.1% —
-   the picture reverses.
+   reagent were affected). Then try **Mexico**: Route A 23.2% vs Route B 0.1% —
+   the picture reverses. Route notes also list reagents whose WITS data only
+   covers the top exporters (their share from the chosen country, if any, is not
+   counted).
 
 **What this shows.** The cheaper route (B) concentrates most of its assessed
 reagent spend in one reagent whose reported U.S. imports come almost entirely
@@ -75,8 +82,13 @@ domestic U.S. production or inventories.
   as a purchased reagent ($1,230.77, 54% of Route A reagent spend). Its HS6
   (390760, PET in primary forms) comes from a name-matched registry record and
   WITS top-5 export data (data quality MEDIUM). It drives most of Route A's
-  China exposure (39.7%); treat that figure as weaker than the South Korea /
-  Mexico results, which rest on exact structure matches and full-year USITC data.
+  China exposure (39.7%), and the Route Comparison marks that row as resting on
+  MEDIUM/LOW-quality data; treat it as weaker than the South Korea / Mexico
+  results, which rest on exact structure matches and full-year USITC data.
+- Germanium dioxide maps to 282560 "Germanium oxides and zirconium dioxides" — a
+  multi-product heading, so its mapping and data quality are LOW.
+- Nitrogen (WITS 280430): 58 exporters were excluded for missing quantity, so
+  data quality is LOW.
 - Route B's E-factor is dominated by solvent/atmosphere entries ("N2 Atmosphere"
   modelled as a solvent).
 - Manganese(II) acetate maps to 291529 "SALTS OF ACETIC ACID, NESOI" — a broad

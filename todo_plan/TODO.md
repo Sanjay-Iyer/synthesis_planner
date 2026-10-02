@@ -153,7 +153,7 @@ Reviewed 2026-06-05. Findings below.
 - [x] **DONE (2026-10-02)** Composite index no longer mixes concentration into the
       geographic component and no longer applies the x1.5 unknown-origin penalty;
       unknown components are left out and listed (`risk_config.COMPOSITE_WEIGHTS`).
-- [x] **DONE (2026-10-02)** WGI country coverage (208 economies) + central country aliases.
+- [x] **DONE (2026-10-02)** WGI country coverage (215 economies) + central country aliases.
 - [x] **DONE (2026-10-02)** HS6 resolver with match method / exactness / mapping quality
       (`app/modules/risk/hs6_mapping.py`); broad NESOI/"Other" categories flagged LOW;
       Planner passes SMILES for exact InChIKey matching.

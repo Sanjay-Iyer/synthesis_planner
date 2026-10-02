@@ -14,7 +14,7 @@ The input panel presents a grid of rows (3 empty rows by default). Each row has:
 |---|---|---|
 | **Reagent Name** | Chemical name (e.g. "CuCl2", "Platinum on Carbon"). Rows without a name are skipped during assessment. | Yes |
 | **CAS Number** | CAS registry number (e.g. "7447-39-4"). As you type, a colored status dot appears on the right side of the input: 🟢 **green** = CAS found in the server's mapping database (origin auto-populated), 🟡 **yellow** = CAS not recognized (will use defaults), ⚪ **gray** = no CAS entered. | No |
-| **Primary Origin** | Country of origin (e.g. "China", "Germany", "USA"). Auto-filled from CAS lookup if available, or entered manually. If left blank and CAS is unknown, the engine defaults to "Unknown" which triggers an opacity risk multiplier. | No |
+| **Primary Origin** | Country of origin (e.g. "China", "Germany", "USA"). Auto-filled from CAS lookup if available, or entered manually. If left blank, the top supplier country in the trade data is used; with no trade data the origin is "Unknown" and the geographic component is reported as not assessed (no penalty, not treated as safe). | No |
 | **Mass (g)** | Total mass of this reagent being used. Contributes to the exposure multiplier in the risk formula. | No (defaults to 0) |
 | **Cost ($)** | Total cost. Also contributes to the exposure multiplier. | No (defaults to 0) |
 
@@ -80,7 +80,7 @@ There is no ×1.5 "opacity" penalty and no neutral 50: an unknown origin means
 disruption probability; see `guide/DATA_SOURCES.md` §3.
 
 Examples (WGI 2025): Canada 79.8 → 20.2 · South Korea 81.7 → 18.3 · China 66.0 →
-34.0 · Mexico 55.0 → 45.0 · Taiwan → not assessed (not in the World Bank API).
+34.0 · Mexico 55.0 → 45.0 · Taiwan 83.1 → 16.9. Economies without a WGI score are not assessed.
 
 ### 2. Operational Risk (Weight: 20%)
 
@@ -159,10 +159,15 @@ The exposure multiplier scales risk by how much material is at stake. A reagent 
 
 | Risk Index Range | Level |
 |---|---|
-| 0 – 50 | **LOW** (Stable) |
-| 50 – 100 | **MEDIUM** (Monitored) |
-| 100 – 150 | **MEDIUM-HIGH** (Elevated Concern) |
-| > 150 | **HIGH** (Critical Supply Chain) |
+| 0 – 50 | **LOW** (composite index ≤ 50) |
+| 50 – 100 | **MEDIUM** (composite index 50–100) |
+| 100 – 150 | **MEDIUM-HIGH** (composite index 100–150) |
+| > 150 | **HIGH** (composite index > 150) |
+
+These are bands of the composite index, shown as "Index Level". They are not a
+supply-chain criticality rating: the index scales with purchase quantity and
+uses defaults (marked in the result) where advanced inputs are blank —
+`risk_index_components.defaults_used`, `exposure_multiplier`.
 
 ---
 
@@ -329,14 +334,14 @@ A full-width table with columns:
 - **X-axis**: Cost ($), logarithmic scale
 - **Y-axis**: Risk Index
 - **Bubble size**: Proportional to √(mass) — larger bubbles = more material at risk
-- **What it shows**: Each reagent plotted by cost vs. risk. Top-right quadrant = expensive AND high-risk = critical threats needing immediate attention.
+- **What it shows**: Each reagent plotted by cost vs. composite index. Upper right = higher cost and higher index; because the index scales with purchase quantity, read it together with the concentration and provenance columns.
 
-### Risk Exposure by Country (Bar Chart)
-- **Type**: Vertical bar chart
-- **X-axis**: Countries of origin
-- **Y-axis**: Sum of risk indices for all reagents from that country
-- **Color**: Red with rounded corners
-- **What it shows**: Geographic concentration risk. If one country has a very tall bar, your supply chain is dangerously dependent on that single source.
+### Reagent Spend Exposure by Country (Bar Chart)
+- **Type**: Stacked bar chart, one colour per route (or "All reagents")
+- **X-axis**: Countries (canonical names; regional groupings are never plotted)
+- **Y-axis**: Assessed reagent spend exposed ($) = Σ reagent spend × that country's share of reported trade
+- **Data**: `summary.country_exposure` from `/api/risk/assess`; reagents without trade data are not plotted and their spend is stated in the caption
+- **What it shows**: Where reported sourcing of the assessed reagents is concentrated, per route. It describes trade shares; it does not rate countries.
 
 ### Diagnostic Risk Heatmap
 - **Type**: CSS grid (not a Chart.js canvas)
@@ -374,19 +379,19 @@ Generates and downloads a 3-row template CSV with Platinum on Carbon, Copper(II)
 Two CSV files in `app/modules/risk/data/`:
 
 ### reagent_mapping.csv
-Maps CAS numbers to HS trade codes and primary manufacturing countries:
+Maps CAS numbers to HS codes and a manually entered origin (hand-curated, 6 rows), e.g.:
 ```
 Reagent_CAS, HS_Code, Primary_Origin
-7440-06-4,   3815.12, South Africa
-775-12-2,    2931.90, Germany
+100-21-0,    2917.36, Thailand
+107-21-1,    2905.31, Saudi Arabia
 7447-39-4,   2827.39, China
-7681-65-4,   2827.60, China
-106-92-3,    2910.90, USA
 ```
-Grows over time as users save mappings via the "💾 Save Mappings" button.
+Grows as users save mappings via "💾 Save Mappings". A CAS match is an exact
+HS6 mapping (quality HIGH); the stored origin is used only when there is no
+user-entered origin and no trade data.
 
 ### country_stability.csv
-World Bank WGI political-stability governance scores (0–100) for 208 economies,
+World Bank WGI political-stability governance scores (0–100) for 215 economies,
 generated by `scripts/import_wgi.py` (provenance in `country_stability_meta.json`;
 see `guide/DATA_SOURCES.md` §3). If the file is missing, no scores are invented:
 every origin is reported as "no stability data".

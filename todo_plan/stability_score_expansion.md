@@ -4,11 +4,10 @@
 # TODO: Expand country stability scores
 
 > **DONE 2026-10-02.** `country_stability.csv` now holds World Bank WGI 2025
-> Political Stability governance scores (`GOV_WGI_PV.SC`, 0-100) for 208
+> Political Stability governance scores (`GOV_WGI_PV.SC`, 0-100) for 215
 > economies, imported by `scripts/import_wgi.py`, with a central alias layer in
-> `risk_config.COUNTRY_ALIASES`. See `guide/DATA_SOURCES.md` §3. Remaining gap:
-> economies not in the World Bank API (e.g. Taiwan) are reported as "no
-> stability data". The plan below is kept for history.
+> `risk_config.COUNTRY_ALIASES`. See `guide/DATA_SOURCES.md` §3. Economies without a
+> score are reported as "no stability data". The plan below is kept for history.
 
 **Goal:** Replace the tiny placeholder country-stability table with broad coverage so
 geographic supply-chain risk is meaningful for the countries that actually show up

@@ -127,14 +127,13 @@ def _assess_item(item: dict, scenario: dict) -> dict:
 
     if not item.get("has_trade_data") or not usable:
         out["assessment"] = "Exposure unknown — no trade data for this reagent."
-        return out
+        return out, 0.0
     if not target:
         out["assessment"] = "Exposure unknown — no dominant supplier could be identified."
-        return out
+        return out, 0.0
 
     key = canonical_country(target)
-    share = sum(_num(s["share_pct"]) for s in usable if canonical_country(s["country"]) == key)
-    share = round(min(share, 100.0), 4)
+    share = min(sum(_num(s["share_pct"]) for s in usable if canonical_country(s["country"]) == key), 100.0)
     complete = item.get("coverage") == "all_reported_countries"
     alternatives = sorted(
         (
@@ -147,6 +146,7 @@ def _assess_item(item: dict, scenario: dict) -> dict:
     )
     out["observed_alternatives"] = alternatives[:5]
     out["exposure_share_pct"] = round(share, 2)
+    out["exposure_share_label"] = fmt_pct(share) if share > 0 else None
 
     if share > 0:
         remaining = round(max(100.0 - share, 0.0), 2)
@@ -169,14 +169,15 @@ def _assess_item(item: dict, scenario: dict) -> dict:
         out["status"] = "NOT_EXPOSED"
         out["remaining_share_pct"] = 100.0
         out["assessment"] = f"No supply from {target} observed in trade data — lower exposure."
+        out["exposure_share_label"] = "0%"
     else:
         # Listed-only data (e.g. WITS top 5): the country may supply an unlisted share.
         out["status"] = "NOT_LISTED"
         out["assessment"] = (
-            f"{target} is not among the listed exporters — lower observed exposure "
-            "(unlisted share unknown)."
+            f"{target} is not among the listed top exporters — its share, if any, is "
+            "not in the data (not counted as exposed, not assumed zero)."
         )
-    return out
+    return out, share
 
 
 def _route_usage(item: dict) -> Dict[str, float]:
@@ -253,8 +254,7 @@ def compute_scenario(items: Iterable[dict], scenario: dict) -> dict:
     reagent_rows = []
     routes: Dict[str, dict] = {}
     for item in items:
-        row = _assess_item(item, s)
-        share = row["exposure_share_pct"] or 0.0
+        row, share = _assess_item(item, s)  # share: unrounded, for arithmetic
         exposed = row["status"] == "EXPOSED"
         high_dependency = exposed and share >= SCENARIO_HIGH_DEPENDENCY_PCT
         row["routes"] = {}
@@ -270,6 +270,8 @@ def compute_scenario(items: Iterable[dict], scenario: dict) -> dict:
                     "exposed_reagents": [],
                     "high_dependency_reagents": [],
                     "unknown_reagents": [],
+                    "not_listed_cost": 0.0,
+                    "not_listed_reagents": [],
                     "reagent_count": 0,
                 },
             )
@@ -280,6 +282,9 @@ def compute_scenario(items: Iterable[dict], scenario: dict) -> dict:
             if row["status"] == "UNKNOWN":
                 agg["unknown_cost"] += cost
                 agg["unknown_reagents"].append(row["name"])
+            elif row["status"] == "NOT_LISTED":
+                agg["not_listed_cost"] += cost
+                agg["not_listed_reagents"].append(row["name"])
             elif exposed:
                 agg["affected_cost"] += affected
                 agg["added_cost"] += added
@@ -312,18 +317,22 @@ def compute_scenario(items: Iterable[dict], scenario: dict) -> dict:
         total = agg["total_cost"]
         known_any = len(agg["unknown_reagents"]) < agg["reagent_count"]
         if total > 0:
-            affected_pct = round(agg["affected_cost"] / total * 100, 2)
-            unknown_pct = round(agg["unknown_cost"] / total * 100, 2)
+            affected_exact = agg["affected_cost"] / total * 100
+            unknown_exact = agg["unknown_cost"] / total * 100
+            not_listed_exact = agg["not_listed_cost"] / total * 100
+            affected_pct = round(affected_exact, 2)
+            unknown_pct = round(unknown_exact, 2)
         else:
+            affected_exact = unknown_exact = not_listed_exact = None
             affected_pct = unknown_pct = None
         tier = (
-            classify_route_exposure(affected_pct)
-            if known_any and affected_pct is not None
+            classify_route_exposure(affected_exact)
+            if known_any and affected_exact is not None
             else "UNKNOWN"
         )
         upper = None
-        if tier != "UNKNOWN" and unknown_pct:
-            upper_tier = classify_route_exposure(affected_pct + unknown_pct)
+        if tier != "UNKNOWN" and unknown_exact:
+            upper_tier = classify_route_exposure(affected_exact + unknown_exact)
             if _TIER_ORDER.index(upper_tier) > _TIER_ORDER.index(tier):
                 upper = upper_tier
         note = None
@@ -333,17 +342,29 @@ def compute_scenario(items: Iterable[dict], scenario: dict) -> dict:
             note = "No assessed reagent in this route has trade data; exposure is unknown."
         elif upper:
             note = (
-                f"{fmt_pct(unknown_pct)} of assessed reagent cost has no trade data; "
+                f"{fmt_pct(unknown_exact)} of assessed reagent spend has no trade data; "
                 f"exposure could be up to {upper} if that portion were also affected."
             )
+        if agg["not_listed_reagents"] and total > 0:
+            listed_note = (
+                f"{fmt_pct(not_listed_exact)} of assessed reagent spend "
+                f"({', '.join(agg['not_listed_reagents'])}) uses top-exporter-only data in "
+                "which the affected country is not listed; any unlisted share is not "
+                "counted here."
+            )
+            note = f"{note} {listed_note}" if note else listed_note
         route_row = {
             "route": agg["route"],
             "reagent_count": agg["reagent_count"],
             "assessed_reagent_cost": round(total, 2),
             "affected_cost": round(agg["affected_cost"], 2),
             "affected_pct": affected_pct,
+            "affected_pct_label": fmt_pct(affected_exact) if affected_exact is not None else None,
             "unknown_cost": round(agg["unknown_cost"], 2),
             "unknown_pct": unknown_pct,
+            "unknown_pct_label": fmt_pct(unknown_exact) if unknown_exact else None,
+            "not_listed_cost": round(agg["not_listed_cost"], 2),
+            "not_listed_reagents": agg["not_listed_reagents"],
             "exposure_tier": tier,
             "exposure_label": ROUTE_TIER_LABELS[tier],
             "exposure_tier_if_unknown_affected": upper,
@@ -358,6 +379,9 @@ def compute_scenario(items: Iterable[dict], scenario: dict) -> dict:
             route_row["added_cost"] = round(agg["added_cost"], 2)
             route_row["added_cost_pct"] = (
                 round(agg["added_cost"] / total * 100, 2) if total > 0 else None
+            )
+            route_row["added_cost_pct_label"] = (
+                fmt_pct(agg["added_cost"] / total * 100) if total > 0 else None
             )
         if s["type"] == "lead_time":
             route_row["lead_time_increase_days"] = delta_days
@@ -401,29 +425,27 @@ def scenario_summary_text(s: dict, route_rows: List[dict]) -> str:
             f"Under a hypothetical +{s['lead_time_increase_days']:.0f}-day lead-time increase "
             f"on supply from {target or 'each reagent’s dominant supplier country'}"
         )
-    parts = []
-    for i, r in enumerate(route_rows):
-        name = _route_name(r["route"])
-        if r["affected_pct"] is None:
-            parts.append(f"exposure for {name} cannot be computed")
-        elif r["exposure_tier"] == "UNKNOWN":
-            parts.append(f"exposure for {name} is unknown (no trade data)")
-        elif i == 0:
-            parts.append(f"{fmt_pct(r['affected_pct'])} of the assessed reagent spend for {name}")
-        else:
-            parts.append(f"{fmt_pct(r['affected_pct'])} for {name}")
-    if not parts:
-        return f"{lead}, no assessed reagents were available."
-    if len(parts) == 1:
-        body = f"approximately {parts[0]} is exposed"
+    known = [r for r in route_rows if r["exposure_tier"] != "UNKNOWN" and r.get("affected_pct_label")]
+    unknown = [_route_name(r["route"]) for r in route_rows if r not in known]
+    if known:
+        first = known[0]
+        body = (
+            f"approximately {first['affected_pct_label']} of the assessed reagent spend "
+            f"for {_route_name(first['route'])} is exposed"
+        )
+        rest = [f"{r['affected_pct_label']} for {_route_name(r['route'])}" for r in known[1:]]
+        if rest:
+            body += " versus " + ", ".join(rest)
+        text = f"{lead}, {body}."
     else:
-        body = "approximately " + parts[0] + " is exposed versus " + ", ".join(parts[1:])
-    text = f"{lead}, {body}."
+        text = f"{lead}, exposure cannot be computed from the available trade data."
+    if unknown:
+        text += f" Exposure is unknown for {', '.join(unknown)} (no usable trade data or costs)."
     if s["type"] == "tariff":
         added = ", ".join(
-            f"{_route_name(r['route'])} +{fmt_pct(r.get('added_cost_pct'))}"
+            f"{_route_name(r['route'])} +{r['added_cost_pct_label']}"
             for r in route_rows
-            if r.get("added_cost_pct") is not None
+            if r.get("added_cost_pct_label")
         )
         if added:
             text += f" Added cost as a share of assessed reagent spend: {added}."

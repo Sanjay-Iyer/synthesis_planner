@@ -248,7 +248,7 @@
                 <div class="value" id="sumTotal" style="color:var(--primary);">0</div>
             </div>
             <div class="summary-card">
-                <div class="label">High Risk Items</div>
+                <div class="label" title="Reagents whose composite index is above 150. The index scales with purchase quantity and uses defaults where inputs are blank.">High Composite Index</div>
                 <div class="value" id="sumHighRisk" style="color:var(--danger);">0</div>
             </div>
             <div class="summary-card">
@@ -293,7 +293,7 @@
                         <th>Mass (g)</th>
                         <th>Cost ($)</th>
                         <th>Risk Index</th>
-                        <th>Risk Level</th>
+                        <th title="Band of the composite index (geographic country conditions, operational, regulatory, economic) x purchase-quantity factor. Not a supply-chain criticality rating; concentration is reported separately.">Index Level</th>
                         <th>Warnings</th>
                     </tr>
                 </thead>
@@ -338,13 +338,13 @@
             <div class="card">
                 <h4 style="margin-bottom: 15px;">Cost vs. Risk Priority</h4>
                 <div style="height: 350px;"><canvas id="bubbleChart"></canvas></div>
-                <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 10px;">Size = Mass. Top-right reagents are critical threats.</p>
+                <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 10px;">Size = mass. Upper right = higher cost and higher composite index (which scales with purchase quantity).</p>
             </div>
             
             <div class="card">
-                <h4 style="margin-bottom: 15px;">Risk Exposure by Country</h4>
+                <h4 style="margin-bottom: 15px;">Reagent Spend Exposure by Country</h4>
                 <div style="height: 350px;"><canvas id="stackedBarChart"></canvas></div>
-                <p style="font-size: 0.75rem; color: var(--text-muted); margin-top: 10px;">Identifies geopolitical dependencies and blind spots.</p>
+                <p id="countryChartCaption" style="font-size: 0.75rem; color: var(--text-muted); margin-top: 10px;">Reagent spend × each country's share of reported trade, summed per country.</p>
             </div>
 
             <div class="heatmap-container">

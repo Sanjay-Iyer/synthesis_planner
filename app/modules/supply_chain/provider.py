@@ -458,6 +458,39 @@ def get_origin_concentration(
                     f"({_fmt_usd(prior['total_value_usd'])})."
                 )
 
+    volatility = None
+    if prior:
+        volatility = {
+            "prior_year": prior["year"],
+            "prior_top_supplier": prior["top_supplier_country"],
+            "prior_top_supplier_share": prior["top_supplier_share"],
+            "top_supplier_changed": prior["top_supplier_country"] != top_exporters[0]["reporter"],
+            "total_change_pct": (
+                round((total - prior["total_value_usd"]) / prior["total_value_usd"] * 100, 1)
+                if prior["total_value_usd"] > 0
+                else None
+            ),
+        }
+
+    # U.S. exports of the same code and period, for context: when exports exceed
+    # imports, import origins describe only a small part of U.S. supply.
+    trade_balance = None
+    export_cov = node.get("coverage", {}).get("export", {}).get(chosen, {})
+    if export_cov.get("period_type") == selection["period_type"]:
+        exports = _year_total((node.get("export") or {}).get(chosen, {}))
+        trade_balance = {
+            "year": chosen,
+            "imports_value_usd": round(total, 2),
+            "exports_value_usd": round(exports, 2),
+            "net_exporter": exports > total,
+        }
+        if exports > total:
+            notes.append(
+                f"U.S. exports of this code ({_fmt_usd(exports)}) exceed imports "
+                f"({_fmt_usd(total)}) in {chosen}: import origins describe only part "
+                "of U.S. supply, which also includes domestic production."
+            )
+
     flag = assess_concentration(
         [
             {"country": e["reporter"], "share_pct": e["share_of_total_pct"]}
@@ -503,6 +536,8 @@ def get_origin_concentration(
         "concentration_top1_pct": top1_share,
         "concentration_risk_flag": flag,
         "prior_year": prior,
+        "volatility": volatility,
+        "trade_balance": trade_balance,
         "data_quality_note": " ".join(notes) if notes else None,
         "notes": notes,
     }

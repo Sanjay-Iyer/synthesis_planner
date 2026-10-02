@@ -121,7 +121,11 @@ def test_listed_only_data_without_the_country_is_not_listed():
     res = compute_scenario(items, {"type": "country_disruption", "country": "China"})
     r = reagent(res, "WITS reagent")
     assert r["status"] == "NOT_LISTED"
-    assert "unlisted share unknown" in r["assessment"]
+    assert r["exposure_share_label"] is None  # not shown as "0%"
+    assert "not assumed zero" in r["assessment"]
+    a = route(res, "A")
+    assert a["not_listed_reagents"] == ["WITS reagent"]
+    assert "top-exporter-only data" in a["note"]
 
 
 def test_loss_of_dominant_supplier_uses_each_reagents_own_top_country():

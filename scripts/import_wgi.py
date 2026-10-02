@@ -76,8 +76,11 @@ def fetch_api() -> tuple[dict, dict]:
         for row in rows or []:
             if row.get("value") is None:
                 continue
-            iso = row.get("countryiso3code") or row["country"]["id"]
-            entry = economies.setdefault(iso, {"name": row["country"]["value"], "series": {}})
+            name = row["country"]["value"]
+            # Some economies (e.g. "Taiwan, China", Réunion, Jersey) come back with
+            # a blank ISO3 code and id: key them by name so they stay distinct.
+            iso = row.get("countryiso3code") or row["country"].get("id") or f"name:{name}"
+            entry = economies.setdefault(iso, {"name": name, "series": {}})
             entry["series"].setdefault(code, {})[int(row["date"])] = float(row["value"])
 
     # Drop regional/income aggregates if the source ever includes them.
@@ -119,14 +122,27 @@ def read_databank_csv(path: Path) -> tuple[dict, dict]:
     return economies, {"input_file": str(path)}
 
 
+MAX_AGE_YEARS = 3  # drop economies whose latest score is this much older than the newest
+
+
 def build_rows(economies: dict) -> list[dict]:
-    """Latest non-missing score per economy, with bounds from the same year."""
+    """Latest non-missing score per economy, with bounds from the same year.
+
+    Economies whose latest score is more than MAX_AGE_YEARS older than the
+    newest year in the dataset (e.g. dissolved entities) are left out.
+    """
+    newest = max(
+        (max(e["series"][SCORE]) for e in economies.values() if e["series"].get(SCORE)),
+        default=None,
+    )
     rows = []
     for iso, entry in economies.items():
         scores = entry["series"].get(SCORE) or {}
         if not scores:
             continue
         year = max(scores)
+        if newest is not None and year < newest - MAX_AGE_YEARS:
+            continue
         rows.append(
             {
                 "Country": canonical_country(entry["name"]),
@@ -134,7 +150,7 @@ def build_rows(economies: dict) -> list[dict]:
                 "Score_Lower_90": _round((entry["series"].get(LOWER) or {}).get(year)),
                 "Score_Upper_90": _round((entry["series"].get(UPPER) or {}).get(year)),
                 "Year": year,
-                "ISO3": iso,
+                "ISO3": "" if iso.startswith("name:") else iso,
                 "WGI_Country_Name": entry["name"],
                 "Indicator": SCORE,
             }

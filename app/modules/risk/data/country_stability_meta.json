@@ -12,8 +12,8 @@
   "years": [
     2025
   ],
-  "economies": 208,
-  "retrieved_at": "2026-10-02T21:28:00+00:00",
+  "economies": 215,
+  "retrieved_at": "2026-10-02T22:01:50+00:00",
   "interpretation": "A governance perception indicator used as country-conditions context. It is not a probability of supply disruption.",
   "api_url": "https://api.worldbank.org/v2/country/all/indicator/GOV_WGI_PV.SC?source=3&format=json&per_page=20000&date=2000:2026",
   "wgi_last_updated": "2026-09-25"
