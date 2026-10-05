@@ -239,6 +239,7 @@ def lookup_suggested_origins(reagent_inputs: List[dict]) -> List[dict]:
                 "hs6_match_method": resolved["match_method"],
                 "hs6_mapping_quality": resolved["mapping_quality"],
                 "source_label": None,
+                "product_description": None,
                 "trade_status": ("INVALID HS6" if resolved.get("validation_status") == "INVALID HS6"
                                  else "NO WITS DATA" if resolved["hs6"] else "HS6 MISSING"),
             }
@@ -246,6 +247,7 @@ def lookup_suggested_origins(reagent_inputs: List[dict]) -> List[dict]:
                 concentration = get_supply_chain_concentration(resolved["hs6"])
                 if concentration.get("status") == "success":
                     suggested["trade_status"] = "MATCHED"
+                    suggested["product_description"] = concentration.get("description")
                     countries = _country_suppliers(concentration)
                     if countries:
                         suggested["primary"] = countries[0]["country"]

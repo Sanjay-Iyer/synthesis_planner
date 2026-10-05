@@ -46,9 +46,13 @@ The system emits warnings if major exporters (by trade value) are excluded becau
 Enter a six-digit **HS6** beside the reagent name in the Planner or Risk Audit,
 then press **Run Risk Assessment**. Explicit HS6 is the primary trade-data key;
 the original name is retained and does not have to match a registry name.
-**Auto-Lookup Origins** fills the input row's primary/secondary origin suggestions.
-The Risk Audit accepts an HS6-only row as well; a missing display name is shown
-as `Unknown` in the risk report. Lookup status appears beneath the HS6 input.
+**Auto-Lookup Origins** fills the input row's primary/secondary origin suggestions
+and, if the reagent name is blank, the matched trade product description (for
+example, `282580` → `Antimony oxides`). This is an editable category description;
+it does not identify a unique chemical. User-entered names are preserved.
+Changing HS6 and repeating lookup refreshes names previously filled automatically.
+If no description is available, the name remains blank and is shown as `Unknown`
+in the risk report. Lookup status appears beneath the HS6 input.
 
 The assessed Origin column shows **Primary: country — share%** and
 **Secondary: country — share%**, with the share basis. The export report retains

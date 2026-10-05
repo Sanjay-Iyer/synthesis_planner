@@ -1024,8 +1024,20 @@ async function autoLookupOrigins() {
         suggestions.forEach((s, i) => {
             if (i < rows.length) {
                 const row = rows[i];
+                const nameInput = row.querySelector('.r-name');
                 const pInput = row.querySelector('.r-origin');
                 const sInput = row.querySelector('.r-secondary-origin');
+                // HS6 describes a trade category; keep any user-entered chemical name.
+                const description = s.trade_status === 'MATCHED' && typeof s.product_description === 'string'
+                    ? s.product_description.trim() : '';
+                if (!nameInput.value.trim() || nameInput.value === row.dataset.autoName) {
+                    nameInput.value = description;
+                    row.dataset.autoName = description;
+                    nameInput.title = description ? 'Product description from the matched trade data. You can edit this name.' : '';
+                } else if (row.dataset.autoName) {
+                    delete row.dataset.autoName;
+                    nameInput.title = '';
+                }
                 
                 if (!pInput.value || pInput.value === 'Unknown' || pInput.value === row.dataset.autoOrigin) { pInput.value = s.primary; row.dataset.autoOrigin = s.primary; }
                 if (!sInput.value || sInput.value === 'Unknown' || sInput.value === row.dataset.autoSecondary) { sInput.value = s.secondary; row.dataset.autoSecondary = s.secondary; }
@@ -1033,9 +1045,11 @@ async function autoLookupOrigins() {
                 if (status) status.textContent = s.trade_status || 'HS6 MISSING';
                 
                 // Add visual highlight
+                if (description && nameInput.value === row.dataset.autoName) nameInput.style.background = '#e3f2fd';
                 pInput.style.background = '#e3f2fd';
                 sInput.style.background = '#e3f2fd';
                 setTimeout(() => {
+                    nameInput.style.background = '';
                     pInput.style.background = '';
                     sInput.style.background = '';
                 }, 1000);

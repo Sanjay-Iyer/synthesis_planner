@@ -110,6 +110,16 @@ unknown shares and CSV preservation.
 
 ## Files changed
 
+Name-autofill follow-up: **Auto-Lookup Origins** now returns the matched trade
+product description and fills a blank reagent name with it. For `282580`, the
+browser verification showed `Antimony oxides`, China, Belgium and `MATCHED` in
+the second input row after a blank row. User-entered names are preserved.
+Repeating lookup after changing HS6 refreshes an automatically filled name;
+missing descriptions clear only an automatic name. The description is an
+editable trade-category label, not a unique chemical identity. Verification:
+**49 Python tests** (explicit HS6 and mapping), **six frontend tests**, and
+the browser check passed.
+
 | File | Purpose |
 |---|---|
 | [app/hs6.py](C:/code/synthesis_planner/app/hs6.py) | Shared string normalization and validation |

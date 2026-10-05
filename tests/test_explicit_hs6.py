@@ -93,6 +93,14 @@ def test_hs6_only_row_can_lookup_origins(antimony_trade):
     assert result['primary'] == 'China'
     assert result['secondary'] == 'Belgium'
     assert result['trade_status'] == 'MATCHED'
+    assert result['product_description'] == 'Antimony oxides'
+
+
+@pytest.mark.parametrize('code,status', [('070951', 'NO WITS DATA'), ('ABC123', 'INVALID HS6'), (None, 'HS6 MISSING')])
+def test_unmatched_lookup_does_not_invent_product_description(code, status, antimony_trade):
+    result = engine.lookup_suggested_origins([{'name': '', 'hs6': code}])[0]
+    assert result['trade_status'] == status
+    assert result['product_description'] is None
 
 
 def test_unknown_has_no_false_association(antimony_trade):

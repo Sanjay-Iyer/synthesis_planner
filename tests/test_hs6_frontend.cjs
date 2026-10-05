@@ -121,7 +121,7 @@ test('origin labels show supplier percentages without inventing missing shares',
     assert.equal(ctx.originShareLabel('Peru', null), 'Peru — share unavailable');
 });
 
-test('Auto-Lookup fills an HS6-only row after blank rows and refreshes automatic origins', async () => {
+test('Auto-Lookup fills HS6-only names/origins and refreshes automatic values while preserving edits', async () => {
     const ctx = runtime('risk.js');
     function row(name, hs6) {
         const fields = Object.fromEntries([
@@ -139,7 +139,7 @@ test('Auto-Lookup fills an HS6-only row after blank rows and refreshes automatic
     ctx.fetch = async (url, options) => {
         received = JSON.parse(options.body);
         return { ok: true, json: async () => [{
-            primary: 'China', secondary: 'Belgium', hs6: '282580', trade_status: 'MATCHED'
+            primary: 'China', secondary: 'Belgium', hs6: '282580', trade_status: 'MATCHED', product_description: 'Antimony oxides'
         }] };
     };
     await ctx.autoLookupOrigins();
@@ -147,15 +147,40 @@ test('Auto-Lookup fills an HS6-only row after blank rows and refreshes automatic
     assert.equal(received.reagents[0].name, '');
     assert.equal(received.reagents[0].hs6, '282580');
     assert.equal(blank.fields['.r-origin'].value, '');
+    assert.equal(blank.fields['.r-name'].value, '');
+    assert.equal(active.fields['.r-name'].value, 'Antimony oxides');
+    assert.equal(ctx.collectReagentInputs()[0].name, 'Antimony oxides');
     assert.equal(active.fields['.r-origin'].value, 'China');
     assert.equal(active.fields['.r-secondary-origin'].value, 'Belgium');
     assert.equal(active.fields['.r-trade-status'].textContent, 'MATCHED');
     ctx.fetch = async () => ({ ok: true, json: async () => [{
-        primary: 'France', secondary: 'USA', trade_status: 'MATCHED'
+        primary: 'France', secondary: 'USA', trade_status: 'MATCHED', product_description: 'Germanium oxides'
     }] });
+    active.fields['.r-hs6'].value = '282560';
     await ctx.autoLookupOrigins();
     assert.equal(active.fields['.r-origin'].value, 'France');
+    assert.equal(active.fields['.r-name'].value, 'Germanium oxides');
     active.fields['.r-origin'].value = 'Germany'; // Preserve an intentional user override.
+    active.fields['.r-name'].value = 'My catalyst';
     await ctx.autoLookupOrigins();
     assert.equal(active.fields['.r-origin'].value, 'Germany');
+    assert.equal(active.fields['.r-name'].value, 'My catalyst');
+    ctx.fetch = async () => ({ ok: true, json: async () => [{
+        primary: 'Unknown', secondary: 'Unknown', trade_status: 'NO WITS DATA', product_description: null
+    }] });
+    await ctx.autoLookupOrigins();
+    assert.equal(active.fields['.r-name'].value, 'My catalyst');
+    active.fields['.r-name'].value = '   ';
+    await ctx.autoLookupOrigins();
+    assert.equal(active.fields['.r-name'].value, '');
+    active.fields['.r-name'].value = active.dataset.autoName = 'Old category';
+    await ctx.autoLookupOrigins();
+    assert.equal(active.fields['.r-name'].value, '');
+    // Names entered before the first lookup also stay intact.
+    active.fields['.r-name'].value = 'Antimony trioxide catalyst';
+    ctx.fetch = async () => ({ ok: true, json: async () => [{
+        primary: 'China', secondary: 'Belgium', trade_status: 'MATCHED', product_description: 'Antimony oxides'
+    }] });
+    await ctx.autoLookupOrigins();
+    assert.equal(active.fields['.r-name'].value, 'Antimony trioxide catalyst');
 });
