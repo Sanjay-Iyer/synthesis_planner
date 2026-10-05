@@ -127,6 +127,10 @@ function addReagentInputRow(data = null) {
 
     row.innerHTML = `
         <input type="text" class="r-name" placeholder="e.g. CuCl2" value="${esc(data?.name || '')}">
+        <div>
+            <input type="text" class="r-hs6" placeholder="UNKNOWN" inputmode="numeric" title="Six-digit HS6 trade category; highest mapping priority" value="${esc(data?.hs6 || '')}" oninput="validateHS6(this)">
+            <div class="r-trade-status muted-sm" role="status"></div>
+        </div>
         <div style="position:relative; display:flex; align-items:center;">
             <input type="text" class="cas-input r-cas" placeholder="e.g. 7447-39-4" value="${esc(data?.cas || '')}" oninput="checkCAS(this)" style="width:100%;">
             <span class="status-dot" style="position:absolute; right:8px; width:8px; height:8px; border-radius:50%; background:#dfe6e9;" title="CAS Status"></span>
@@ -137,7 +141,6 @@ function addReagentInputRow(data = null) {
         <input type="number" step="any" class="r-cost" placeholder="Cost" value="${esc(round2(data?.cost) || '')}">
         <input type="text" class="r-route" placeholder="A,B" value="${esc(routeLabel)}" title="Route(s) using this reagent, e.g. A or A,B">
         <!-- Advanced fields -->
-        <input type="text" class="r-hs6 adv-field" placeholder="HS6" title="Optional HS6 code (user-entered; highest mapping priority)" value="${esc(data?.hs6 || '')}">
         <input type="number" step="any" class="r-lead adv-field" placeholder="Lead (d)" title="Lead time in days. Blank = default 14, marked as a default." value="${esc(data?.lead_time_days ?? '')}">
         <input type="number" step="any" class="r-haz adv-field" placeholder="Haz (1-10)" title="Hazard 1-10. Blank = default 5, marked as a default." value="${esc(data?.hazard_score ?? '')}">
         <input type="number" step="any" class="r-reg adv-field" placeholder="Reg (1-10)" title="Regulatory 1-10. Blank = default 5, marked as a default." value="${esc(data?.regulatory_score ?? '')}">
@@ -150,7 +153,34 @@ function addReagentInputRow(data = null) {
     // Structure identifier from the Planner (SMILES/InChI/InChIKey) for exact HS6 matching.
     if (data?.structure) row.dataset.structure = data.structure;
     container.appendChild(row);
+    validateHS6(row.querySelector('.r-hs6'));
     if (data?.cas) checkCAS(row.querySelector('.cas-input'));
+}
+
+function validateHS6(input) {
+    const code = input.value.replace(/\s+/g, '');
+    const invalid = code && !/^[0-9]{6}$/.test(code);
+    input.setAttribute('aria-invalid', invalid ? 'true' : 'false');
+    input.style.borderColor = invalid ? 'var(--danger)' : '';
+    input.title = invalid ? 'INVALID HS6: enter exactly six digits (no decimal or scientific notation)' : 'Six-digit HS6 trade category; blank uses the automatic resolver';
+    const status = input.parentElement.querySelector('.r-trade-status');
+    if (status) status.textContent = invalid ? 'INVALID HS6' : '';
+}
+
+// CSV cells stay strings: leading zeroes and invalid code formatting survive.
+function parseRiskCSVLine(line) {
+    const cells = [];
+    let text = '', quoted = false;
+    for (let i = 0; i < line.length; i++) {
+        const c = line[i];
+        if (c === '"') {
+            if (quoted && line[i + 1] === '"') { text += '"'; i++; }
+            else quoted = !quoted;
+        } else if (c === ',' && !quoted) { cells.push(text.trim()); text = ''; }
+        else text += c;
+    }
+    cells.push(text.trim());
+    return cells;
 }
 
 /**
@@ -208,12 +238,16 @@ function toggleAdvancedMode() {
     }
 }
 
+function activeRiskRows() {
+    return Array.from(document.querySelectorAll('#reagentRows .reagent-input-row'))
+        .filter(row => row.querySelector('.r-name').value.trim() || row.querySelector('.r-hs6').value.trim());
+}
+
 function collectReagentInputs() {
-    const rows = document.querySelectorAll('#reagentRows .reagent-input-row');
+    const rows = activeRiskRows();
     const reagents = [];
     rows.forEach(row => {
         const name = row.querySelector('.r-name').value.trim();
-        if (!name) return;
         const mass = parseFloat(row.querySelector('.r-mass').value) || 0;
         const cost = parseFloat(row.querySelector('.r-cost').value) || 0;
         const sub = parseInt(row.querySelector('.r-sub').value);
@@ -233,7 +267,7 @@ function collectReagentInputs() {
             // null = not provided; the engine uses 5 and labels it as a default.
             substitutability: isNaN(sub) ? null : sub,
             routes: collectRouteUsage(row, mass, cost),
-            hs6: (row.querySelector('.r-hs6')?.value || '').trim() || null,
+            hs6: (row.querySelector('.r-hs6')?.value || '').replace(/\s+/g, '') || null,
             structure: row.dataset.structure || null
         });
     });
@@ -250,7 +284,7 @@ function loadCSV(event) {
         if (lines.length < 2) { alert('CSV has no data rows.'); return; }
 
         // Parse header
-        const header = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+        const header = parseRiskCSVLine(lines[0].replace(/^\uFEFF/, ''));
 
         // Find column indices (flexible matching)
         const nameIdx = header.findIndex(h => /reagent(?!_cas)/i.test(h));
@@ -266,7 +300,7 @@ function loadCSV(event) {
         const hs6Idx = header.findIndex(h => /^hs6$|^hs_?code$|^hs6_?code$/i.test(h));
 
         // Auto-enable advanced mode if advanced columns found
-        if (leadIdx >= 0 || hazIdx >= 0 || subIdx >= 0 || hs6Idx >= 0) {
+        if (leadIdx >= 0 || hazIdx >= 0 || subIdx >= 0) {
             document.getElementById('advancedToggle').checked = true;
             toggleAdvancedMode();
         }
@@ -276,8 +310,7 @@ function loadCSV(event) {
 
         // Parse data rows
         for (let i = 1; i < lines.length; i++) {
-            const cols = lines[i].split(',').map(c => c.trim().replace(/"/g, ''));
-            if (cols.length < 2) continue;
+            const cols = parseRiskCSVLine(lines[i]);
 
             addReagentInputRow({
                 name: nameIdx >= 0 ? cols[nameIdx] : cols[0],
@@ -340,7 +373,7 @@ async function uploadWitsExcel(event) {
 
 async function runRiskAssessment() {
     const reagents = collectReagentInputs();
-    if (reagents.length === 0) { alert('Please enter at least one reagent.'); return; }
+    if (reagents.length === 0) { alert('Enter a reagent name or HS6 code in a row first.'); return; }
 
     try {
         const res = await fetch(`${API_BASE}/api/risk/assess`, {
@@ -390,7 +423,9 @@ function renderBubbleChart(reagents) {
         x: Math.max(r.cost || 0, 0.01), // Log scale needs > 0
         y: r.risk_index || 0,
         r: Math.sqrt(Math.max(r.mass_g || 0, 0)) / 2 + 5,
-        name: r.name || 'Unknown'
+        name: r.name || 'Unknown',
+        hs6: r.hs6 || r.hs_code || 'UNKNOWN',
+        trade_status: r.trade_status || 'HS6 MISSING'
     }));
 
     bubbleChart = new Chart(ctx, {
@@ -417,7 +452,7 @@ function renderBubbleChart(reagents) {
             plugins: {
                 tooltip: {
                     callbacks: {
-                        label: (ctx) => `${ctx.raw.name}: Cost $${ctx.raw.x.toFixed(2)}, Risk ${ctx.raw.y.toFixed(1)}`
+                        label: (ctx) => `${ctx.raw.name} · HS6 ${ctx.raw.hs6} · ${ctx.raw.trade_status}: Cost $${ctx.raw.x.toFixed(2)}, Risk ${ctx.raw.y.toFixed(1)}`
                     }
                 }
             }
@@ -481,12 +516,13 @@ function renderHeatmap(reagents) {
     ];
 
     // Header
-    grid.style.gridTemplateColumns = `120px repeat(${columns.length}, 1fr)`;
-    let html = `<div></div>` + columns.map(([label, , tip]) => `<div class="heatmap-label" title="${esc(tip)}">${label}</div>`).join('');
+    grid.style.gridTemplateColumns = `120px 80px repeat(${columns.length}, 1fr)`;
+    let html = `<div>Reagent</div><div class="heatmap-label">HS6</div>` + columns.map(([label, , tip]) => `<div class="heatmap-label" title="${esc(tip)}">${label}</div>`).join('');
 
     reagents.forEach(r => {
         // Reagent Label
-        html += `<div class="heatmap-label" style="text-align:right; padding-right:10px; color:var(--dark);">${esc(r.name)}</div>`;
+        html += `<div class="heatmap-label" style="text-align:right; padding-right:10px; color:var(--dark);">${esc(r.name || 'Unknown')}</div>`;
+        html += `<div class="heatmap-label" title="${esc(r.trade_status || 'HS6 MISSING')}">${esc(r.hs6 || r.hs_code || 'UNKNOWN')}</div>`;
 
         // Cells
         columns.forEach(([label, key]) => {
@@ -547,14 +583,17 @@ function displayRiskResults(data) {
 
         row.innerHTML = `
             <td style="font-weight:600;">${esc(r.name || 'Unknown')}</td>
+            <td style="font-family:monospace;">${esc(r.hs6 || r.hs_code || 'UNKNOWN')}</td>
             <td style="font-family:monospace; font-size:0.8rem;">${esc(r.cas || 'No CAS')}</td>
-            <td>
-                <div style="font-weight:600; color:var(--primary);">${esc(r.primary_origin || 'Unknown')}</div>
+            <td class="origin-cell">
+                <div style="font-weight:600; color:var(--primary);">Primary: ${originShareLabel(r.primary_origin, r.primary_origin_share_pct)}</div>
                 <div class="muted-sm" title="${esc(geo.explanation || '')}">via ${esc(geo.origin_source_label || 'unknown source')}</div>
-                <div style="font-size:0.7rem; color:var(--text-muted); border-top:1px solid #eee; margin-top:4px; padding-top:4px;">Secondary: ${esc(r.secondary_origin || 'Unknown')}</div>
+                <div style="font-size:0.7rem; color:var(--text-muted); border-top:1px solid #eee; margin-top:4px; padding-top:4px;">Secondary: ${originShareLabel(r.secondary_origin, r.secondary_origin_share_pct)}</div>
+                <div class="muted-sm">${esc((r.provenance || {}).share_basis_label || 'Trade share unavailable')}</div>
             </td>
             <td>${stabilityCell}</td>
             <td>${concentrationCell(r)}</td>
+            <td>${esc(r.trade_status || 'HS6 MISSING')}</td>
             <td>${(r.mass_g || 0).toLocaleString(undefined, { maximumFractionDigits: 2 })}</td>
             <td>${fmtMoney(r.cost || 0)}</td>
             <td title="${esc(r.risk_index_note || '')}">${r.risk_index ? r.risk_index.toFixed(1) : '0.0'}${indexNote}</td>
@@ -575,6 +614,11 @@ function displayRiskResults(data) {
     });
     // NOTE: the bubble chart is rendered by initVisualizations() -> renderBubbleChart()
     // on the #bubbleChart canvas (see initVisualizations -> renderBubbleChart).
+}
+
+function originShareLabel(country, share) {
+    const label = esc(country || 'Unknown');
+    return `${label} — ${share === null || share === undefined ? 'share unavailable' : fmtPct(share)}`;
 }
 
 /**
@@ -627,6 +671,8 @@ function concentrationCell(r) {
             meta.push(`<span class="conc-note">U.S. exports (${fmtMoney(tb.exports_value_usd)}) exceed imports in ${esc(tb.year)} — imports are only part of U.S. supply.</span>`);
         }
         if (p.scope_note) meta.push(`Scope: ${esc(p.scope_note)}`);
+    } else if (r.trade_status === 'INVALID HS6') {
+        meta.push(`INVALID HS6: ${esc(r.hs6)} — enter exactly six digits; lookup skipped`);
     } else if (p.hs6_code) {
         meta.push(`HS6: ${esc(p.hs6_code)} — no trade data indexed`);
         meta.push(`HS6 match: ${mappingText}`);
@@ -846,7 +892,9 @@ function renderScenarioResults(res) {
             ? `<br><span class="muted-sm">Lead time ${esc(r.lead_time_before)} → ${esc(r.lead_time_after_affected_supply)} d (risk ${esc(r.lead_time_risk_before)} → ${esc(r.lead_time_risk_after_affected_supply)})</span>`
             : '';
         return `<tr>
-            <td style="font-weight:600;">${esc(r.name)}</td>
+            <td style="font-weight:600;">${esc(r.name || 'Unknown')}</td>
+            <td>${esc(r.hs6 || 'UNKNOWN')}</td>
+            <td>${esc(r.trade_status || 'HS6 MISSING')}</td>
             <td>${esc(routes)}</td>
             <td>${esc(r.target_country || '—')}</td>
             <td><span class="status-pill status-${r.status === 'EXPOSED' ? 'high' : (r.status === 'NOT_EXPOSED' ? 'low' : 'unknown')}" style="font-size:0.6rem; padding:1px 6px;">${esc(r.status === 'NOT_LISTED' ? 'NOT LISTED' : r.status)}</span> ${r.status === 'NOT_LISTED' ? '<span class="muted-sm">not in listed exporters</span>' : esc(r.exposure_share_label || '')}</td>
@@ -865,7 +913,7 @@ function renderScenarioResults(res) {
         </details>
         <div class="route-summary-grid">${routeCards}</div>
         <table class="risk-table scenario-table" style="margin-top:15px;">
-            <thead><tr><th>Reagent</th><th>Routes</th><th>Affected country</th><th>Exposure</th><th>Affected cost</th><th>Other observed source countries</th><th>Assessment</th></tr></thead>
+            <thead><tr><th>Reagent</th><th>HS6</th><th>Trade Status</th><th>Routes</th><th>Affected country</th><th>Exposure</th><th>Affected cost</th><th>Other observed source countries</th><th>Assessment</th></tr></thead>
             <tbody>${rows}</tbody>
         </table>`;
 }
@@ -877,7 +925,7 @@ function csvCell(value) {
 function exportRiskCSV() {
     if (!lastRiskResults) { alert('Run assessment first!'); return; }
     const header = [
-        'Reagent', 'CAS', 'Origin', 'Stability_Score', 'Mass_g', 'Cost', 'HS_Code', 'Risk_Index', 'Risk_Level',
+        'Reagent', 'HS6', 'Trade_Status', 'CAS', 'Origin', 'Primary_Origin_Share_Pct', 'Secondary_Origin', 'Secondary_Origin_Share_Pct', 'Origin_Share_Basis', 'Stability_Score', 'Mass_g', 'Cost', 'HS_Code', 'Risk_Index', 'Risk_Level',
         'Concentration_Pct', 'Concentration_Flag', 'Data_Source',
         'Origin_Source', 'Stability_Status', 'Geographic_Score', 'Top_Supplier', 'Top_Supplier_Share_Pct', 'Second_Supplier',
         'Second_Supplier_Share_Pct', 'Supplier_Countries', 'Concentration_Explanation', 'Trade_Source', 'Scope', 'Period',
@@ -893,7 +941,7 @@ function exportRiskCSV() {
         const a = r.alternatives || {};
         const m = p.hs6_mapping || {};
         const cells = [
-            r.name, r.cas, r.primary_origin, r.stability_score ?? '', r.mass_g, r.cost, r.hs_code || '', r.risk_index, r.risk_level,
+            r.name, r.hs6 || r.hs_code || 'UNKNOWN', r.trade_status, r.cas, r.primary_origin, r.primary_origin_share_pct ?? '', r.secondary_origin, r.secondary_origin_share_pct ?? '', p.share_basis_label || '', r.stability_score ?? '', r.mass_g, r.cost, r.hs_code || '', r.risk_index, r.risk_level,
             c.top_supplier_share ?? '', c.tier || '', p.source_label || '',
             g.origin_source || '', g.stability_status || '', (r.breakdown || {}).geographic ?? '', c.top_supplier_country || '',
             c.top_supplier_share ?? '', c.second_supplier_country || '', c.second_supplier_share ?? '',
@@ -944,7 +992,7 @@ async function saveMappings() {
 }
 
 function downloadSampleCSV() {
-    const csv = "Reagent,Reagent_CAS,Mass_g,Cost\nPlatinum on Carbon,7440-06-4,10,1500\nCopper(II) Chloride,7447-39-4,100,45\nBenzene,71-43-2,2000,50";
+    const csv = "Reagent_Name,HS6,Reagent_CAS,Mass_g,Cost\nantimony oxides,282580,,10,100\nPlatinum on Carbon,,7440-06-4,10,1500\nCopper(II) Chloride,,7447-39-4,100,45";
     const blob = new Blob([csv], { type: 'text/csv' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -954,7 +1002,7 @@ function downloadSampleCSV() {
 
 async function autoLookupOrigins() {
     const reagents = collectReagentInputs();
-    if (reagents.length === 0) { alert('Please enter at least one reagent.'); return; }
+    if (reagents.length === 0) { alert('Enter a reagent name or HS6 code in a row first.'); return; }
 
     const btn = document.querySelector('button[onclick="autoLookupOrigins()"]');
     const oldText = btn.textContent;
@@ -971,7 +1019,7 @@ async function autoLookupOrigins() {
         if (!res.ok) throw new Error(await res.text());
 
         const suggestions = await res.json();
-        const rows = document.querySelectorAll('#reagentRows .reagent-input-row');
+        const rows = activeRiskRows();
         
         suggestions.forEach((s, i) => {
             if (i < rows.length) {
@@ -979,8 +1027,10 @@ async function autoLookupOrigins() {
                 const pInput = row.querySelector('.r-origin');
                 const sInput = row.querySelector('.r-secondary-origin');
                 
-                if (!pInput.value || pInput.value === 'Unknown') { pInput.value = s.primary; row.dataset.autoOrigin = s.primary; }
-                if (!sInput.value || sInput.value === 'Unknown') { sInput.value = s.secondary; row.dataset.autoSecondary = s.secondary; }
+                if (!pInput.value || pInput.value === 'Unknown' || pInput.value === row.dataset.autoOrigin) { pInput.value = s.primary; row.dataset.autoOrigin = s.primary; }
+                if (!sInput.value || sInput.value === 'Unknown' || sInput.value === row.dataset.autoSecondary) { sInput.value = s.secondary; row.dataset.autoSecondary = s.secondary; }
+                const status = row.querySelector('.r-trade-status');
+                if (status) status.textContent = s.trade_status || 'HS6 MISSING';
                 
                 // Add visual highlight
                 pInput.style.background = '#e3f2fd';

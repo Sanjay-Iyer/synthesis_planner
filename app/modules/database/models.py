@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import List, Optional, Any
 from datetime import datetime
+from app.hs6 import HS6Input
 
 
 class CompoundInput(BaseModel):
@@ -35,6 +36,7 @@ class CompoundRecord(BaseModel):
 
 class RouteReagentInput(BaseModel):
     name: str
+    hs6: HS6Input = None
     mw: float
     pkg_size: float = 1.0
     pkg_price: float = 0.0

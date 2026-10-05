@@ -89,6 +89,8 @@ def items_from_assessment(reagent_results: Iterable[dict]) -> List[dict]:
         items.append(
             {
                 "name": r.get("name"),
+                "hs6": r.get("hs6", r.get("hs_code")),
+                "trade_status": r.get("trade_status"),
                 "cost": _num(r.get("cost")),
                 "routes": r.get("routes") or {},
                 "lead_time_days": _num(r.get("lead_time"), 14),
@@ -116,6 +118,8 @@ def _assess_item(item: dict, scenario: dict) -> dict:
     usable = [s for s in suppliers if _num(s.get("share_pct"), -1) > 0]
     out = {
         "name": item.get("name"),
+        "hs6": item.get("hs6"),
+        "trade_status": item.get("trade_status"),
         "target_country": target,
         "exposure_share_pct": None,
         "status": "UNKNOWN",

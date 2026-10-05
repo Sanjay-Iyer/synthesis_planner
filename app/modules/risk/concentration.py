@@ -471,7 +471,9 @@ def assess_data_quality(provenance: dict, concentration: dict) -> dict:
     """
     if provenance.get("status") != "success":
         reason = (
-            "No HS6 code is mapped for this reagent."
+            "Invalid HS6: enter exactly six digits; trade lookup skipped."
+            if provenance.get("status") == "invalid_hs6"
+            else "No HS6 code is mapped for this reagent."
             if provenance.get("status") == "no_hs6_mapping"
             else "No trade data is available for the mapped HS6 code."
         )

@@ -21,14 +21,14 @@
         .upload-zone.active { border-color: var(--secondary); background: rgba(39, 174, 96, 0.05); }
         .reagent-input-row {
             display: grid;
-            grid-template-columns: 2fr 1.2fr 1.2fr 1.2fr 0.8fr 0.8fr 0.6fr auto;
+            grid-template-columns: 2fr 0.9fr 1.2fr 1.2fr 1.2fr 0.8fr 0.8fr 0.6fr auto;
             gap: 12px;
             margin-bottom: 8px;
             align-items: center;
             transition: all 0.3s ease;
         }
         .reagent-input-row.advanced {
-            grid-template-columns: 2fr 1.2fr 1fr 1fr 0.7fr 0.7fr 0.6fr 0.8fr 0.7fr 0.7fr 0.7fr 0.7fr auto;
+            grid-template-columns: 2fr 0.9fr 1.2fr 1fr 1fr 0.7fr 0.7fr 0.6fr 0.7fr 0.7fr 0.7fr 0.7fr auto;
         }
         .reagent-input-row .adv-field { display: none; }
         .reagent-input-row.advanced .adv-field { display: block; }
@@ -36,6 +36,8 @@
         .reagent-input-row input { font-size: 0.8rem; width: 100%; }
         .risk-table { margin-top: 15px; }
         .risk-table td { font-size: 0.85em; }
+        .risk-table td:nth-child(2) { min-width: 70px; white-space: nowrap; }
+        .risk-table td.origin-cell { min-width: 150px; }
         .bubble-chart-wrapper {
             background: var(--dark);
             border-radius: var(--radius);
@@ -175,7 +177,7 @@
         <h1 style="margin-bottom: 16px;">🌍 Supply Chain Risk Assessment</h1>
 
         <div class="hint">
-            <b>How to use:</b> Enter your reagents with CAS numbers below, or upload a CSV (with columns: Reagent, Reagent_CAS, Mass_g, Cost).
+            <b>How to use:</b> Enter reagent names and six-digit HS6 codes, or upload a CSV (Reagent_Name, HS6, Reagent_CAS, Mass_g, Cost). HS6 is a trade category shared by potentially several chemicals. Blank HS6 uses the CAS/structure/name resolver.
             Click <b>"Run Risk Assessment"</b> to analyze geographic supply chain vulnerabilities.
         </div>
 
@@ -210,13 +212,13 @@
                 <div style="margin-top: 20px;">
                     <div class="reagent-input-row" id="inputHeader" style="font-weight:600; font-size:0.75rem; color:var(--text-muted); text-transform:uppercase;">
                         <div>Reagent Name</div>
+                        <div title="Six-digit trade category. Blank uses the automatic resolver.">HS6</div>
                         <div>CAS Number</div>
                         <div>Primary Origin</div>
                         <div>Secondary Origin</div>
                         <div>Mass (g)</div>
                         <div>Cost ($)</div>
                         <div title="Route(s) using this reagent, e.g. A or A,B. Filled automatically from the Planner.">Route</div>
-                        <div class="adv-field" title="Optional HS6 code you know applies (highest mapping priority; shown as user-entered).">HS6</div>
                         <div class="adv-field">Lead (d)</div>
                         <div class="adv-field">Haz (1-10)</div>
                         <div class="adv-field">Reg (1-10)</div>
@@ -286,10 +288,12 @@
                 <thead>
                     <tr>
                         <th>Reagent</th>
+                        <th>HS6</th>
                         <th>CAS</th>
                         <th>Origin</th>
                         <th>Stability</th>
                         <th>Concentration</th>
+                        <th>Trade Status</th>
                         <th>Mass (g)</th>
                         <th>Cost ($)</th>
                         <th>Risk Index</th>

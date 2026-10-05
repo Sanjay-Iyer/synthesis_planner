@@ -2,7 +2,7 @@
   "metadata": {
     "schema_version": "1.1.0",
     "created_at": "2026-05-13T17:00:13.102796+00:00",
-    "last_updated": "2026-05-13T18:38:46.881780+00:00",
+    "last_updated": "2026-10-05T14:56:34.534763+00:00",
     "source": "WITS / World Bank",
     "description": "Top exporters by HS6 product code, year, trade flow, and partner",
     "default_top_n": 5,
@@ -2405,9 +2405,9 @@
             "risk_basis": "Top exporter share of top 5 exporters by quantity"
           },
           "source": {
-            "filename": "WITS-By-HS6Product (21).xlsx",
-            "sheet_name": null,
-            "ingested_at": "2026-05-13T18:32:47.341191+00:00",
+            "filename": "tmpg5c55297.xlsx",
+            "sheet_name": "By-HS6Product",
+            "ingested_at": "2026-10-05T14:56:34.534763+00:00",
             "parser_version": "1.0.0",
             "row_count_raw": null,
             "row_count_valid_quantity": 5,

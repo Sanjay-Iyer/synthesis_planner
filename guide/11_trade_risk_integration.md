@@ -43,7 +43,28 @@ The system analyzes the share of the top exporters within the top 5 ranking.
 The system emits warnings if major exporters (by trade value) are excluded because they failed to report quantity. This is surfaced as a **"Data Quality Note"** in the risk report.
 
 ## 4. Compound to HS6 Mapping
-To analyze a compound, the system must map its InChIKey to a 6-digit HS code. This mapping is stored in:
+Enter a six-digit **HS6** beside the reagent name in the Planner or Risk Audit,
+then press **Run Risk Assessment**. Explicit HS6 is the primary trade-data key;
+the original name is retained and does not have to match a registry name.
+**Auto-Lookup Origins** fills the input row's primary/secondary origin suggestions.
+The Risk Audit accepts an HS6-only row as well; a missing display name is shown
+as `Unknown` in the risk report. Lookup status appears beneath the HS6 input.
+
+The assessed Origin column shows **Primary: country — share%** and
+**Secondary: country — share%**, with the share basis. The export report retains
+both origin shares and that basis. Unreported shares stay unavailable, not zero.
+Higher dominant-country shares imply greater sourcing concentration: the
+existing rules classify a top-country share of at least 50%, or a combined
+top-two share of at least 80%, as HIGH. Thus 98% from China is HIGH concentration.
+Concentration is tracked separately from the existing composite Risk Index.
+WITS percentages here represent export quantity among the listed exporters,
+not the fraction of all global production or of a user's purchases.
+
+HS6 identifies a customs product category, which can be shared by several
+chemicals. It does not establish a chemical's identity.
+
+With HS6 blank, the existing CAS, structure/InChIKey, compound registry and
+canonical-name resolver remains available. The InChIKey/name mapping is stored in:
 `<repo-root>/database/compound_hs6_map.json`
 
 Currently supported CONFIRMED mappings:
@@ -58,6 +79,23 @@ Currently supported CONFIRMED mappings:
 - **InchiKey Generation**: Performed automatically via RDKit on first load.
 - **Filtering**: Only `TradeFlow == Export` and `Partner == World` rows are analyzed.
 - **Ranking**: Strictly by **Quantity**, not Trade Value.
+- **Join field**: `ProductCode` on the `By-HS6Product` sheet, normalized to a
+  six-digit string and stored as `products[hs6].hs6_code`.
+- **CSV input**: `Reagent_Name,HS6`; headers `hs6`, `HS6_Code`, `HS_Code` also
+  work. Code cells remain strings, including leading zeroes. Whitespace is
+  removed; malformed codes (including decimals or scientific notation) are
+  flagged instead of repaired or replaced by automatic name lookup.
+- **Audit statuses**: `MATCHED`, `NO WITS DATA` (known code, no usable indexed
+  trade data), `HS6 MISSING`, `INVALID HS6`, and `TRADE LOOKUP ERROR` for a
+  technical failure. Existing USITC import data remains preferred over WITS.
+- **Persistence**: Optional `hs6` travels with the reagent through JSON routes,
+  route-report CSV, SQLite `step_reagents.hs6` (TEXT), estimates, assessments
+  and scenarios. Historical routes without HS6 still load; schema migration
+  only adds a nullable column. `hs_code` remains a result alias for older clients.
+
+For example, `antimony oxides,282580` matches the same WITS category as a
+reagent called `Antimony trioxide catalyst` supplied with that code. Missing
+HS6 never causes an unrecognized name to be associated with unrelated trade data.
 
 ---
 *Created on 2026-05-13*

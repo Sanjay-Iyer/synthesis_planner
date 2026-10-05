@@ -26,6 +26,7 @@ import re
 from typing import Optional
 
 from app.config import COMPOUND_HS6_MAP_PATH
+from app.hs6 import hs6_text, normalize_hs6
 
 QUALITY_ORDER = ["HIGH", "MEDIUM", "LOW"]
 
@@ -88,13 +89,11 @@ _THEIR_RE = re.compile(r"\btheir\b", re.I)
 
 
 def clean_hs6(value) -> Optional[str]:
-    """Digits-only, zero-padded HS6 code, or None (also for NaN/blank)."""
-    if value is None:
-        return None
-    digits = "".join(filter(str.isdigit, str(value)))
-    if not digits:
-        return None
-    return digits[:6].zfill(6)
+    """Trusted legacy maps may use customs notation such as 2917.36."""
+    text = hs6_text(value)
+    if text and re.fullmatch(r"[0-9]{4}\.[0-9]{2}", text):
+        text = text.replace(".", "")
+    return normalize_hs6(text)
 
 
 def inchikey_from_structure(structure: Optional[str]) -> Optional[str]:
@@ -211,9 +210,15 @@ def resolve_hs6(
     found = _resolution(None, None)
     extras = {"mapped_origin": None, "db_primary_origin": None, "db_secondary_origin": None}
 
-    user_hs6 = clean_hs6(hs6_input)
-    if user_hs6:
-        found = _resolution(user_hs6, "user_input", "User-entered HS6; not independently verified.")
+    explicit = hs6_text(hs6_input)
+    if explicit is not None:
+        user_hs6 = normalize_hs6(explicit)
+        if user_hs6 is None:
+            return {**_resolution(None, "user_input", "Invalid HS6: enter exactly six digits."),
+                    **extras, "input_hs6": explicit, "validation_status": "INVALID HS6"}
+        found = _resolution(user_hs6, "user_input", "User-entered HS6 trade category; not independently verified.")
+        # Explicit mapping does not depend on registry/name/structure lookups.
+        return {**found, **extras}
 
     if cas and df_mapping is not None and not df_mapping.empty:
         rows = df_mapping[df_mapping["Reagent_CAS"].astype(str).str.strip() == cas]

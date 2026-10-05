@@ -5,6 +5,7 @@ Migrated from python-polymer/backend/main.py
 
 from pydantic import BaseModel
 from typing import List, Optional
+from app.hs6 import HS6Input
 
 # =================================================================
 # DATA MODELS
@@ -13,6 +14,7 @@ from typing import List, Optional
 
 class ReagentInput(BaseModel):
     name: str
+    hs6: HS6Input = None
     mw: float
     cost_per_g: float = 0.0
     # Molar EQUIVALENTS (a stoichiometric ratio), not an absolute mole count.
@@ -119,7 +121,7 @@ def calculate_engine(project: SynthesisProject):
             mat_cost += cost
             total_input_mass_g += mass
             reagents_to_buy.append(
-                {"name": r.name, "mass_g": round(mass, 2), "item_cost": round(cost, 2)}
+                {"name": r.name, "hs6": r.hs6, "mass_g": round(mass, 2), "item_cost": round(cost, 2)}
             )
 
         vol = (scaled_anchor / step.molarity) if step.molarity > 0 else 0

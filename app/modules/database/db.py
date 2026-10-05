@@ -202,6 +202,8 @@ def init_db():
     # --- Migration: rename legacy step_reagents.moles -> equivalents ---
     cursor.execute("PRAGMA table_info(step_reagents)")
     sr_columns = [col[1] for col in cursor.fetchall()]
+    if "hs6" not in sr_columns:
+        cursor.execute("ALTER TABLE step_reagents ADD COLUMN hs6 TEXT")
     if "moles" in sr_columns and "equivalents" not in sr_columns:
         try:
             cursor.execute(
@@ -450,6 +452,10 @@ def compute_route_hash(route_data: dict, target_molecule: str) -> str:
             parts.append(str(reagent.get("mass", "")))
             parts.append(reagent.get("smiles", "") or "")
             parts.append(reagent.get("selfies", "") or "")
+            # Preserve historical hashes for routes with no HS6. A new mapping
+            # must create a distinct route definition instead of losing edits.
+            if reagent.get("hs6"):
+                parts.append("hs6=" + reagent["hs6"])
 
     stable_str = "|".join(parts)
     return hashlib.sha256(stable_str.encode("utf-8")).hexdigest()
@@ -541,8 +547,8 @@ def save_route_transaction(conn, request: Any) -> dict:
                     """
                 INSERT INTO step_reagents (
                     uuid, step_uuid, route_uuid, compound_uuid, name, role, smiles, selfies, mw, 
-                    pkg_size, pkg_price, cost_per_g, equivalents, mass, mass_unit, is_limiting, raw_reagent_json
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    pkg_size, pkg_price, cost_per_g, equivalents, mass, mass_unit, is_limiting, raw_reagent_json, hs6
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                     (
                         reagent_uuid,
@@ -562,6 +568,7 @@ def save_route_transaction(conn, request: Any) -> dict:
                         reagent.mass_unit,
                         1 if reagent.is_limiting else 0,
                         json.dumps(reagent_data),
+                        reagent.hs6,
                     ),
                 )
 

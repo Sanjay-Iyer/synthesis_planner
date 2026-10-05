@@ -95,7 +95,7 @@ def test_missing_mapping_returns_no_code_and_no_quality():
 
 
 def test_user_entered_hs6_takes_priority():
-    res = resolve_hs6("anything", cas="100-21-0", df_mapping=CAS, hs6_input="2905.31")
+    res = resolve_hs6("anything", cas="100-21-0", df_mapping=CAS, hs6_input=" 290531 ")
     assert res["hs6"] == "290531"
     assert res["match_method"] == "user_input"
     assert "not independently verified" in res["note"]

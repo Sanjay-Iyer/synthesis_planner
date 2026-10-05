@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 import uuid
 
 from typing import List, Dict
+from app.hs6 import normalize_hs6
 
 
 def parse_wits_file(xlsx_path: str) -> List[dict]:
@@ -34,13 +35,16 @@ def parse_wits_file(xlsx_path: str) -> List[dict]:
         if col not in df.columns:
             raise ValueError(f"Required column '{col}' is missing")
 
-    # Clean ProductCode: pad to 6 chars
-    df["ProductCode"] = df["ProductCode"].astype(str).str.zfill(6)
+    # ProductCode on By-HS6Product is the HS6 join key, never the description.
+    df["ProductCode"] = df["ProductCode"].map(normalize_hs6)
 
     # Filter strictly: TradeFlow == Export AND Partner.strip() == World
     df["PartnerClean"] = df["Partner"].astype(str).str.strip()
     mask = (df["TradeFlow"].str.strip() == "Export") & (df["PartnerClean"] == "World")
     df_filtered = df[mask].copy()
+
+    if df_filtered["ProductCode"].isna().any():
+        raise ValueError("Invalid HS6 in WITS ProductCode: expected exactly six digits")
 
     if df_filtered.empty:
         raise ValueError("No rows survive the Export+World filter")

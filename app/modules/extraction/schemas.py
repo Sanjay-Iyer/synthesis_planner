@@ -9,6 +9,7 @@ which requires mw/equivalents/mass — a draft is allowed to be incomplete.
 
 from pydantic import BaseModel
 from typing import List, Optional
+from app.hs6 import HS6Input
 
 
 class ParseRequest(BaseModel):
@@ -30,6 +31,7 @@ class ModelsResponse(BaseModel):
 
 class DraftReagent(BaseModel):
     name: Optional[str] = None
+    hs6: HS6Input = None
     mw: Optional[float] = None
     equivalents: Optional[float] = None
     mass: Optional[float] = None

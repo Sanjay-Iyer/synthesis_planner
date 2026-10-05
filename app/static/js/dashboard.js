@@ -51,6 +51,10 @@ function addStep(side, data = null) {
                                 <label style="font-size:0.75em; font-weight:bold; color:var(--text);">Reagent</label>
                                 <input type="text" class="r-name" value="${r.name || ''}" style="width:100%;" placeholder="e.g. Aniline">
                             </div>
+                            <div style="display:flex; flex-direction:column; gap:4px; min-width:90px;">
+                                <label style="font-size:0.75em; font-weight:bold;">HS6</label>
+                                <input type="text" class="r-hs6" value="${String(r.hs6 || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;')}" placeholder="UNKNOWN" inputmode="numeric" title="Optional six-digit trade category" style="width:100px;">
+                            </div>
                             <div style="flex: 1; min-width: 80px; display: flex; flex-direction: column; gap: 4px;">
                                 <label style="font-size:0.75em; font-weight:bold; color:var(--text);">MW</label>
                                 <input type="number" step="any" class="r-mw" value="${r.mw || ''}" oninput="calcStoich(this)" style="width:100%;" placeholder="MW">
@@ -95,6 +99,10 @@ function addStep(side, data = null) {
                             <div style="flex: 2; min-width: 150px; display: flex; flex-direction: column; gap: 4px;">
                                 <label style="font-size:0.75em; font-weight:bold; color:var(--text);">Reagent</label>
                                 <input type="text" class="r-name" style="width:100%;" placeholder="e.g. Aniline">
+                            </div>
+                            <div style="display:flex; flex-direction:column; gap:4px; min-width:90px;">
+                                <label style="font-size:0.75em; font-weight:bold;">HS6</label>
+                                <input type="text" class="r-hs6" value="" placeholder="UNKNOWN" inputmode="numeric" title="Optional six-digit trade category" style="width:100px;">
                             </div>
                             <div style="flex: 1; min-width: 80px; display: flex; flex-direction: column; gap: 4px;">
                                 <label style="font-size:0.75em; font-weight:bold; color:var(--text);">MW</label>
@@ -215,6 +223,10 @@ function addReagentRow(side, stepId) {
                 <label style="font-size:0.75em; font-weight:bold; color:var(--text);">Reagent</label>
                 <input type="text" class="r-name" style="width:100%;" placeholder="e.g. Aniline">
             </div>
+            <div style="display:flex; flex-direction:column; gap:4px; min-width:90px;">
+                <label style="font-size:0.75em; font-weight:bold;">HS6</label>
+                <input type="text" class="r-hs6" value="" placeholder="UNKNOWN" inputmode="numeric" title="Optional six-digit trade category" style="width:100px;">
+            </div>
             <div style="flex: 1; min-width: 80px; display: flex; flex-direction: column; gap: 4px;">
                 <label style="font-size:0.75em; font-weight:bold; color:var(--text);">MW</label>
                 <input type="number" step="any" class="r-mw" oninput="calcStoich(this)" style="width:100%;" placeholder="MW">
@@ -283,6 +295,10 @@ async function addReagentFromSmiles(side, stepId) {
                 <div style="flex: 2; min-width: 150px; display: flex; flex-direction: column; gap: 4px;">
                     <label style="font-size:0.75em; font-weight:bold; color:var(--text);">Reagent</label>
                     <input type="text" class="r-name" style="width:100%;" placeholder="e.g. Aniline">
+                </div>
+                <div style="display:flex; flex-direction:column; gap:4px; min-width:90px;">
+                    <label style="font-size:0.75em; font-weight:bold;">HS6</label>
+                    <input type="text" class="r-hs6" value="" placeholder="UNKNOWN" inputmode="numeric" title="Optional six-digit trade category" style="width:100px;">
                 </div>
                 <div style="flex: 1; min-width: 80px; display: flex; flex-direction: column; gap: 4px;">
                     <label style="font-size:0.75em; font-weight:bold; color:var(--text);">MW</label>
@@ -540,6 +556,7 @@ function collectStepData(side) {
             const is_limiting = row.querySelector('.r-lim')?.checked || false;
             return {
                 name: name,
+                hs6: (row.querySelector('.r-hs6')?.value || '').replace(/\s+/g, '') || null,
                 mw: mw,
                 pkg_size: pkgsz,
                 pkg_price: pkgpr,
@@ -1325,11 +1342,11 @@ function exportToCSV() {
     if (!lastAnalysis.vA && !lastAnalysis.vB) { alert("Run analysis first!"); return; }
 
     let csv = "--- SECTION 1: ROUTE STEPS DETAILS ---\n";
-    csv += "Route,Step,Name,Molarity,Solvent,Reagent,Mass_g,Cost\n";
+    csv += "Route,Step,Name,Molarity,Solvent,Reagent,HS6,Mass_g,Cost\n";
     ['vA', 'vB'].forEach(side => {
         const res = lastAnalysis[side];
         if(res?.steps) res.steps.forEach(s => { 
-            s.reagents.forEach(r => { csv += `${side},${s.step_id},"${s.name}",${s.molarity},"${s.solvent_name}","${r.name}",${r.mass_g},${r.item_cost}\n`; }); 
+            s.reagents.forEach(r => { csv += `${side},${s.step_id},"${s.name}",${s.molarity},"${s.solvent_name}","${r.name}","${r.hs6 || ''}",${r.mass_g},${r.item_cost}\n`; });
         });
     });
 
@@ -1352,13 +1369,13 @@ function exportToCSV() {
     csv += `E-Factor,${lastAnalysis.vA?.e_factor || 0},${lastAnalysis.vB?.e_factor || 0}\n`;
 
     csv += "\n--- SECTION 4: RAW INPUT DATA FOR HYDRATION ---\n";
-    csv += "Route,Step,Name,Product_MW,Temperature,Time,Molarity,Solvent_Name,Solvent_Volume,Solvent_Volume_Unit,Solvent_Bottle_L,Solvent_Bottle_Price,Yield_Percent,Procedure,Depends_On,Reagent_Name,MW,Pkg_Size,Pkg_Price,Equivalents,Mass,Mass_Unit,Is_Limiting,Solvent_Bottle_Amount,Solvent_Bottle_Unit\n";
+    csv += "Route,Step,Name,Product_MW,Temperature,Time,Molarity,Solvent_Name,Solvent_Volume,Solvent_Volume_Unit,Solvent_Bottle_L,Solvent_Bottle_Price,Yield_Percent,Procedure,Depends_On,Reagent_Name,HS6,MW,Pkg_Size,Pkg_Price,Equivalents,Mass,Mass_Unit,Is_Limiting,Solvent_Bottle_Amount,Solvent_Bottle_Unit\n";
     ['vA', 'vB'].forEach(side => {
         const steps = collectStepData(side);
         steps.forEach(s => {
             const depsStr = (s.depends_on || []).join(';');
             s.reagents.forEach(r => {
-                csv += `${side},${s.step_id},"${s.name}",${s.product_mw},"${s.temperature}","${s.time}",${s.molarity},"${s.solvent_name}",${s.solvent_volume},"${s.solvent_volume_unit}",${s.solvent_bottle_l},${s.solvent_bottle_price},${s.yield_percent},"${(s.procedure || '').replace(/"/g, '""')}",${depsStr},"${r.name}",${r.mw},${r.pkg_size},${r.pkg_price},${r.equivalents},${r.mass},"${r.mass_unit}",${r.is_limiting},${s.solvent_bottle_amount},"${s.solvent_bottle_unit}"\n`;
+                csv += `${side},${s.step_id},"${s.name}",${s.product_mw},"${s.temperature}","${s.time}",${s.molarity},"${s.solvent_name}",${s.solvent_volume},"${s.solvent_volume_unit}",${s.solvent_bottle_l},${s.solvent_bottle_price},${s.yield_percent},"${(s.procedure || '').replace(/"/g, '""')}",${depsStr},"${r.name}","${r.hs6 || ''}",${r.mw},${r.pkg_size},${r.pkg_price},${r.equivalents},${r.mass},"${r.mass_unit}",${r.is_limiting},${s.solvent_bottle_amount},"${s.solvent_bottle_unit}"\n`;
             });
         });
     });
@@ -1411,20 +1428,22 @@ async function pushToRiskAudit() {
         }));
 
         const rows = scaled
-            ? estimate.steps.flatMap(s => (s.reagents || []).map(r => ({ name: r.name, mass_g: r.mass_g, cost: r.item_cost })))
+            ? estimate.steps.flatMap(s => (s.reagents || []).map(r => ({ name: r.name, hs6: r.hs6, mass_g: r.mass_g, cost: r.item_cost })))
             : steps.flatMap(s => s.reagents.map(r => {
                 let mass = parseFloat(r.mass) || 0;
                 if (r.mass_unit === 'mg') mass /= 1000;
                 if (r.mass_unit === 'kg') mass *= 1000;
-                return { name: r.name, mass_g: mass, cost: mass * (parseFloat(r.cost_per_g) || 0) };
+                return { name: r.name, hs6: r.hs6, mass_g: mass, cost: mass * (parseFloat(r.cost_per_g) || 0) };
             }));
 
         rows.forEach(r => {
             if (!r.name || !r.name.trim()) return;
-            const key = r.name.toLowerCase().trim();
-            if (!reagentMap[key]) reagentMap[key] = { name: r.name, cas: '', mass_g: 0, cost: 0, routes: {} };
+            const nameKey = r.name.toLowerCase().trim();
+            // Same name with different trade categories must remain separate.
+            const key = JSON.stringify([nameKey, r.hs6 || null]);
+            if (!reagentMap[key]) reagentMap[key] = { name: r.name, hs6: r.hs6 || null, cas: '', mass_g: 0, cost: 0, routes: {} };
             const entry = reagentMap[key];
-            if (!entry.structure && structureByName[key]) entry.structure = structureByName[key];
+            if (!entry.structure && structureByName[nameKey]) entry.structure = structureByName[nameKey];
             const mass = parseFloat(r.mass_g) || 0;
             const cost = parseFloat(r.cost) || 0;
             entry.mass_g += mass;
@@ -1495,6 +1514,7 @@ function loadFromCSV(event) {
         const lines = text.split('\n');
         
         let inSection4 = false;
+        let section4HS6 = -1;
         const data = { vA: {}, vB: {} };
 
         function parseCSVLine(line) {
@@ -1527,6 +1547,11 @@ function loadFromCSV(event) {
 
             if (inSection4 && line.trim()) {
                 const parts = parseCSVLine(line);
+                if (parts[0] === 'Route') {
+                    section4HS6 = parts.findIndex(h => /^(hs6|hs6_code|hs_code)$/i.test(h.trim()));
+                    return;
+                }
+                const hs6 = section4HS6 >= 0 ? (parts.splice(section4HS6, 1)[0] || '').replace(/\s+/g, '') || null : null;
                 if (parts && parts.length >= 23 && parts[0] !== 'Route') {
                     const side = parts[0].trim();
                     const stepId = parseInt(parts[1]);
@@ -1543,7 +1568,7 @@ function loadFromCSV(event) {
                     const yieldVal = parseFloat(parts[12]) || 100;
                     const proc = parts[13].replace(/"/g, '').trim();
                     const deps = parts[14].trim() ? parts[14].split(';').map(d => parseInt(d)) : [];
-                    const reagentName = parts[15].replace(/"/g, '').trim();
+                    const reagentName = parts[15].trim();
                     const mw = parseFloat(parts[16]) || 0;
                     const pkgsz = parseFloat(parts[17]) || 1;
                     const pkgpr = parseFloat(parts[18]) || 0;
@@ -1577,6 +1602,7 @@ function loadFromCSV(event) {
                         }
                         data[side][stepId].reagents.push({
                             name: reagentName,
+                            hs6: hs6,
                             mw: mw,
                             pkg_size: pkgsz,
                             pkg_price: pkgpr,
@@ -1599,20 +1625,26 @@ function loadFromCSV(event) {
             });
         } else {
             let inSection1 = false;
+            let section1HS6 = -1;
             const data1 = { vA: {}, vB: {} };
             lines.forEach(line => {
                 if (line.includes('--- SECTION 1')) { inSection1 = true; return; }
                 if (line.includes('---')) { inSection1 = false; return; }
                 
                 if (inSection1 && line.trim()) {
-                    const parts = line.split(',');
+                    const parts = parseCSVLine(line);
+                    if (parts[0] === 'Route') {
+                        section1HS6 = parts.findIndex(h => /^(hs6|hs6_code|hs_code)$/i.test(h.trim()));
+                        return;
+                    }
+                    const hs6 = section1HS6 >= 0 ? (parts.splice(section1HS6, 1)[0] || '').replace(/\s+/g, '') || null : null;
                     if (parts.length >= 8 && parts[0] !== 'Route') {
                         const side = parts[0].trim();
                         const stepId = parseInt(parts[1]);
                         const name = parts[2].replace(/"/g, '').trim();
                         const molarity = parseFloat(parts[3]) || 0;
                         const solvent = parts[4].replace(/"/g, '').trim();
-                        const reagentName = parts[5].replace(/"/g, '').trim();
+                        const reagentName = parts[5].trim();
                         const mass = parseFloat(parts[6]) || 0;
                         const cost = parseFloat(parts[7]) || 0;
 
@@ -1628,6 +1660,7 @@ function loadFromCSV(event) {
                             }
                             data1[side][stepId].reagents.push({
                                 name: reagentName,
+                                hs6: hs6,
                                 mass: mass,
                                 cost_per_g: cost / (mass || 1)
                             });

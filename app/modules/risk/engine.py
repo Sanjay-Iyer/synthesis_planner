@@ -11,6 +11,7 @@ from pathlib import Path
 import pandas as pd
 from pydantic import BaseModel
 from typing import Dict, List, Optional
+from app.hs6 import HS6Input, normalize_hs6
 
 from .concentration import (
     CONCENTRATION_THRESHOLDS,
@@ -70,7 +71,7 @@ class ReagentRiskInput(BaseModel):
     # Route label -> usage, e.g. {"A": {"cost": 120.0, "mass_g": 400.0}}.
     routes: Dict[str, RouteUsage] = {}
     # Optional explicit HS6 code (user-asserted; highest mapping priority).
-    hs6: Optional[str] = None
+    hs6: HS6Input = None
     # Optional structure identifier (SMILES, InChI, InChIKey or SELFIES) used
     # for an exact InChIKey -> HS6 match.
     structure: Optional[str] = None
@@ -94,11 +95,15 @@ class RiskBreakdown(BaseModel):
 
 class ReagentRiskResult(BaseModel):
     name: str
+    hs6: Optional[str] = None
+    trade_status: str = "HS6 MISSING"
     cas: str
     primary_origin: str
+    primary_origin_share_pct: Optional[float] = None
     # None when the origin is unknown or has no WGI score (see geographic_exposure).
     stability_score: Optional[float] = None
     secondary_origin: str = "Unknown"
+    secondary_origin_share_pct: Optional[float] = None
     secondary_stability_score: Optional[float] = None
     mass_g: float
     cost: float
@@ -234,10 +239,13 @@ def lookup_suggested_origins(reagent_inputs: List[dict]) -> List[dict]:
                 "hs6_match_method": resolved["match_method"],
                 "hs6_mapping_quality": resolved["mapping_quality"],
                 "source_label": None,
+                "trade_status": ("INVALID HS6" if resolved.get("validation_status") == "INVALID HS6"
+                                 else "NO WITS DATA" if resolved["hs6"] else "HS6 MISSING"),
             }
             if resolved["hs6"]:
                 concentration = get_supply_chain_concentration(resolved["hs6"])
                 if concentration.get("status") == "success":
+                    suggested["trade_status"] = "MATCHED"
                     countries = _country_suppliers(concentration)
                     if countries:
                         suggested["primary"] = countries[0]["country"]
@@ -266,8 +274,9 @@ def get_supply_chain_concentration(hs6_code: str, year: Optional[int] = None) ->
     """
     from app.modules.trade_data import db as trade_db
 
-    # Normalize HS6: digits only, padded to 6
-    clean_hs6 = "".join(filter(str.isdigit, str(hs6_code))).zfill(6)
+    clean_hs6 = normalize_hs6(hs6_code)
+    if clean_hs6 is None:
+        return {"status": "invalid_hs6", "hs6_code": None}
 
     # 1. Supply-chain folder (USITC) — primary, authoritative U.S. import origins
     try:
@@ -567,6 +576,9 @@ def _assess_reagent(r: ReagentRiskInput, df_mapping, stability_table, meta, conn
         except Exception as e:
             supply_chain_data = {"status": "error", "detail": str(e)}
             warnings.append(f"Technical error during trade-data lookup for {r.name}.")
+    elif resolved.get("validation_status") == "INVALID HS6":
+        supply_chain_data = {"status": "invalid_hs6"}
+        warnings.append("Invalid HS6: enter exactly six digits; trade lookup skipped.")
     else:
         supply_chain_data = {"status": "no_hs6_mapping"}
         warnings.append(f"No HS6 code available for {r.name}; supply chain lookup skipped.")
@@ -700,12 +712,26 @@ def _assess_reagent(r: ReagentRiskInput, df_mapping, stability_table, meta, conn
         )
 
     conc_score = conc["top_supplier_share"] if conc["tier"] != "UNKNOWN" else None
+    # Associate shares with the displayed origins, including user overrides;
+    # a country absent from the trade data has an unknown share, never 0%.
+    def origin_share(country):
+        return next((s["share_pct"] for s in profile["suppliers"]
+                     if not s.get("is_aggregate") and canonical_country(s["country"]) == canonical_country(country)), None)
+
     return ReagentRiskResult(
         name=r.name,
+        hs6=target_hs6 or r.hs6,
+        trade_status=("INVALID HS6" if resolved.get("validation_status") == "INVALID HS6"
+                      else "HS6 MISSING" if not target_hs6
+                      else "MATCHED" if has_trade
+                      else "TRADE LOOKUP ERROR" if supply_chain_data.get("status") == "error"
+                      else "NO WITS DATA"),
         cas=r.cas,
         primary_origin=origin,
+        primary_origin_share_pct=origin_share(origin) if has_trade else None,
         stability_score=entry["score"] if entry else None,
         secondary_origin=secondary_origin,
+        secondary_origin_share_pct=origin_share(secondary_origin) if has_trade else None,
         secondary_stability_score=sec_entry["score"] if sec_entry else None,
         mass_g=r.mass_g,
         cost=r.cost,
@@ -772,6 +798,8 @@ def _reagent_brief(result: ReagentRiskResult) -> dict:
     prov = result.provenance or {}
     return {
         "name": result.name,
+        "hs6": result.hs6,
+        "trade_status": result.trade_status,
         "tier": conc.get("tier"),
         "top_supplier_country": conc.get("top_supplier_country"),
         "top_supplier_share": conc.get("top_supplier_share"),
